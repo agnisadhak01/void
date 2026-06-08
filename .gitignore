@@ -28,3 +28,6 @@ product.overrides.json
 .tool-versions
 src/vs/workbench/contrib/void/browser/react/out/**
 src/vs/workbench/contrib/void/browser/react/src2/**
+
+# Cursor client installer and extraction artifacts (local only; regenerate with scripts/extract-cursor-client.ps1)
+cursor/

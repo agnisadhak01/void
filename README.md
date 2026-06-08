@@ -55,6 +55,9 @@ Void is a fork of the [vscode](https://github.com/microsoft/vscode) repository. 
 
 For a guide on how to develop your own version of Void, see [HOW_TO_CONTRIBUTE](https://github.com/voideditor/void/blob/main/HOW_TO_CONTRIBUTE.md) and [void-builder](https://github.com/voideditor/void-builder).
 
+- Feature inventory (implemented + Cursor-merge targets): [docs/FEATURES.md](docs/FEATURES.md)
+- Cursor → Void merge workflow (user-driven decisions per release): [docs/CURSOR_MERGE_WORKFLOW.md](docs/CURSOR_MERGE_WORKFLOW.md)
+
 
 
 ## Support
