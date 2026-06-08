@@ -2,6 +2,8 @@
 
 > **You decide what ships.** This report records your choices per feature. Scripts only help inventory Cursor files — they do not select what to merge.
 
+**Workflow graph:** [CURSOR_MERGE_WORKFLOW.md](../CURSOR_MERGE_WORKFLOW.md) | **Build:** [BUILD.md](../BUILD.md) | **Features:** [FEATURES.md](../FEATURES.md)
+
 ## Metadata
 
 | Field | Value |

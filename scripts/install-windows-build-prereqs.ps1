@@ -35,23 +35,26 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools `
     --accept-package-agreements --accept-source-agreements `
     --override $vsOverride
 
-Write-Host "`n[2/2] Installing NVM for Windows (optional Node version manager)..." -ForegroundColor Green
+Write-Host "`n[2/3] Installing Windows 10 SDK 10.0.22621..." -ForegroundColor Green
+winget install --id Microsoft.WindowsSDK.10.0.22621 `
+    --accept-package-agreements --accept-source-agreements
+
+Write-Host "`n[3/3] Installing NVM for Windows..." -ForegroundColor Green
 winget install --id CoreyButler.NVMforWindows `
     --accept-package-agreements --accept-source-agreements
 
 Write-Host @"
 
-=== Next steps (new terminal after NVM install) ===
+=== Next steps — see docs/BUILD.md for full knowledge graph ===
 
   cd X:\Void
   nvm install 20.18.2
   nvm use 20.18.2
-  node -v    # should print v20.18.2
+  npm install -g npm@11
+  node -v    # v20.18.2
 
-  npm install
-  `$env:NODE_OPTIONS='--max-old-space-size=8192'; npm run buildreact
-  npm run compile
-  npm run gulp vscode-win32-x64
+  # npm install from VS Developer Command Prompt if native modules fail — see BUILD.md
+  .\scripts\build-windows-exe.ps1
 
 Output: X:\VSCode-win32-x64\Void.exe
 

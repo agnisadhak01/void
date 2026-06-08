@@ -1,5 +1,6 @@
 # Build a local Void Windows x64 executable.
-# Prerequisites: VS 2022 Build Tools (C++), Node 20.18.x, completed npm install.
+# Full prerequisite graph and troubleshooting: docs/BUILD.md
+# Ecosystem / CI releases: docs/ECOSYSTEM.md
 #
 # Usage (from repo root):
 #   Set-ExecutionPolicy -Scope Process Bypass

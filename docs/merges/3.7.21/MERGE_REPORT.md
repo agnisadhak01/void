@@ -55,11 +55,25 @@ _(only for `implement` / `adapt` rows above)_
 
 ## Validation
 
+Build toolchain documented in [BUILD.md](../../BUILD.md). Ecosystem/CI: [ECOSYSTEM.md](../../ECOSYSTEM.md).
+
+**Environment status (2026-06-08):**
+
+| Step | Status |
+|------|--------|
+| VS 2022 Build Tools + Windows SDK | Installed |
+| Node 20.18.2 (NVM) + npm 11 | Installed |
+| `npm install` | Passed |
+| `npm run buildreact` | Passed |
+| `npm run compile` | Passed (0 errors) |
+| `npm run gulp vscode-win32-x64` | Passed → `X:\VSCode-win32-x64\Void.exe` |
+
 ### Build
 
 - [ ] `npm run watch` — 0 errors
 - [ ] `npm run buildreact` — if UI touched
 - [ ] `scripts\code.bat` — app launches
+- [ ] _(optional)_ packaged smoke test — `Void.exe` launches
 
 ### Manual QA
 

@@ -55,8 +55,17 @@ Void is a fork of the [vscode](https://github.com/microsoft/vscode) repository. 
 
 For a guide on how to develop your own version of Void, see [HOW_TO_CONTRIBUTE](https://github.com/voideditor/void/blob/main/HOW_TO_CONTRIBUTE.md) and [void-builder](https://github.com/voideditor/void-builder).
 
-- Feature inventory (implemented + Cursor-merge targets): [docs/FEATURES.md](docs/FEATURES.md)
-- Cursor → Void merge workflow (user-driven decisions per release): [docs/CURSOR_MERGE_WORKFLOW.md](docs/CURSOR_MERGE_WORKFLOW.md)
+### Project documentation (knowledge graphs)
+
+| Doc | Description |
+|-----|-------------|
+| [docs/INDEX.md](docs/INDEX.md) | **Start here** — documentation map and cross-links |
+| [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) | Repos, void-builder CI, auto-update pipeline |
+| [docs/BUILD.md](docs/BUILD.md) | Dev mode, local `Void.exe`, Windows toolchain |
+| [docs/FEATURES.md](docs/FEATURES.md) | Feature inventory + AI architecture graphs |
+| [docs/CURSOR_MERGE_WORKFLOW.md](docs/CURSOR_MERGE_WORKFLOW.md) | Cursor → Void merge (user-driven per release) |
+
+Sibling clone: `void-builder` at `X:\void-builder` (see [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md)).
 
 
 

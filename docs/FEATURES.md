@@ -6,6 +6,61 @@ This document is grounded in source code. For architecture deep-dives, see [VOID
 
 **Merge workflow:** [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) — evaluate each Cursor release; **you** decide per feature what to implement, adapt, ignore, or defer.
 
+**Docs map:** [INDEX.md](INDEX.md) | **Build:** [BUILD.md](BUILD.md) | **Ecosystem:** [ECOSYSTEM.md](ECOSYSTEM.md)
+
+## Feature domain knowledge graph
+
+```mermaid
+graph TB
+  subgraph ui["User-facing UI — React ESM bundles"]
+    SIDEBAR[Chat sidebar Ctrl+L]
+    QEDIT[Quick Edit Ctrl+K]
+    SETTINGS[Settings pane]
+    ONBOARD[Onboarding]
+    TOOLTIP[Tooltips]
+    WIDGETS[Editor widgets]
+  end
+
+  subgraph agent["Agent & chat"]
+    THREAD[chatThreadService]
+    MODES[normal | gather | agent]
+    TOOLS[toolsService]
+    TERM[terminalToolService]
+  end
+
+  subgraph llm["LLM pipeline — browser ↔ main"]
+    SEND_SVC[sendLLMMessageService]
+    SEND_CH[sendLLMMessageChannel]
+    SEND_IMPL[sendLLMMessage.impl]
+    GRAMMAR[extractGrammar]
+  end
+
+  subgraph edit["Code editing"]
+    EDIT[editCodeService — Apply]
+    MODEL[voidModelService]
+    AUTOCOMPLETE[autocompleteService FIM]
+    CMD_BAR[voidCommandBarService]
+  end
+
+  subgraph config["Configuration"]
+    VOID_SET[voidSettingsService]
+    CAPS[modelCapabilities — providers]
+    MCP[mcpService + mcpChannel]
+  end
+
+  SIDEBAR --> THREAD
+  QEDIT --> EDIT
+  THREAD --> MODES
+  MODES --> TOOLS
+  TOOLS --> TERM
+  THREAD --> SEND_SVC
+  SEND_SVC --> SEND_CH --> SEND_IMPL --> GRAMMAR
+  EDIT --> MODEL
+  AUTOCOMPLETE --> SEND_SVC
+  SETTINGS --> VOID_SET --> CAPS
+  MCP --> TOOLS
+```
+
 ## Product & branch context
 
 | Item | Value |
@@ -112,7 +167,27 @@ Local auto-detected providers: `ollama`, `vLLM`, `lmStudio`.
 
 ### LLM pipeline
 
-Messages flow browser → main process → provider. Key files:
+```mermaid
+sequenceDiagram
+  participant UI as Workbench React UI
+  participant SVC as sendLLMMessageService
+  participant CH as sendLLMMessageChannel IPC
+  participant MAIN as sendLLMMessage.impl
+  participant GR as extractGrammar
+  participant PR as Provider API
+
+  UI->>SVC: sendMessage / FIM request
+  SVC->>CH: IPC to main process
+  CH->>MAIN: route by provider
+  MAIN->>PR: HTTP / local API
+  PR-->>MAIN: stream tokens
+  MAIN->>GR: parse thinking / tool tags
+  GR-->>CH: structured chunks
+  CH-->>SVC: events to UI
+  SVC-->>UI: render stream / tool calls
+```
+
+Key files:
 
 - [sendLLMMessageService.ts](../src/vs/workbench/contrib/void/common/sendLLMMessageService.ts)
 - [sendLLMMessageChannel.ts](../src/vs/workbench/contrib/void/electron-main/sendLLMMessageChannel.ts)
@@ -146,6 +221,37 @@ See the LLM Message Pipeline section in [VOID_CODEBASE_GUIDE.md](../VOID_CODEBAS
 
 **Not a merge backlog.** When a new Cursor version drops, use [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) and record per-feature decisions in `docs/merges/{version}/MERGE_REPORT.md`.
 
+```mermaid
+graph LR
+  subgraph cursor["Cursor — reference only"]
+    C_COMP[composer]
+    C_MCP[cursor-mcp]
+    C_RET[cursor-retrieval]
+    C_AGENT[cursor-agent-exec]
+    C_SCM[cursor-commits]
+    C_LOCAL[cursor-always-local]
+    C_ONB[onboarding]
+  end
+
+  subgraph void["Void — implementation"]
+    V_VOID[contrib/void/]
+    V_MCP[mcpService]
+    V_DIR[directoryStrService]
+    V_TOOLS[toolsService + chatThread]
+    V_SCM[voidSCMService]
+    V_SET[voidSettingsService]
+    V_ONB[voidOnboardingService]
+  end
+
+  C_COMP -.->|implement/adapt| V_VOID
+  C_MCP -.-> V_MCP
+  C_RET -.-> V_DIR
+  C_AGENT -.-> V_TOOLS
+  C_SCM -.-> V_SCM
+  C_LOCAL -.-> V_SET
+  C_ONB -.-> V_ONB
+```
+
 This table helps map Cursor paths to Void code when **you** choose to implement or adapt something. Cursor `out/` and extension `dist/` are reference-only; re-implement in TypeScript.
 
 | Cursor component | Possible Void equivalent | Notes |
@@ -174,6 +280,9 @@ Local inventory only (gitignored): `cursor/extracted/{version}/COMPONENT_MANIFES
 
 ## Related docs
 
+- [INDEX.md](INDEX.md) — documentation knowledge graph
+- [BUILD.md](BUILD.md) — dev mode and local executable
+- [ECOSYSTEM.md](ECOSYSTEM.md) — void-builder and release pipeline
 - [README.md](../README.md) — project overview
 - [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) — Cursor → Void merge playbook
 - [VOID_CODEBASE_GUIDE.md](../VOID_CODEBASE_GUIDE.md) — architecture and terminology

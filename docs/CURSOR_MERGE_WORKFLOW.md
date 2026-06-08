@@ -2,7 +2,50 @@
 
 Repeatable pipeline for evaluating a new Cursor release and porting **only what you choose** into Void.
 
-**Related docs:** [FEATURES.md](FEATURES.md) (inventory) | [VOID_CODEBASE_GUIDE.md](../VOID_CODEBASE_GUIDE.md) (architecture) | [HOW_TO_CONTRIBUTE.md](../HOW_TO_CONTRIBUTE.md) (dev build)
+**Related docs:** [INDEX.md](INDEX.md) | [FEATURES.md](FEATURES.md) | [BUILD.md](BUILD.md) | [VOID_CODEBASE_GUIDE.md](../VOID_CODEBASE_GUIDE.md) | [HOW_TO_CONTRIBUTE.md](../HOW_TO_CONTRIBUTE.md)
+
+## Merge ontology (decision knowledge graph)
+
+```mermaid
+graph TB
+  subgraph inputs["Inputs — inventory only"]
+    INSTALLER[Cursor installer .exe]
+    EXTRACT[cursor/extracted/version/]
+    MANIFEST[COMPONENT_MANIFEST.json]
+    CHANGELOG[Cursor changelog]
+    DIFF[manifest-diff.txt]
+  end
+
+  subgraph human["Human decisions — required"]
+    GOALS[User goals + out of scope]
+    TABLE[Feature decisions table]
+  end
+
+  subgraph decisions["Decision types"]
+    IMP[implement]
+    ADP[adapt]
+    IGN[ignore]
+    DEF[defer]
+  end
+
+  subgraph outputs["Outputs — tracked in git"]
+    REPORT[MERGE_REPORT.md]
+    SOURCE[Void TypeScript changes]
+    FEATURES[FEATURES.md updates]
+    PR[PR to main]
+  end
+
+  INSTALLER --> EXTRACT --> MANIFEST
+  MANIFEST --> DIFF
+  CHANGELOG --> TABLE
+  GOALS --> TABLE
+  DIFF --> TABLE
+  TABLE --> IMP & ADP & IGN & DEF
+  IMP & ADP --> SOURCE
+  SOURCE --> REPORT
+  REPORT --> FEATURES --> PR
+  IGN & DEF --> REPORT
+```
 
 ## Principles
 
@@ -36,6 +79,35 @@ flowchart LR
   phase1 --> phase2 --> phase3 --> phase4 --> phase5
   phase5 -->|"errors"| phase4
   phase5 -->|"pass"| phase6
+```
+
+### Phase artifact graph
+
+```mermaid
+erDiagram
+  MERGE_BRANCH ||--|| MERGE_REPORT : contains
+  MERGE_REPORT ||--o{ FEATURE_DECISION : rows
+  FEATURE_DECISION ||--o| VOID_SOURCE : "implement/adapt only"
+  CURSOR_MANIFEST ||--o{ FEATURE_DECISION : informs
+  MERGE_REPORT ||--o| MANIFEST_DIFF : optional attachment
+
+  MERGE_BRANCH {
+    string name "Cursor-merge-{version}"
+    string base "main"
+  }
+  MERGE_REPORT {
+    string path "docs/merges/{version}/"
+    string status "in_progress|completed"
+  }
+  FEATURE_DECISION {
+    string decision "implement|adapt|ignore|defer"
+    string cursor_path "component path"
+    string void_target "Void file/service"
+  }
+  CURSOR_MANIFEST {
+    string path "cursor/extracted/{version}/"
+    boolean gitignored true
+  }
 ```
 
 | Phase | Goal | Tracked in git |
@@ -137,6 +209,8 @@ Repeat **implement → validate** until every checklist item passes.
 
 ### Build validation
 
+See [BUILD.md](BUILD.md) for full toolchain graphs (Windows NVM, VS Build Tools, SDK).
+
 ```bash
 npm run watch
 ```
@@ -146,7 +220,15 @@ Require **0 compilation errors** (see [HOW_TO_CONTRIBUTE.md](../HOW_TO_CONTRIBUT
 If React UI changed:
 
 ```bash
-npm run buildreact
+NODE_OPTIONS="--max-old-space-size=8192" npm run buildreact
+```
+
+Optional packaged smoke test:
+
+```bash
+npm run compile
+npm run gulp vscode-win32-x64
+# Launch: ../VSCode-win32-x64/Void.exe
 ```
 
 ### Run dev build (Windows)
@@ -207,3 +289,5 @@ If any item fails, return to Phase 4, fix, and re-run validation. Items marked `
 | [scripts/cursor-merge/diff-manifests.ps1](../scripts/cursor-merge/diff-manifests.ps1) | File/component delta between two extractions (no merge decisions) |
 | [scripts/extract-cursor-client.ps1](../scripts/extract-cursor-client.ps1) | Low-level extraction (called by start-merge) |
 | [scripts/generate-cursor-manifest.ps1](../scripts/generate-cursor-manifest.ps1) | Build COMPONENT_MANIFEST.json |
+| [scripts/build-windows-exe.ps1](../scripts/build-windows-exe.ps1) | Local `Void.exe` packaging (see [BUILD.md](BUILD.md)) |
+| [scripts/install-windows-build-prereqs.ps1](../scripts/install-windows-build-prereqs.ps1) | Windows VS / NVM prerequisites |
