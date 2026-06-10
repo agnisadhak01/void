@@ -63,8 +63,14 @@ North-star document for the platform. Pulse editor docs remain in [../INDEX.md](
 - `deployment/docker-compose.yml` — Postgres, MinIO, gateway, sandbox, indexing + graph workers
 - `ausome` LLM provider with optional server-side agent orchestration
 
+## Productization (post M16)
+
+Engineering milestones are complete; next work is **productization** — observability, enterprise workflows, deployment agents, team platform.
+
+See **[PRODUCTIZATION.md](PRODUCTIZATION.md)** for Phases A–I. Phase A (Agent Observatory) adds trace spans, token/cost tracking, and a Pulse **Agent runs** panel.
+
 ## Execution order (reference)
 
 ```
-Phase 0 → M7 → M8 → M11 → M9 → M10 → M12 → M13 → M14 → M15 → M16
+Phase 0 → M7 → M8 → M11 → M9 → M10 → M12 → M13 → M14 → M15 → M16 → Productization A–I
 ```

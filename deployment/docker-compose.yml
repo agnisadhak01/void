@@ -14,6 +14,7 @@ services:
       - ausome_pg_data:/var/lib/postgresql/data
       - ../backend/api-gateway/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ../backend/api-gateway/db/schema_v3.sql:/docker-entrypoint-initdb.d/02-schema-v3.sql:ro
+      - ../backend/api-gateway/db/schema_v4.sql:/docker-entrypoint-initdb.d/03-schema-v4.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ausome -d ausome"]
       interval: 5s

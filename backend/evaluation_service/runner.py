@@ -6,10 +6,10 @@ import asyncpg
 from app.sandbox import run_in_sandbox
 
 DEFAULT_CHECKS = [
-    {"name": "pytest", "command": "pytest -q 2>/dev/null || true"},
-    {"name": "npm_test", "command": "npm test --if-present 2>/dev/null || true"},
-    {"name": "eslint", "command": "npx eslint . --max-warnings 0 2>/dev/null || true"},
-    {"name": "ruff", "command": "ruff check . 2>/dev/null || true"},
+    {"name": "pytest", "command": "pytest -q"},
+    {"name": "npm_test", "command": "npm test --if-present"},
+    {"name": "eslint", "command": "npx eslint . --max-warnings 0"},
+    {"name": "ruff", "command": "ruff check ."},
 ]
 
 

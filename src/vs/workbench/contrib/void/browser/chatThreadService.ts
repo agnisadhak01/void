@@ -126,6 +126,8 @@ export type ThreadType = {
 
 	messages: ChatMessage[];
 	filesWithUserChanges: Set<string>;
+	/** Latest gateway agent run id when server orchestration is enabled (Phase A). */
+	lastGatewayRunId?: string;
 
 	// this doesn't need to go in a state object, but feels right
 	state: {
@@ -243,6 +245,9 @@ export interface IChatThreadService {
 
 	onDidChangeCurrentThread: Event<void>;
 	onDidChangeStreamState: Event<{ threadId: string }>
+	onDidChangeAgentRun: Event<{ threadId: string; runId: string }>
+
+	setThreadGatewayRunId(threadId: string, runId: string): void;
 
 	getCurrentThread(): ThreadType;
 	openNewThread(): void;
@@ -311,6 +316,9 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 
 	private readonly _onDidChangeStreamState = new Emitter<{ threadId: string }>();
 	readonly onDidChangeStreamState: Event<{ threadId: string }> = this._onDidChangeStreamState.event;
+
+	private readonly _onDidChangeAgentRun = new Emitter<{ threadId: string; runId: string }>();
+	readonly onDidChangeAgentRun: Event<{ threadId: string; runId: string }> = this._onDidChangeAgentRun.event;
 
 	readonly streamState: ThreadStreamState = {}
 	state: ThreadsState // allThreads is persisted, currentThread is not
@@ -781,6 +789,7 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 				pulse_thread_id: threadId,
 				require_plan_approval: !agentAutoApprovePlan,
 			})
+			this.setThreadGatewayRunId(threadId, run.run_id)
 
 			if (run.status === 'awaiting_approval') {
 				const planText = run.plan ? JSON.stringify(run.plan, null, 2) : ''
@@ -1969,6 +1978,18 @@ We only need to do it for files that were edited since `from`, ie files between 
 	}
 	setCurrentThreadState = (newState: Partial<ThreadType['state']>) => {
 		this._setThreadState(this.state.currentThreadId, newState)
+	}
+
+	setThreadGatewayRunId = (threadId: string, runId: string) => {
+		const thread = this.state.allThreads[threadId]
+		if (!thread) return
+		this._setState({
+			allThreads: {
+				...this.state.allThreads,
+				[threadId]: { ...thread, lastGatewayRunId: runId },
+			},
+		})
+		this._onDidChangeAgentRun.fire({ threadId, runId })
 	}
 
 	// gets `staging` and `setStaging` of the currently focused element, given the index of the currently selected message (or undefined if no message is selected)

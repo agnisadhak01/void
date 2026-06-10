@@ -111,3 +111,59 @@ export const cancelAgentRun = (cfg: AusomeGatewayConfig, runId: string): Promise
 
 export const approveAgentPlan = (cfg: AusomeGatewayConfig, runId: string): Promise<AgentRunResponse> =>
 	gatewayFetch(cfg, `/v1/agent/runs/${runId}/approve-plan`, { method: 'POST' });
+
+export type AgentRunListItem = {
+	id: string;
+	status: string;
+	goal?: string | null;
+	project_id?: string | null;
+	phase?: string | null;
+	pulse_thread_id?: string | null;
+	started_at?: string;
+	ended_at?: string | null;
+};
+
+export type AgentTraceSpan = {
+	id: string;
+	span_type: string;
+	phase?: string | null;
+	name: string;
+	started_at?: string;
+	ended_at?: string | null;
+	latency_ms?: number | null;
+	status: string;
+	payload?: Record<string, unknown>;
+};
+
+export type AgentRunTrace = {
+	run: Record<string, unknown>;
+	steps: Record<string, unknown>[];
+	spans: AgentTraceSpan[];
+	usage: {
+		prompt_tokens: number;
+		completion_tokens: number;
+		total_tokens: number;
+		estimated_cost_usd: number;
+		by_model: { model: string; tokens: number; cost: number }[];
+	};
+	eval_runs: Record<string, unknown>[];
+	snapshot?: Record<string, unknown> | null;
+	memories_written: Record<string, unknown>[];
+	duration_ms?: number | null;
+};
+
+export const listAgentRuns = (
+	cfg: AusomeGatewayConfig,
+	params: { pulse_thread_id?: string; project_id?: string; status?: string; limit?: number },
+): Promise<{ runs: AgentRunListItem[] }> => {
+	const q = new URLSearchParams();
+	if (params.pulse_thread_id) q.set('pulse_thread_id', params.pulse_thread_id);
+	if (params.project_id) q.set('project_id', params.project_id);
+	if (params.status) q.set('status', params.status);
+	if (params.limit) q.set('limit', String(params.limit));
+	const qs = q.toString();
+	return gatewayFetch(cfg, `/v1/agent/runs${qs ? `?${qs}` : ''}`, { method: 'GET' });
+};
+
+export const getAgentTrace = (cfg: AusomeGatewayConfig, runId: string): Promise<AgentRunTrace> =>
+	gatewayFetch(cfg, `/v1/agent/runs/${runId}/trace`, { method: 'GET' });

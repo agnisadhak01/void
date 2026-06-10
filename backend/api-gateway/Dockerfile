@@ -18,6 +18,8 @@ COPY planner_service /planner_service
 COPY evaluation_service /evaluation_service
 COPY graph_service /graph_service
 COPY memory_service /memory_service
+COPY observability_service /observability_service
+COPY ai /ai
 
 ENV PYTHONPATH=/app:/
 ENV PYTHONUNBUFFERED=1

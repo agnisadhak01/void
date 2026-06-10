@@ -8,3 +8,4 @@ asyncpg>=0.30.0
 pgvector>=0.3.6
 sse-starlette>=2.1.0
 minio>=7.2.0
+pyyaml>=6.0.0

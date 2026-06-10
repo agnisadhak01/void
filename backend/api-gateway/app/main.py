@@ -18,7 +18,9 @@ from app.embeddings import embed_texts
 from app.middleware.opa import OPAMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.model_router import check_vllm_health, resolve_model, resolve_task, vllm_headers
-from app.routes import agent, app_builder, eval as eval_routes, graph, memory, sessions, snapshots
+from app.routes import agent, app_builder, eval as eval_routes, graph, memory, observability, sessions, snapshots
+from observability_service.spans import record_llm_usage, record_span
+from observability_service.usage import parse_vllm_usage
 from app.sandbox import create_sandbox, run_in_sandbox
 from typing import Annotated
 
@@ -41,8 +43,18 @@ app.include_router(memory.router)
 app.include_router(snapshots.router)
 app.include_router(sessions.router)
 app.include_router(app_builder.router)
+app.include_router(observability.router)
 
 _pool: asyncpg.Pool | None = None
+
+
+async def _apply_schema_migrations(pool: asyncpg.Pool) -> None:
+    schema_path = __import__("pathlib").Path(__file__).resolve().parent.parent / "db" / "schema_v4.sql"
+    if not schema_path.is_file():
+        return
+    sql = schema_path.read_text(encoding="utf-8")
+    async with pool.acquire() as conn:
+        await conn.execute(sql)
 
 
 @app.on_event("startup")
@@ -51,6 +63,7 @@ async def startup() -> None:
     try:
         _pool = await get_pool()
         app.state.db_pool = _pool
+        await _apply_schema_migrations(_pool)
         await check_vllm_health()
     except Exception:
         _pool = None
@@ -92,8 +105,47 @@ async def list_models(user: CurrentUser) -> dict:
     }
 
 
-async def _proxy_vllm(path: str, body: dict, stream: bool) -> Any:
+async def _record_gateway_llm(
+    run_id: str | None,
+    task: str,
+    model: str,
+    data: dict,
+    latency_ms: int,
+) -> None:
+    if not _pool or not run_id:
+        return
+    usage = parse_vllm_usage(data)
+    async with _pool.acquire() as conn:
+        span_id = await record_span(
+            conn,
+            run_id,
+            "llm",
+            f"gateway/{task}",
+            status="ok",
+            latency_ms=latency_ms,
+            payload={"model": model, "route": task},
+        )
+        await record_llm_usage(
+            conn,
+            span_id,
+            run_id,
+            model,
+            task,
+            usage["prompt_tokens"],
+            usage["completion_tokens"],
+        )
+
+
+async def _proxy_vllm(
+    path: str,
+    body: dict,
+    stream: bool,
+    *,
+    task: str = "chat",
+    run_id: str | None = None,
+) -> Any:
     url = f"{settings.vllm_base_url.rstrip('/')}/{path.lstrip('/')}"
+    t0 = time.perf_counter()
     async with httpx.AsyncClient(timeout=300.0) as client:
         if stream:
             req = client.build_request("POST", url, json=body, headers=vllm_headers())
@@ -105,12 +157,22 @@ async def _proxy_vllm(path: str, body: dict, stream: bool) -> Any:
 
             return StreamingResponse(gen(), media_type="text/event-stream")
         resp = await client.post(url, json=body, headers=vllm_headers())
+        latency_ms = int((time.perf_counter() - t0) * 1000)
         if resp.status_code >= 400:
-            return _stub_completion(body, stream)
-        return JSONResponse(content=resp.json())
+            return await _stub_completion(body, stream, task=task, run_id=run_id, latency_ms=latency_ms)
+        data = resp.json()
+        await _record_gateway_llm(run_id, task, body.get("model", ""), data, latency_ms)
+        return JSONResponse(content=data)
 
 
-def _stub_completion(body: dict, stream: bool) -> Any:
+async def _stub_completion(
+    body: dict,
+    stream: bool,
+    *,
+    task: str = "chat",
+    run_id: str | None = None,
+    latency_ms: int = 0,
+) -> Any:
     model = body.get("model", "qwen3-coder")
     if body.get("suffix") is not None or "prompt" in body:
         text = "// Ausome stub completion\n"
@@ -141,21 +203,22 @@ def _stub_completion(body: dict, stream: bool) -> Any:
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 
-    return JSONResponse(
-        content={
-            "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": content},
-                    "finish_reason": "stop",
-                }
-            ],
-        }
-    )
+    payload = {
+        "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 0, "completion_tokens": len(content.split()), "total_tokens": len(content.split())},
+    }
+    await _record_gateway_llm(run_id, task, model, payload, latency_ms)
+    return JSONResponse(content=payload)
 
 
 @app.post("/v1/chat/completions")
@@ -165,14 +228,15 @@ async def chat_completions(request: Request, user: CurrentUser) -> Any:
     body["model"] = resolve_model(task, body.get("model"))
     stream = bool(body.get("stream", False))
 
+    run_id = request.headers.get("x-ausome-run-id") or request.headers.get("X-Ausome-Run-Id")
     if _pool:
         async with _pool.acquire() as conn:
-            await log_audit(conn, user, "llm.chat", body.get("model"), {"task": task})
+            await log_audit(conn, user, "llm.chat", body.get("model"), {"task": task, "run_id": run_id})
 
     try:
-        return await _proxy_vllm("chat/completions", body, stream)
+        return await _proxy_vllm("chat/completions", body, stream, task=task, run_id=run_id)
     except httpx.HTTPError:
-        return _stub_completion(body, stream)
+        return await _stub_completion(body, stream, task=task, run_id=run_id)
 
 
 @app.post("/v1/completions")
@@ -185,10 +249,11 @@ async def completions(request: Request, user: CurrentUser) -> Any:
         async with _pool.acquire() as conn:
             await log_audit(conn, user, "llm.completion", body.get("model"), {})
 
+    run_id = request.headers.get("x-ausome-run-id") or request.headers.get("X-Ausome-Run-Id")
     try:
-        return await _proxy_vllm("completions", body, stream)
+        return await _proxy_vllm("completions", body, stream, task="completion", run_id=run_id)
     except httpx.HTTPError:
-        return _stub_completion(body, stream)
+        return await _stub_completion(body, stream, task="completion", run_id=run_id)
 
 
 @app.post("/v1/embeddings")

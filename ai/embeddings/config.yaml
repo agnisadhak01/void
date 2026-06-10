@@ -4,20 +4,33 @@ models:
     primary: qwen3-coder
     fallback: deepseek-coder-v2
     latency_target_ms: 150
+    cost_per_1k_tokens: 0.0002
   chat:
     primary: qwen3-coder
     fallback: deepseek-coder-v2
+    cost_per_1k_tokens: 0.0002
   reasoning:
     primary: qwen3-235b-a22b
     fallback: deepseek-v3
+    cost_per_1k_tokens: 0.001
   review:
     primary: deepseek-v3
     fallback: qwen3-coder
+    cost_per_1k_tokens: 0.0008
   embedding:
     primary: bge-m3
     fallback: bge-m3
     dimensions: 1024
     endpoint: /v1/embeddings
+    cost_per_1k_tokens: 0.00005
+  qwen3-coder:
+    cost_per_1k_tokens: 0.0002
+  deepseek-coder-v2:
+    cost_per_1k_tokens: 0.00015
+  qwen3-235b-a22b:
+    cost_per_1k_tokens: 0.001
+  deepseek-v3:
+    cost_per_1k_tokens: 0.0008
   rerank:
     primary: bge-reranker-v2
     fallback: bge-reranker-v2

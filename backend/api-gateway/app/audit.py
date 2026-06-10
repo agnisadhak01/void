@@ -35,11 +35,12 @@ async def start_agent_run(
     goal: str | None = None,
     project_id: str | None = None,
     status: str = "queued",
+    pulse_thread_id: str | None = None,
 ) -> str:
     row = await conn.fetchrow(
         """
-        INSERT INTO agent_runs (session_id, user_id, status, goal, project_id)
-        VALUES ($1::uuid, $2::uuid, $3, $4, $5::uuid)
+        INSERT INTO agent_runs (session_id, user_id, status, goal, project_id, pulse_thread_id)
+        VALUES ($1::uuid, $2::uuid, $3, $4, $5::uuid, $6)
         RETURNING id
         """,
         session_id,
@@ -47,6 +48,7 @@ async def start_agent_run(
         status,
         goal,
         project_id,
+        pulse_thread_id,
     )
     return str(row["id"])
 
@@ -118,7 +120,7 @@ async def get_agent_run(conn: asyncpg.Connection, run_id: str) -> dict | None:
     row = await conn.fetchrow(
         """
         SELECT id, session_id, user_id, status, goal, project_id, phase, plan, pending_tool,
-               snapshot_id, started_at, ended_at
+               snapshot_id, pulse_thread_id, started_at, ended_at
         FROM agent_runs WHERE id = $1::uuid
         """,
         run_id,

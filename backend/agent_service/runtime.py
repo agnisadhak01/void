@@ -16,6 +16,7 @@ from app.storage import put_object
 from evaluation_service.gates import eval_passed
 from evaluation_service.runner import get_eval_run, start_eval_run
 from memory_service.store import add_memory, extract_memories_from_run, recall_memories
+from observability_service.spans import SpanTimer, record_span
 from planner_service.planner import generate_plan
 
 
@@ -35,13 +36,20 @@ class AgentRuntime:
                 req.pulse_thread_id,
             )
             run_id = await start_agent_run(
-                conn, user, session_id, goal=req.goal, project_id=req.project_id, status=RunStatus.planning.value
+                conn,
+                user,
+                session_id,
+                goal=req.goal,
+                project_id=req.project_id,
+                status=RunStatus.planning.value,
+                pulse_thread_id=req.pulse_thread_id,
             )
             await log_audit(conn, user, "agent.run.start", req.goal[:200], {"run_id": run_id}, agent_run_id=run_id)
             await update_agent_run(conn, run_id, phase=AgentPhase.plan.value)
 
             memories = await recall_memories(conn, req.project_id)
-            plan = await generate_plan(req.goal, memories)
+            async with SpanTimer(conn, run_id, "phase", "planning", phase=AgentPhase.plan.value):
+                plan = await generate_plan(req.goal, memories, conn=conn, run_id=run_id)
             plan_dict = plan.model_dump()
             await add_run_step(conn, run_id, 0, "plan", plan_dict, phase=AgentPhase.plan.value)
             await update_agent_run(conn, run_id, plan=plan_dict)
@@ -114,6 +122,14 @@ class AgentRuntime:
         }
         step_idx = await self._next_step_index(conn, run_id)
         await add_run_step(conn, run_id, step_idx, "tool_request", pending, phase=AgentPhase.code.value)
+        await record_span(
+            conn,
+            run_id,
+            "tool",
+            pending["tool_name"],
+            phase=AgentPhase.code.value,
+            payload=pending,
+        )
         await update_agent_run(conn, run_id, status=RunStatus.executing.value, pending_tool=pending)
         return AgentRunResponse(
             run_id=run_id,
@@ -141,6 +157,15 @@ class AgentRuntime:
                 {"tool_name": body.tool_name, "result": body.result[:8000], "success": body.success},
                 phase=run.get("phase"),
             )
+            await record_span(
+                conn,
+                run_id,
+                "tool",
+                f"{body.tool_name}:result",
+                phase=run.get("phase"),
+                status="ok" if body.success else "error",
+                payload={"tool_name": body.tool_name, "success": body.success},
+            )
             await log_audit(
                 conn,
                 user,
@@ -161,6 +186,7 @@ class AgentRuntime:
                     "phase": AgentPhase.review.value,
                 }
                 await add_run_step(conn, run_id, step_idx + 1, "tool_request", review_step, phase=AgentPhase.review.value)
+                await record_span(conn, run_id, "tool", "read_lint_errors", phase=AgentPhase.review.value, payload=review_step)
                 await update_agent_run(conn, run_id, pending_tool=review_step)
                 return AgentRunResponse(
                     run_id=run_id,
@@ -173,8 +199,11 @@ class AgentRuntime:
             if phase == AgentPhase.review.value:
                 await update_agent_run(conn, run_id, phase=AgentPhase.test.value, status=RunStatus.verifying.value)
                 workspace_id = "default"
-                eval_id = await start_eval_run(conn, str(run.get("project_id") or settings.default_project_id), run_id, workspace_id)
-                eval_row = await get_eval_run(conn, eval_id)
+                async with SpanTimer(conn, run_id, "verify", "evaluation", phase=AgentPhase.test.value):
+                    eval_id = await start_eval_run(
+                        conn, str(run.get("project_id") or settings.default_project_id), run_id, workspace_id
+                    )
+                    eval_row = await get_eval_run(conn, eval_id)
                 passed = eval_passed(eval_row, admin_override=user.role == "admin")
                 await add_run_step(conn, run_id, step_idx + 1, "verify", {"eval_id": eval_id, "passed": passed}, phase=AgentPhase.test.value)
 

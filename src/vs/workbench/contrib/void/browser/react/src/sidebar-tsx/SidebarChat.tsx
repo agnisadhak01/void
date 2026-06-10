@@ -32,6 +32,7 @@ import { builtinToolNames, isABuiltinToolName, MAX_FILE_CHARS_PAGE, MAX_TERMINAL
 import { RawToolCallObj } from '../../../../common/sendLLMMessageTypes.js';
 import ErrorBoundary from './ErrorBoundary.js';
 import { ToolApprovalTypeSwitch } from '../void-settings-tsx/Settings.js';
+import { AgentRunsPanel } from './agent-runs/AgentRunsPanel.js';
 
 import { persistentTerminalNameOfId } from '../../../terminalToolService.js';
 import { removeMCPToolNamePrefix } from '../../../../common/mcpServiceTypes.js';
@@ -2965,6 +2966,12 @@ export const SidebarChat = () => {
 
 	const threadId = currentThread.id
 	const currCheckpointIdx = chatThreadsState.allThreads[threadId]?.state?.currCheckpointIdx ?? undefined  // if not exist, treat like checkpoint is last message (infinity)
+	const lastGatewayRunId = chatThreadsState.allThreads[threadId]?.lastGatewayRunId
+	const [agentRunTick, setAgentRunTick] = useState(0)
+	useEffect(() => {
+		const sub = chatThreadsService.onDidChangeAgentRun(() => setAgentRunTick(t => t + 1))
+		return () => sub.dispose()
+	}, [chatThreadsService])
 
 
 
@@ -3183,6 +3190,13 @@ export const SidebarChat = () => {
 		className='w-full h-full flex flex-col overflow-hidden'
 	>
 
+		<ErrorBoundary>
+			<AgentRunsPanel
+				key={`agent-runs-${threadId}-${agentRunTick}`}
+				threadId={threadId}
+				lastGatewayRunId={lastGatewayRunId}
+			/>
+		</ErrorBoundary>
 		<ErrorBoundary>
 			{messagesHTML}
 		</ErrorBoundary>
