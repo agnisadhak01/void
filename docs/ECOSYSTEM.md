@@ -14,6 +14,8 @@ erDiagram
   VOID_DESKTOP ||--|| BINARIES_REPO : "downloads installers"
   CURSOR_INSTALLER ||--o| MERGE_REPORT : "reference only"
   VOID_SOURCE ||--o{ MERGE_REPORT : "implementation target"
+  VOID_SOURCE ||--|| PULSE_DESKTOP : "local gulp + start-dev"
+  CURSOR_REF ||--o| MERGE_REPORT : "inventory reference"
 
   VOID_SOURCE {
     string path "agnisadhak01/void"
@@ -40,6 +42,15 @@ erDiagram
   VOID_DESKTOP {
     string product "Void.exe / Void.app"
     string updateUrl "raw.githubusercontent.com/voideditor/versions"
+  }
+  PULSE_DESKTOP {
+    string product "Pulse.exe"
+    string source "product.json in X:\\Void"
+    string dataDir ".pulse-editor"
+  }
+  CURSOR_REF {
+    string path "cursor/extracted/{version}/"
+    string scripts "scripts/cursor-dev/"
   }
   CURSOR_INSTALLER {
     string path "cursor/*.exe gitignored"
@@ -98,9 +109,9 @@ flowchart TB
     L1[npm install]
     L4{Goal?}
     L0["scripts/start-dev.ps1<br/>buildreact + watch + launch"]
-    L5[Void dev instance]
+    L5[Pulse dev instance]
     L6[npm run gulp vscode-win32-x64]
-    L7[VSCode-win32-x64/Void.exe]
+    L7[VSCode-win32-x64/Pulse.exe]
 
     L1 --> L4
     L4 -->|daily dev| L0 --> L5
@@ -204,10 +215,10 @@ graph LR
   CURSOR[Cursor installer] -->|extract| MANIFEST[COMPONENT_MANIFEST.json]
   MANIFEST -->|human decisions| REPORT[MERGE_REPORT.md]
   REPORT -->|implement/adapt| VOID_SRC[Void source]
-  VOID_SRC -->|local or CI| SHIP[Desktop app]
+  VOID_SRC -->|local or CI| SHIP[Pulse.exe]
 ```
 
-See [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md).
+See [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) and [CURSOR_DEV.md](CURSOR_DEV.md).
 
 ## Rebasing strategy
 

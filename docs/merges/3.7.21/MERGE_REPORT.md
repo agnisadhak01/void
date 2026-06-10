@@ -7,8 +7,9 @@
 | Field | Value |
 |-------|-------|
 | Cursor version | 3.7.21 |
-| VS Code base | 1.105.1 _(confirm after extraction)_ |
-| VS Code commit | _(from `cursor/extracted/3.7.21/COMPONENT_MANIFEST.json`)_ |
+| VS Code base | 1.105.1 |
+| VS Code commit | d5c0e77a0214208f36b56d42e8e787de88d02ea4 |
+| Product rebrand | **Pulse** (`product.json`) |
 | Branch | `Cursor-merge-3.7.21` |
 | Started | 2026-06-08 |
 | Completed | _(pending)_ |
@@ -45,13 +46,20 @@ _(pending)_
 
 | Item | Cursor path | Void target (if any) | Decision | Rationale | Approach (if adapt) |
 |------|-------------|----------------------|----------|-----------|---------------------|
+| MOD-000 Product rebrand | product.json | product.json | `implement` | Custom editor identity: Pulse | See `cursor/patches/3.7.21/mods.yaml` |
 | _(example)_ | | | `defer` | Awaiting changelog review | |
 
 See [FEATURES.md](../../FEATURES.md) **Cursor component reference** for Void code hints — not a mandatory merge list.
 
 ## Implementation
 
-_(only for `implement` / `adapt` rows above)_
+- **MOD-000:** `product.json` rebranded to Pulse (`nameShort`, `dataFolderName` `.pulse-editor`, `urlProtocol` `pulse`, win32 identifiers).
+
+Cursor reference environment (2026-06-10):
+
+- `cursor/extracted/3.7.21/` extracted via `-FromInstalled`
+- `scripts/cursor-dev/verify-extraction.ps1` passes
+- Mod specs: `cursor/patches/3.7.21/mods.yaml`
 
 ## Validation
 
@@ -66,7 +74,9 @@ Build toolchain documented in [BUILD.md](../../BUILD.md). Ecosystem/CI: [ECOSYST
 | `npm install` | Passed |
 | `npm run buildreact` | Passed |
 | `npm run compile` | Passed (0 errors) |
-| `npm run gulp vscode-win32-x64` | Passed → `X:\VSCode-win32-x64\Void.exe` |
+| `npm run gulp vscode-win32-x64` | Passed (prior Void branding) |
+| Cursor 3.7.21 extraction | Passed — `cursor/extracted/3.7.21/` |
+| `verify-extraction.ps1` | Passed |
 | `.\scripts\start-dev.ps1` | Passed (2026-06-10) — watch + launch in ~2 min |
 
 ### Build

@@ -31,3 +31,7 @@ src/vs/workbench/contrib/void/browser/react/src2/**
 
 # Cursor client installer and extraction artifacts (local only; regenerate with scripts/extract-cursor-client.ps1)
 cursor/
+!cursor/patches/
+!cursor/mods/
+!cursor/patches/**
+!cursor/mods/**

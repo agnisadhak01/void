@@ -65,7 +65,8 @@ graph TB
 
 | Item | Value |
 |------|-------|
-| Void version | `1.4.9` (`voidRelease` `0044` in [product.json](../product.json)) |
+| Product name | **Pulse** ([product.json](../product.json)) |
+| Engine version | `1.4.9` (`voidRelease` `0044` in [product.json](../product.json)) |
 | Active merge branch | `Cursor-merge-3.7.21` |
 | Cursor merge target | Client **3.7.21** / VS Code **1.105.1** |
 | Void AI code location | `src/vs/workbench/contrib/void/` |

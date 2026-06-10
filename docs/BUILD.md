@@ -1,6 +1,6 @@
 # Void Build Guide
 
-Production build knowledge for this workspace: developer mode, local executables, and Windows toolchain. See [ECOSYSTEM.md](ECOSYSTEM.md) for CI releases via void-builder.
+Production build knowledge for this workspace: developer mode, local executables, and Windows toolchain. Product name and exe path come from [product.json](../product.json) (currently **Pulse** → `Pulse.exe`). See [ECOSYSTEM.md](ECOSYSTEM.md) for CI releases via void-builder. Cursor reference workflow: [CURSOR_DEV.md](CURSOR_DEV.md).
 
 ## Build path decision graph
 

@@ -24,10 +24,13 @@ $ErrorActionPreference = 'Stop'
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $RepoRoot
 
+. (Join-Path $PSScriptRoot 'lib\Get-ProductInfo.ps1')
+$Product = Get-ProductInfo -RepoRoot $RepoRoot
+
 $UserDataDir = Join-Path $RepoRoot '.tmp/user-data'
 $ExtensionsDir = Join-Path $RepoRoot '.tmp/extensions'
 $WatchLogFile = Join-Path $env:TEMP 'void-dev-watch.log'
-$ElectronExe = Join-Path $RepoRoot '.build/electron/Void.exe'
+$ElectronExe = $Product.ElectronPath
 $MainJs = Join-Path $RepoRoot 'out/main.js'
 $script:WatchStartedAt = $null
 
@@ -281,7 +284,7 @@ function Start-VoidApp {
 # --- Main ---
 
 Write-Host ''
-Write-Host 'Void Developer Mode launcher' -ForegroundColor Green
+Write-Host "$($Product.NameLong) Developer Mode launcher" -ForegroundColor Green
 Write-Host "Repo: $RepoRoot" -ForegroundColor DarkGray
 
 Initialize-VoidDevEnvironment

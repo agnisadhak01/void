@@ -18,6 +18,7 @@ graph TB
     BUILD[BUILD.md]
     FEATURES[FEATURES.md]
     MERGE_WF[CURSOR_MERGE_WORKFLOW.md]
+    CURSOR_DEV[CURSOR_DEV.md]
     MERGE_RPT[merges/3.7.21/MERGE_REPORT.md]
   end
 
@@ -29,7 +30,8 @@ graph TB
 
   subgraph artifacts["Generated artifacts"]
     DEV_VOID[scripts/start-dev.ps1 + code.bat]
-    LOCAL_EXE[VSCode-win32-x64/Void.exe]
+    LOCAL_EXE[VSCode-win32-x64/Pulse.exe]
+    CURSOR_REF[scripts/cursor-dev/]
     CI_RELEASE[voideditor/binaries releases]
     VERSIONS[voideditor/versions]
   end
@@ -39,7 +41,9 @@ graph TB
   INDEX --> BUILD
   INDEX --> FEATURES
   INDEX --> MERGE_WF
+  INDEX --> CURSOR_DEV
   MERGE_WF --> MERGE_RPT
+  CURSOR_DEV --> CURSOR_REF
   FEATURES --> VOID_GUIDE
   BUILD --> CONTRIBUTE
   ECOSYSTEM --> VOID_BUILDER
@@ -59,6 +63,7 @@ graph TB
 | [BUILD.md](BUILD.md) | Dev mode (`start-dev.ps1`), local executable, Windows toolchain | Build paths, prerequisite DAG, command sequence |
 | [FEATURES.md](FEATURES.md) | Implemented Void features + Cursor reference map | AI subsystem, services, component mapping |
 | [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) | User-driven Cursor → Void merge playbook | Phase flow, decision ontology, git tracking |
+| [CURSOR_DEV.md](CURSOR_DEV.md) | Cursor reference workspace + Pulse dual-track dev | Reference vs implementation architecture |
 | [merges/3.7.21/MERGE_REPORT.md](merges/3.7.21/MERGE_REPORT.md) | Active merge decisions for Cursor 3.7.21 | _(per-release tables)_ |
 | [templates/MERGE_REPORT.template.md](templates/MERGE_REPORT.template.md) | Template for future merge reports | — |
 
@@ -78,12 +83,14 @@ graph LR
     VOID["Void/ — source fork"]
     BUILDER["void-builder/ — CI pipeline clone"]
     OUTPUT["VSCode-win32-x64/ — local gulp output"]
-    CURSOR_DIR["cursor/ — gitignored extractions"]
+    CURSOR_DIR["cursor/ — extractions + patches/"]
+    CURSOR_PATCHES["cursor/patches/ — mods.yaml"]
   end
 
-  VOID -.->|start-dev.ps1 / npm run gulp| OUTPUT
+  VOID -.->|start-dev.ps1 / build-custom-editor.ps1| OUTPUT
   VOID -.->|workflow clones| BUILDER
-  VOID -.->|start-merge.ps1| CURSOR_DIR
+  VOID -.->|cursor-dev scripts| CURSOR_DIR
+  CURSOR_PATCHES -.-> CURSOR_DIR
 ```
 
 | Path | Git remote | Role |
@@ -91,16 +98,17 @@ graph LR
 | `X:\Void` | `origin` → `agnisadhak01/void` | Active development fork |
 | `X:\Void` | `upstream` → `voideditor/void` (archived) | Historical upstream |
 | `X:\void-builder` | `origin` → `voideditor/void-builder` | Release pipeline reference |
-| `X:\VSCode-win32-x64` | _(not in git)_ | Local packaged Void (`Void.exe`) |
-| `X:\Void\cursor\` | gitignored | Cursor installers + extractions |
+| `X:\VSCode-win32-x64` | _(not in git)_ | Local packaged Pulse (`Pulse.exe`) |
+| `X:\Void\cursor\` | mostly gitignored | Cursor installers + extractions; `patches/` tracked |
 
 ## Quick navigation by task
 
 | I want to… | Start here |
 |------------|------------|
 | Understand repos and releases | [ECOSYSTEM.md](ECOSYSTEM.md) |
-| Run Void from source (daily dev) | `.\scripts\start-dev.ps1` — [BUILD.md](BUILD.md) § Developer Mode |
-| Build `Void.exe` locally | [BUILD.md](BUILD.md) § Local executable |
+| Run Pulse from source (daily dev) | `.\scripts\start-dev.ps1` — [BUILD.md](BUILD.md) § Developer Mode |
+| Build packaged editor locally | `.\scripts\build-custom-editor.ps1` — [CURSOR_DEV.md](CURSOR_DEV.md) |
+| Set up Cursor reference extraction | [CURSOR_DEV.md](CURSOR_DEV.md) — `scripts/cursor-dev/` |
 | Port Cursor features | [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) |
 | See what Void implements today | [FEATURES.md](FEATURES.md) |
 | Ship installers via GitHub Actions | [ECOSYSTEM.md](ECOSYSTEM.md) § void-builder |
@@ -113,7 +121,12 @@ graph LR
 |--------|---------|
 | [scripts/start-dev.ps1](../scripts/start-dev.ps1) | Canonical dev launcher (watch + app) |
 | [scripts/start-dev.bat](../scripts/start-dev.bat) | Batch wrapper |
-| [scripts/build-windows-exe.ps1](../scripts/build-windows-exe.ps1) | Local `Void.exe` packaging |
+| [scripts/build-windows-exe.ps1](../scripts/build-windows-exe.ps1) | Local packaged editor (legacy wrapper) |
+| [scripts/build-custom-editor.ps1](../scripts/build-custom-editor.ps1) | Pulse packaging with product.json verification |
+| [scripts/cursor-dev/setup-cursor-ref.ps1](../scripts/cursor-dev/setup-cursor-ref.ps1) | Cursor reference prereq check |
+| [scripts/cursor-dev/verify-extraction.ps1](../scripts/cursor-dev/verify-extraction.ps1) | Validate `cursor/extracted/{version}/` |
+| [scripts/cursor-dev/launch-cursor-ref.ps1](../scripts/cursor-dev/launch-cursor-ref.ps1) | Launch reference Cursor.exe |
+| [scripts/cursor-dev/launch-compare.ps1](../scripts/cursor-dev/launch-compare.ps1) | Side-by-side Cursor + Pulse |
 | [scripts/install-windows-build-prereqs.ps1](../scripts/install-windows-build-prereqs.ps1) | Windows VS / SDK / NVM setup |
 | [scripts/cursor-merge/start-merge.ps1](../scripts/cursor-merge/start-merge.ps1) | Cursor extraction + manifest |
 | [scripts/cursor-merge/diff-manifests.ps1](../scripts/cursor-merge/diff-manifests.ps1) | Compare Cursor manifests |

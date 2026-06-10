@@ -54,7 +54,17 @@ First, run `npm install -g node-gyp`. Then:
 
 ### Developer Mode Instructions
 
-> **This workspace (Windows):** use the one-command launcher documented in [docs/BUILD.md](docs/BUILD.md): `.\scripts\start-dev.ps1`. The steps below are the upstream manual flow (all platforms).
+> **This workspace (Windows):** use the one-command launcher documented in [docs/BUILD.md](docs/BUILD.md): `.\scripts\start-dev.ps1`. Product name is **Pulse** (see [product.json](product.json)). The steps below are the upstream manual flow (all platforms).
+
+### Cursor reference + custom editor workflow
+
+For porting Cursor features into this fork, use the dual-track environment in [docs/CURSOR_DEV.md](docs/CURSOR_DEV.md):
+
+1. Extract Cursor reference: `.\scripts\cursor-merge\start-merge.ps1 -Version 3.7.21 -FromInstalled`
+2. Verify: `.\scripts\cursor-dev\verify-extraction.ps1 -Version 3.7.21`
+3. Record mods in `cursor/patches/3.7.21/mods.yaml` and [docs/merges/3.7.21/MERGE_REPORT.md](docs/merges/3.7.21/MERGE_REPORT.md)
+4. Implement in `src/vs/workbench/contrib/void/` and run `.\scripts\start-dev.ps1`
+5. Package: `.\scripts\build-custom-editor.ps1`
 
 Here's how to start changing Void's code. These steps cover everything from cloning Void, to opening a Developer Mode window where you can play around with your updates.
 

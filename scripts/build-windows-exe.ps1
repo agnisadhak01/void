@@ -33,6 +33,7 @@ Write-Host "Packaging Windows x64 executable (~25 min)..." -ForegroundColor Cyan
 npm run gulp vscode-win32-x64
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$out = Join-Path (Split-Path $PWD -Parent) 'VSCode-win32-x64'
+. (Join-Path $PSScriptRoot 'lib\Get-ProductInfo.ps1')
+$product = Get-ProductInfo -RepoRoot (Get-Location).Path
 Write-Host "`nDone. Launch:" -ForegroundColor Green
-Write-Host "  $out\Void.exe"
+Write-Host "  $($product.PackagedExePath)"
