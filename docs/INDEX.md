@@ -67,6 +67,17 @@ graph TB
 | [merges/3.7.21/MERGE_REPORT.md](merges/3.7.21/MERGE_REPORT.md) | Active merge decisions for Cursor 3.7.21 | _(per-release tables)_ |
 | [templates/MERGE_REPORT.template.md](templates/MERGE_REPORT.template.md) | Template for future merge reports | — |
 
+## Ausome AI Studio (platform)
+
+| Document | Purpose |
+|----------|---------|
+| [ausome/ARCHITECTURE.md](ausome/ARCHITECTURE.md) | Platform topology: Pulse → gateway → vLLM / context |
+| [ausome/ROADMAP.md](ausome/ROADMAP.md) | Milestones M1–M6 and phase horizons |
+| [ausome/SECURITY.md](ausome/SECURITY.md) | Auth, RBAC, audit, sandbox policy |
+| [../backend/README.md](../backend/README.md) | Backend services layout |
+| [../deployment/README.md](../deployment/README.md) | Local `docker compose` stack |
+| [../infrastructure/README.md](../infrastructure/README.md) | Kubernetes namespaces + Helm charts |
+
 ## Upstream references (not duplicated here)
 
 | Document | Location |

@@ -1,0 +1,83 @@
+# Ausome AI Studio — local development stack
+# Usage: docker compose -f deployment/docker-compose.yml up -d
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ausome
+      POSTGRES_PASSWORD: ausome_dev
+      POSTGRES_DB: ausome
+    ports:
+      - "5432:5432"
+    volumes:
+      - ausome_pg_data:/var/lib/postgresql/data
+      - ../backend/api-gateway/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ausome -d ausome"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ausome
+      MINIO_ROOT_PASSWORD: ausome_dev_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ausome_minio_data:/data
+
+  sandbox-service:
+    build:
+      context: ../backend/sandbox-service
+      dockerfile: Dockerfile
+    ports:
+      - "8010:8010"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  api-gateway:
+    build:
+      context: ../backend/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://ausome:ausome_dev@postgres:5432/ausome
+      AUSOME_AUTH_DISABLED: "true"
+      VLLM_BASE_URL: http://host.docker.internal:8001/v1
+      EMBEDDING_MODEL: bge-m3
+      AUSOME_SANDBOX_ENABLED: "true"
+      SANDBOX_SERVICE_URL: http://sandbox-service:8010
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ausome
+      MINIO_SECRET_KEY: ausome_dev_minio
+    depends_on:
+      postgres:
+        condition: service_healthy
+      sandbox-service:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  indexing-worker:
+    build:
+      context: ../workers/indexing
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ausome:ausome_dev@postgres:5432/ausome
+      GATEWAY_URL: http://api-gateway:8000
+      WATCH_PATH: /workspace
+    volumes:
+      - ../:/workspace:ro
+    depends_on:
+      - api-gateway
+      - postgres
+
+volumes:
+  ausome_pg_data:
+  ausome_minio_data:

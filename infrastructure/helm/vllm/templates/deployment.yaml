@@ -1,0 +1,38 @@
+# yaml-language-server: disable
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Chart.Name }}"
+  namespace: models
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ .Chart.Name }}"
+      app.kubernetes.io/instance: "{{ .Release.Name }}"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "{{ .Chart.Name }}"
+        app.kubernetes.io/instance: "{{ .Release.Name }}"
+    spec:
+      containers:
+        - name: vllm
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --model
+            - "{{ .Values.model }}"
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8000"
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+            requests:
+              nvidia.com/gpu: "1"

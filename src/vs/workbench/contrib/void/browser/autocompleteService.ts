@@ -713,8 +713,10 @@ export class AutocompleteService extends Disposable implements IAutocompleteServ
 
 		// else if no more typing happens, then go forwards with the request
 
-		// wait DEBOUNCE_TIME for the user to stop typing
+		// wait for the user to stop typing (shorter debounce for Ausome gateway FIM)
 		const thisTime = Date.now()
+		const autocompleteModel = this._settingsService.state.modelSelectionOfFeature['Autocomplete']
+		const debounceMs = autocompleteModel?.providerName === 'ausome' ? 120 : DEBOUNCE_TIME
 
 		const justAcceptedAutocompletion = thisTime - this._lastCompletionAccept < 500
 
@@ -726,7 +728,7 @@ export class AutocompleteService extends Disposable implements IAutocompleteServ
 				} else {
 					resolve(true)
 				}
-			}, DEBOUNCE_TIME)
+			}, debounceMs)
 		)
 
 		// if more typing happened, then do not go forwards with the request

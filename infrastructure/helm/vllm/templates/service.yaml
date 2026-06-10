@@ -1,0 +1,16 @@
+# yaml-language-server: disable
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Chart.Name }}"
+  namespace: models
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: "{{ .Chart.Name }}"
+    app.kubernetes.io/instance: "{{ .Release.Name }}"
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP

@@ -65,6 +65,11 @@ export const defaultProviderSettings = {
 		region: 'us-east-1', // add region setting
 		endpoint: '', // optionally allow overriding default
 	},
+	ausome: {
+		endpoint: 'http://127.0.0.1:8000',
+		apiKey: 'ausome-dev',
+		headersJSON: '{"X-Ausome-Project-Id":"00000000-0000-0000-0000-000000000001"}',
+	},
 
 } as const
 
@@ -153,6 +158,12 @@ export const defaultModelsOfProvider = {
 	microsoftAzure: [],
 	awsBedrock: [],
 	liteLLM: [],
+	ausome: [
+		'qwen3-coder',
+		'deepseek-coder-v2',
+		'qwen3-235b-a22b',
+		'deepseek-v3',
+	],
 
 
 } as const satisfies Record<ProviderName, string[]>
@@ -1224,6 +1235,54 @@ const vLLMSettings: VoidStaticProviderInfo = {
 	},
 }
 
+const ausomeModelOptions = {
+	'qwen3-coder': {
+		contextWindow: 128_000,
+		reservedOutputTokenSpace: 8_192,
+		cost: { input: 0, output: 0 },
+		downloadable: false,
+		supportsFIM: true,
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: false,
+	},
+	'deepseek-coder-v2': {
+		contextWindow: 128_000,
+		reservedOutputTokenSpace: 8_192,
+		cost: { input: 0, output: 0 },
+		downloadable: false,
+		supportsFIM: true,
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: false,
+	},
+	'qwen3-235b-a22b': {
+		contextWindow: 128_000,
+		reservedOutputTokenSpace: 16_384,
+		cost: { input: 0, output: 0 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
+	},
+	'deepseek-v3': {
+		contextWindow: 128_000,
+		reservedOutputTokenSpace: 16_384,
+		cost: { input: 0, output: 0 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
+	},
+} as const satisfies Record<string, VoidStaticModelInfo>
+
+const ausomeSettings: VoidStaticProviderInfo = {
+	modelOptionsFallback: (modelName) => extensiveModelOptionsFallback(modelName, { downloadable: { sizeGb: 'not-known' }, supportsFIM: true }),
+	modelOptions: ausomeModelOptions,
+	providerReasoningIOSettings: {
+		input: { includeInPayload: openAICompatIncludeInPayloadReasoning },
+		output: { nameOfFieldInDelta: 'reasoning_content' },
+	},
+}
+
 const lmStudioSettings: VoidStaticProviderInfo = {
 	modelOptionsFallback: (modelName) => extensiveModelOptionsFallback(modelName, { downloadable: { sizeGb: 'not-known' }, contextWindow: 4_096 }),
 	modelOptions: {},
@@ -1474,6 +1533,7 @@ const modelSettingsOfProvider: { [providerName in ProviderName]: VoidStaticProvi
 	googleVertex: googleVertexSettings,
 	microsoftAzure: microsoftAzureSettings,
 	awsBedrock: awsBedrockSettings,
+	ausome: ausomeSettings,
 } as const
 
 

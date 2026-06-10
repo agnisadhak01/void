@@ -19,6 +19,7 @@ import { RawToolParamsObj } from '../common/sendLLMMessageTypes.js'
 import { MAX_CHILDREN_URIs_PAGE, MAX_FILE_CHARS_PAGE, MAX_TERMINAL_BG_COMMAND_TIME, MAX_TERMINAL_INACTIVE_TIME } from '../common/prompt/prompts.js'
 import { IVoidSettingsService } from '../common/voidSettingsService.js'
 import { generateUuid } from '../../../../base/common/uuid.js'
+import { ausomeAuthHeaders, getAusomeGatewayConfig } from '../common/ausomeGatewayHelper.js'
 
 
 // tool use for AI
@@ -230,6 +231,14 @@ export class ToolsService implements IToolsService {
 				return { uri }
 			},
 
+			semantic_search: (params: RawToolParamsObj) => {
+				const { query: queryUnknown, limit: limitUnknown, page_number: pageNumberUnknown } = params
+				const query = validateStr('query', queryUnknown)
+				const pageNumber = validatePageNum(pageNumberUnknown)
+				const limit = validateNumber(limitUnknown, { default: 10 })
+				return { query, limit, pageNumber }
+			},
+
 			// ---
 
 			create_file_or_folder: (params: RawToolParamsObj) => {
@@ -288,6 +297,27 @@ export class ToolsService implements IToolsService {
 				const { persistent_terminal_id: terminalIdUnknown } = params;
 				const persistentTerminalId = validateProposedTerminalId(terminalIdUnknown);
 				return { persistentTerminalId };
+			},
+
+			git_status: (params: RawToolParamsObj) => {
+				const { cwd: cwdUnknown } = params
+				const cwd = validateOptionalStr('cwd', cwdUnknown)
+				return { cwd }
+			},
+
+			git_commit: (params: RawToolParamsObj) => {
+				const { message: messageUnknown, cwd: cwdUnknown } = params
+				const message = validateStr('message', messageUnknown)
+				const cwd = validateOptionalStr('cwd', cwdUnknown)
+				return { message, cwd }
+			},
+
+			git_branch: (params: RawToolParamsObj) => {
+				const { name: nameUnknown, create_only: createOnlyUnknown, cwd: cwdUnknown } = params
+				const name = validateStr('name', nameUnknown)
+				const createOnly = validateBoolean(createOnlyUnknown, { default: false })
+				const cwd = validateOptionalStr('cwd', cwdUnknown)
+				return { name, createOnly, cwd }
 			},
 
 		}
@@ -461,6 +491,64 @@ export class ToolsService implements IToolsService {
 				await this.terminalToolService.killPersistentTerminal(persistentTerminalId)
 				return { result: {} }
 			},
+
+			semantic_search: async ({ query, limit, pageNumber }) => {
+				const gateway = getAusomeGatewayConfig(this.voidSettingsService.state.settingsOfProvider.ausome)
+				if (!gateway) {
+					throw new Error('Ausome gateway is not configured. Enable the Ausome provider in Settings with gateway URL and API key.')
+				}
+				const resp = await fetch(`${gateway.baseUrl}/v1/context/search`, {
+					method: 'POST',
+					headers: ausomeAuthHeaders(gateway.apiKey),
+					body: JSON.stringify({ project_id: gateway.projectId, query, limit: limit * pageNumber }),
+				})
+				if (!resp.ok) {
+					throw new Error(`Semantic search failed (${resp.status}): ${await resp.text()}`)
+				}
+				const data = await resp.json() as { results?: { path: string, score: number, chunk?: string, snippet?: string }[] }
+				const all = (data.results ?? []).map(r => ({
+					path: r.path,
+					score: r.score,
+					snippet: r.snippet ?? r.chunk ?? '',
+				}))
+				const pageSize = limit
+				const start = (pageNumber - 1) * pageSize
+				const page = all.slice(start, start + pageSize)
+				return { result: { results: page, hasNextPage: all.length > start + pageSize } }
+			},
+
+			git_status: async ({ cwd }) => {
+				const terminalId = generateUuid()
+				const { resPromise } = await this.terminalToolService.runCommand('git status --porcelain=v1 -b', { type: 'temporary', cwd, terminalId })
+				const { result, resolveReason } = await resPromise
+				if (resolveReason.type !== 'done' || resolveReason.exitCode !== 0) {
+					throw new Error(`git status failed:\n${result}`)
+				}
+				return { result: { output: result } }
+			},
+
+			git_commit: async ({ message, cwd }) => {
+				const terminalId = generateUuid()
+				const escaped = message.replace(/'/g, `'\\''`)
+				const cmd = `git add -A && git commit -m '${escaped}'`
+				const { resPromise } = await this.terminalToolService.runCommand(cmd, { type: 'temporary', cwd, terminalId })
+				const { result, resolveReason } = await resPromise
+				if (resolveReason.type !== 'done' || resolveReason.exitCode !== 0) {
+					throw new Error(`git commit failed:\n${result}`)
+				}
+				return { result: { output: result } }
+			},
+
+			git_branch: async ({ name, createOnly, cwd }) => {
+				const terminalId = generateUuid()
+				const cmd = createOnly ? `git branch ${name}` : `git checkout -b ${name}`
+				const { resPromise } = await this.terminalToolService.runCommand(cmd, { type: 'temporary', cwd, terminalId })
+				const { result, resolveReason } = await resPromise
+				if (resolveReason.type !== 'done' || resolveReason.exitCode !== 0) {
+					throw new Error(`git branch failed:\n${result}`)
+				}
+				return { result: { output: result } }
+			},
 		}
 
 
@@ -564,6 +652,13 @@ export class ToolsService implements IToolsService {
 			kill_persistent_terminal: (params, _result) => {
 				return `Successfully closed terminal "${params.persistentTerminalId}".`;
 			},
+			semantic_search: (params, result) => {
+				if (!result.results.length) return `No semantic matches for "${params.query}".`
+				return result.results.map(r => `${r.path} (score ${r.score.toFixed(3)})\n${r.snippet}`).join('\n\n') + nextPageStr(result.hasNextPage)
+			},
+			git_status: (_params, result) => result.output,
+			git_commit: (_params, result) => result.output,
+			git_branch: (params, result) => `Branch "${params.name}":\n${result.output}`,
 		}
 
 

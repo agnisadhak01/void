@@ -15,6 +15,8 @@ import { ITerminalService, ITerminalInstance, ICreateTerminalOptions } from '../
 import { MAX_TERMINAL_BG_COMMAND_TIME, MAX_TERMINAL_CHARS, MAX_TERMINAL_INACTIVE_TIME } from '../common/prompt/prompts.js';
 import { TerminalResolveReason } from '../common/toolsServiceTypes.js';
 import { timeout } from '../../../../base/common/async.js';
+import { IVoidSettingsService } from '../common/voidSettingsService.js';
+import { ausomeAuthHeaders, getAusomeGatewayConfig } from '../common/ausomeGatewayHelper.js';
 
 
 
@@ -74,6 +76,7 @@ export class TerminalToolService extends Disposable implements ITerminalToolServ
 	constructor(
 		@ITerminalService private readonly terminalService: ITerminalService,
 		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
+		@IVoidSettingsService private readonly voidSettingsService: IVoidSettingsService,
 	) {
 		super();
 
@@ -258,7 +261,35 @@ export class TerminalToolService extends Disposable implements ITerminalToolServ
 		return capability ?? undefined
 	}
 
+	private async _runInAusomeSandbox(command: string, cwd: string | null): Promise<{ result: string, resolveReason: TerminalResolveReason }> {
+		const gateway = getAusomeGatewayConfig(this.voidSettingsService.state.settingsOfProvider.ausome)
+		if (!gateway?.sandboxEnabled) {
+			throw new Error('Ausome sandbox is not enabled. Set X-Ausome-Sandbox to true in Ausome provider headers.')
+		}
+		const resp = await fetch(`${gateway.baseUrl}/v1/sandbox/exec`, {
+			method: 'POST',
+			headers: ausomeAuthHeaders(gateway.apiKey),
+			body: JSON.stringify({ workspace_id: gateway.workspaceId, command, cwd }),
+		})
+		if (!resp.ok) {
+			throw new Error(`Sandbox exec failed (${resp.status}): ${await resp.text()}`)
+		}
+		const data = await resp.json() as { stdout?: string, stderr?: string, exit_code?: number }
+		const output = [data.stdout, data.stderr].filter(Boolean).join('\n')
+		return { result: output || '(no output)', resolveReason: { type: 'done', exitCode: data.exit_code ?? 0 } }
+	}
+
 	runCommand: ITerminalToolService['runCommand'] = async (command, params) => {
+		const gateway = getAusomeGatewayConfig(this.voidSettingsService.state.settingsOfProvider.ausome)
+		if (gateway?.sandboxEnabled && params.type === 'temporary') {
+			const cwd = params.cwd
+			const resPromise = this._runInAusomeSandbox(command, cwd)
+			return {
+				interrupt: () => { },
+				resPromise,
+			}
+		}
+
 		await this.terminalService.whenConnected;
 
 		const { type } = params

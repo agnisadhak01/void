@@ -267,6 +267,16 @@ export const builtinTools: {
 		},
 	},
 
+	semantic_search: {
+		name: 'semantic_search',
+		description: `Semantic codebase search via the Ausome context engine (embeddings + rerank). Use for conceptual queries when keyword search is insufficient.`,
+		params: {
+			query: { description: 'Natural language or keyword query describing what you are looking for.' },
+			limit: { description: 'Optional. Max results (default 10).' },
+			...paginationParam,
+		},
+	},
+
 	// --- editing (create/delete) ---
 
 	create_file_or_folder: {
@@ -336,7 +346,34 @@ export const builtinTools: {
 		name: 'kill_persistent_terminal',
 		description: `Interrupts and closes a persistent terminal that you opened with open_persistent_terminal.`,
 		params: { persistent_terminal_id: { description: `The ID of the persistent terminal.` } }
-	}
+	},
+
+	git_status: {
+		name: 'git_status',
+		description: `Returns git status for the workspace (porcelain format with branch info).`,
+		params: {
+			cwd: { description: cwdHelper },
+		},
+	},
+
+	git_commit: {
+		name: 'git_commit',
+		description: `Stages all changes and creates a git commit with the given message.`,
+		params: {
+			message: { description: 'Commit message.' },
+			cwd: { description: cwdHelper },
+		},
+	},
+
+	git_branch: {
+		name: 'git_branch',
+		description: `Create or switch to a git branch.`,
+		params: {
+			name: { description: 'Branch name.' },
+			create_only: { description: 'Optional. If true, only create the branch without checking out.' },
+			cwd: { description: cwdHelper },
+		},
+	},
 
 
 	// go_to_definition

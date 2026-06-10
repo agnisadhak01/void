@@ -1420,6 +1420,10 @@ const titleOfBuiltinToolName = {
 
 	'read_lint_errors': { done: `Read lint errors`, proposed: 'Read lint errors', running: loadingTitleWrapper('Reading lint errors') },
 	'search_in_file': { done: 'Searched in file', proposed: 'Search in file', running: loadingTitleWrapper('Searching in file') },
+	'semantic_search': { done: 'Semantic search', proposed: 'Semantic search', running: loadingTitleWrapper('Semantic search') },
+	'git_status': { done: 'Git status', proposed: 'Git status', running: loadingTitleWrapper('Git status') },
+	'git_commit': { done: 'Git commit', proposed: 'Git commit', running: loadingTitleWrapper('Git commit') },
+	'git_branch': { done: 'Git branch', proposed: 'Git branch', running: loadingTitleWrapper('Git branch') },
 } as const satisfies Record<BuiltinToolName, { done: any, proposed: any, running: any }>
 
 
@@ -1559,7 +1563,20 @@ const toolNameToDesc = (toolName: BuiltinToolName, _toolParams: BuiltinToolCallP
 				desc1: getBasename(toolParams.uri.fsPath),
 				desc1Info: getRelative(toolParams.uri, accessor),
 			}
-		}
+		},
+		'semantic_search': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['semantic_search']
+			return { desc1: `"${toolParams.query}"` }
+		},
+		'git_status': () => ({ desc1: 'status' }),
+		'git_commit': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['git_commit']
+			return { desc1: `"${toolParams.message}"` }
+		},
+		'git_branch': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['git_branch']
+			return { desc1: toolParams.name }
+		},
 	}
 
 	try {

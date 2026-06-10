@@ -15,6 +15,7 @@ import { GoogleAuth } from 'google-auth-library'
 /* eslint-enable */
 
 import { AnthropicLLMChatMessage, GeminiLLMChatMessage, LLMChatMessage, LLMFIMMessage, ModelListParams, OllamaModelResponse, OnError, OnFinalMessage, OnText, RawToolCallObj, RawToolParamsObj } from '../../common/sendLLMMessageTypes.js';
+import { createAusomeGatewayClient } from './sendLLMMessage.ausomeGateway.js';
 import { ChatMode, displayInfoOfProviderName, ModelSelectionOptions, OverridesOfModel, ProviderName, SettingsOfProvider } from '../../common/voidSettingsTypes.js';
 import { getSendableReasoningInfo, getModelCapabilities, getProviderCapabilities, defaultProviderSettings, getReservedOutputTokenSpace } from '../../common/modelCapabilities.js';
 import { extractReasoningWrapper, extractXMLToolsWrapper } from './extractGrammar.js';
@@ -166,6 +167,9 @@ const newOpenAICompatibleSDK = async ({ settingsOfProvider, providerName, includ
 	else if (providerName === 'mistral') {
 		const thisConfig = settingsOfProvider[providerName]
 		return new OpenAI({ baseURL: 'https://api.mistral.ai/v1', apiKey: thisConfig.apiKey, ...commonPayloadOpts })
+	}
+	else if (providerName === 'ausome') {
+		return createAusomeGatewayClient(settingsOfProvider, commonPayloadOpts)
 	}
 
 	else throw new Error(`Void providerName was invalid: ${providerName}.`)
@@ -936,6 +940,11 @@ export const sendLLMMessageToProviderImplementation = {
 		sendChat: (params) => _sendOpenAICompatibleChat(params),
 		sendFIM: null,
 		list: null,
+	},
+	ausome: {
+		sendChat: (params) => _sendOpenAICompatibleChat(params),
+		sendFIM: (params) => _sendOpenAICompatibleFIM(params),
+		list: (params) => _openaiCompatibleList(params),
 	},
 
 } satisfies CallFnOfProvider

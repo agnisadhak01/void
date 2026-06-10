@@ -1,0 +1,3 @@
+# BGE-Reranker-v2 configuration
+model: bge-reranker-v2
+endpoint: /v1/rerank

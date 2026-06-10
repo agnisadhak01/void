@@ -27,6 +27,8 @@ export const approvalTypeOfBuiltinToolName: Partial<{ [T in BuiltinToolName]?: '
 	'run_persistent_command': 'terminal',
 	'open_persistent_terminal': 'terminal',
 	'kill_persistent_terminal': 'terminal',
+	'git_commit': 'terminal',
+	'git_branch': 'terminal',
 }
 
 
@@ -49,6 +51,7 @@ export type BuiltinToolCallParams = {
 	'search_pathnames_only': { query: string, includePattern: string | null, pageNumber: number },
 	'search_for_files': { query: string, isRegex: boolean, searchInFolder: URI | null, pageNumber: number },
 	'search_in_file': { uri: URI, query: string, isRegex: boolean },
+	'semantic_search': { query: string, limit: number, pageNumber: number },
 	'read_lint_errors': { uri: URI },
 	// ---
 	'rewrite_file': { uri: URI, newContent: string },
@@ -60,6 +63,9 @@ export type BuiltinToolCallParams = {
 	'open_persistent_terminal': { cwd: string | null },
 	'run_persistent_command': { command: string; persistentTerminalId: string },
 	'kill_persistent_terminal': { persistentTerminalId: string },
+	'git_status': { cwd: string | null },
+	'git_commit': { message: string, cwd: string | null },
+	'git_branch': { name: string, createOnly: boolean, cwd: string | null },
 }
 
 // RESULT OF TOOL CALL
@@ -70,6 +76,7 @@ export type BuiltinToolResultType = {
 	'search_pathnames_only': { uris: URI[], hasNextPage: boolean },
 	'search_for_files': { uris: URI[], hasNextPage: boolean },
 	'search_in_file': { lines: number[]; },
+	'semantic_search': { results: { path: string, score: number, snippet: string }[], hasNextPage: boolean },
 	'read_lint_errors': { lintErrors: LintErrorItem[] | null },
 	// ---
 	'rewrite_file': Promise<{ lintErrors: LintErrorItem[] | null }>,
@@ -81,6 +88,9 @@ export type BuiltinToolResultType = {
 	'run_persistent_command': { result: string; resolveReason: TerminalResolveReason; },
 	'open_persistent_terminal': { persistentTerminalId: string },
 	'kill_persistent_terminal': {},
+	'git_status': { output: string },
+	'git_commit': { output: string },
+	'git_branch': { output: string },
 }
 
 

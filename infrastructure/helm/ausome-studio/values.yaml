@@ -1,0 +1,21 @@
+vllm:
+  enabled: true
+
+apiGateway:
+  image: ausome/api-gateway:latest
+  replicas: 2
+  authDisabled: false
+
+postgres:
+  enabled: true
+
+monitoring:
+  prometheus: true
+  grafana: true
+
+namespaces:
+  - editor
+  - models
+  - agents
+  - workspaces
+  - monitoring

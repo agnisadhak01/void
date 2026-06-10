@@ -1,0 +1,4 @@
+# BGE-M3 embedding configuration (served via vLLM or dedicated endpoint)
+model: bge-m3
+dimensions: 1024
+endpoint: /v1/embeddings

@@ -16,7 +16,7 @@ type UnionOfKeys<T> = T extends T ? keyof T : never;
 export type ProviderName = keyof typeof defaultProviderSettings
 export const providerNames = Object.keys(defaultProviderSettings) as ProviderName[]
 
-export const localProviderNames = ['ollama', 'vLLM', 'lmStudio'] satisfies ProviderName[] // all local names
+export const localProviderNames = ['ollama', 'vLLM', 'lmStudio', 'ausome'] satisfies ProviderName[] // all local names
 export const nonlocalProviderNames = providerNames.filter((name) => !(localProviderNames as string[]).includes(name)) // all non-local names
 
 type CustomSettingName = UnionOfKeys<typeof defaultProviderSettings[ProviderName]>
@@ -106,6 +106,9 @@ export const displayInfoOfProviderName = (providerName: ProviderName): DisplayIn
 	else if (providerName === 'awsBedrock') {
 		return { title: 'AWS Bedrock', }
 	}
+	else if (providerName === 'ausome') {
+		return { title: 'Ausome Gateway', desc: 'Self-hosted Ausome AI Studio API gateway' }
+	}
 
 	throw new Error(`descOfProviderName: Unknown provider name: "${providerName}"`)
 }
@@ -128,6 +131,7 @@ export const subTextMdOfProviderName = (providerName: ProviderName): string => {
 	if (providerName === 'vLLM') return 'Read more about custom [Endpoints here](https://docs.vllm.ai/en/latest/getting_started/quickstart.html#openai-compatible-server).'
 	if (providerName === 'lmStudio') return 'Read more about custom [Endpoints here](https://lmstudio.ai/docs/app/api/endpoints/openai).'
 	if (providerName === 'liteLLM') return 'Read more about endpoints [here](https://docs.litellm.ai/docs/providers/openai_compatible).'
+	if (providerName === 'ausome') return 'Point at your Ausome API gateway (default `http://127.0.0.1:8000`). Use a Supabase JWT or `ausome-dev` when auth is disabled. Set `X-Ausome-Project-Id` and optional `X-Ausome-Sandbox` in Custom Headers JSON.'
 
 	throw new Error(`subTextMdOfProviderName: Unknown provider name: "${providerName}"`)
 }
@@ -155,8 +159,9 @@ export const displayInfoOfSettingName = (providerName: ProviderName, settingName
 											providerName === 'mistral' ? 'api-key...' :
 												providerName === 'googleVertex' ? 'AIzaSy...' :
 													providerName === 'microsoftAzure' ? 'key-...' :
-														providerName === 'awsBedrock' ? 'key-...' :
-															'',
+									providerName === 'awsBedrock' ? 'key-...' :
+										providerName === 'ausome' ? 'ausome-dev or JWT...' :
+											'',
 
 			isPasswordField: true,
 		}
@@ -166,7 +171,8 @@ export const displayInfoOfSettingName = (providerName: ProviderName, settingName
 			title: providerName === 'ollama' ? 'Endpoint' :
 				providerName === 'vLLM' ? 'Endpoint' :
 					providerName === 'lmStudio' ? 'Endpoint' :
-						providerName === 'openAICompatible' ? 'baseURL' : // (do not include /chat/completions)
+						providerName === 'ausome' ? 'Gateway URL' :
+							providerName === 'openAICompatible' ? 'baseURL' : // (do not include /chat/completions)
 							providerName === 'googleVertex' ? 'baseURL' :
 								providerName === 'microsoftAzure' ? 'baseURL' :
 									providerName === 'liteLLM' ? 'baseURL' :
@@ -175,7 +181,8 @@ export const displayInfoOfSettingName = (providerName: ProviderName, settingName
 
 			placeholder: providerName === 'ollama' ? defaultProviderSettings.ollama.endpoint
 				: providerName === 'vLLM' ? defaultProviderSettings.vLLM.endpoint
-					: providerName === 'openAICompatible' ? 'https://my-website.com/v1'
+					: providerName === 'ausome' ? defaultProviderSettings.ausome.endpoint
+						: providerName === 'openAICompatible' ? 'https://my-website.com/v1'
 						: providerName === 'lmStudio' ? defaultProviderSettings.lmStudio.endpoint
 							: providerName === 'liteLLM' ? 'http://localhost:4000'
 								: providerName === 'awsBedrock' ? 'http://localhost:4000/v1'
@@ -350,6 +357,12 @@ export const defaultSettingsOfProvider: SettingsOfProvider = {
 		...defaultCustomSettings,
 		...defaultProviderSettings.awsBedrock,
 		...modelInfoOfDefaultModelNames(defaultModelsOfProvider.awsBedrock),
+		_didFillInProviderSettings: undefined,
+	},
+	ausome: {
+		...defaultCustomSettings,
+		...defaultProviderSettings.ausome,
+		...modelInfoOfDefaultModelNames(defaultModelsOfProvider.ausome),
 		_didFillInProviderSettings: undefined,
 	},
 }
