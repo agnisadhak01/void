@@ -62,6 +62,28 @@ export const ausomeAuthHeaders = (apiKey: string): Record<string, string> => ({
 	'Authorization': `Bearer ${apiKey}`,
 });
 
+const DEFAULT_GATEWAY_HEALTH_TIMEOUT_MS = 2500;
+
+/** True when gateway responds on /health within timeout. */
+export const checkGatewayHealth = async (
+	cfg: AusomeGatewayConfig,
+	timeoutMs = DEFAULT_GATEWAY_HEALTH_TIMEOUT_MS,
+): Promise<boolean> => {
+	try {
+		const ctrl = new AbortController();
+		const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+		const resp = await fetch(`${cfg.baseUrl}/health`, {
+			method: 'GET',
+			headers: ausomeAuthHeaders(cfg.apiKey),
+			signal: ctrl.signal,
+		});
+		clearTimeout(timer);
+		return resp.ok;
+	} catch {
+		return false;
+	}
+};
+
 const gatewayFetch = async <T>(
 	cfg: AusomeGatewayConfig,
 	path: string,

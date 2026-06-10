@@ -66,9 +66,10 @@ export const defaultProviderSettings = {
 		endpoint: '', // optionally allow overriding default
 	},
 	ausome: {
-		endpoint: 'http://127.0.0.1:8000',
-		apiKey: 'ausome-dev',
-		headersJSON: '{"X-Ausome-Project-Id":"00000000-0000-0000-0000-000000000001"}',
+		// Empty by default — Pulse runs standalone like Void until the user opts into Ausome gateway.
+		endpoint: '',
+		apiKey: '',
+		headersJSON: '',
 	},
 
 } as const

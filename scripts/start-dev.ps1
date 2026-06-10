@@ -125,14 +125,28 @@ function Ensure-NativeModules {
 }
 
 function Ensure-Electron {
+    $electronDir = Join-Path $RepoRoot '.build/electron'
     if (Test-Path $ElectronExe) {
         Write-Host "Electron dev binary: OK" -ForegroundColor DarkGray
         return
     }
+
+    # Product rename left a stale binary (e.g. Void.exe when nameShort is Pulse).
+    $staleExes = @('Void.exe', 'Code - OSS.exe', 'code.exe')
+    foreach ($stale in $staleExes) {
+        $stalePath = Join-Path $electronDir $stale
+        if (Test-Path $stalePath) {
+            Write-Host ('Stale dev electron ({0}) - refreshing for {1}...' -f $stale, $Product.ExeName) -ForegroundColor Yellow
+            Remove-Item (Join-Path $electronDir 'version') -Force -ErrorAction SilentlyContinue
+            break
+        }
+    }
+
     Write-Step 'Downloading dev Electron (npm run electron)...'
     npm run electron
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ElectronExe)) {
         Write-Host "Failed to prepare $ElectronExe" -ForegroundColor Red
+        Write-Host "If download failed, delete .build/electron and retry, or check network/GitHub token for electron assets." -ForegroundColor Yellow
         exit 1
     }
 }

@@ -169,13 +169,23 @@ Configured in [modelCapabilities.ts](../src/vs/workbench/contrib/void/common/mod
 
 Local auto-detected providers: `ollama`, `vLLM`, `lmStudio`.
 
+### Standalone vs Ausome (default behavior)
+
+| Mode | Requirement | Behavior |
+|------|-------------|----------|
+| **Standalone (default)** | Any cloud/local LLM provider | Void-style: direct LLM + local tool loop in Pulse |
+| **Ausome gateway (opt-in)** | User configures Ausome provider + optional `docker compose` | Gateway proxy, hybrid agent, semantic search, sandbox |
+
+Ausome provider fields default **empty** so fresh installs do not depend on `localhost:8000`.
+
 ### Ausome gateway provider
 
 | Capability | Status | Code / endpoint |
 |------------|--------|-----------------|
 | OpenAI-compatible chat/FIM/embeddings | `implemented` | [sendLLMMessage.ausomeGateway.ts](../src/vs/workbench/contrib/void/electron-main/llmMessage/sendLLMMessage.ausomeGateway.ts) |
 | Gateway HTTP helper | `implemented` | [ausomeGatewayHelper.ts](../src/vs/workbench/contrib/void/common/ausomeGatewayHelper.ts) |
-| Server agent orchestration (hybrid loop) | `implemented` | [chatThreadService.ts](../src/vs/workbench/contrib/void/browser/chatThreadService.ts) — `agentOrchestrationEnabled` |
+| Server agent orchestration (hybrid loop) | `implemented` | [chatThreadService.ts](../src/vs/workbench/contrib/void/browser/chatThreadService.ts) — optional; **falls back to local agent** if gateway unreachable |
+| Semantic search fallback | `implemented` | [toolsService.ts](../src/vs/workbench/contrib/void/browser/toolsService.ts) — keyword search when gateway unavailable |
 | Plan auto-approve | `implemented` | `agentAutoApprovePlan` in [voidSettingsTypes.ts](../src/vs/workbench/contrib/void/common/voidSettingsTypes.ts) |
 | Agent runs / trace UI | `implemented` | [AgentRunsPanel.tsx](../src/vs/workbench/contrib/void/browser/react/src/sidebar-tsx/agent-runs/AgentRunsPanel.tsx) |
 | Sandbox terminal routing | `implemented` | [terminalToolService.ts](../src/vs/workbench/contrib/void/browser/terminalToolService.ts) when `X-Ausome-Sandbox: true` |

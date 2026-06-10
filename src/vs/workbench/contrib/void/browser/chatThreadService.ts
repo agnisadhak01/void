@@ -42,6 +42,7 @@ import { RawMCPToolCall } from '../common/mcpServiceTypes.js';
 import {
 	approveAgentPlan,
 	cancelAgentRun,
+	checkGatewayHealth,
 	getAusomeGatewayConfig,
 	pollAgentRun,
 	startAgentRun,
@@ -856,7 +857,15 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 	}) {
 
 		if (this._shouldUseGatewayAgent(modelSelection)) {
-			return this._runGatewayAgent({ threadId, modelSelection, callThisToolFirst })
+			const ausome = this._settingsService.state.settingsOfProvider.ausome
+			const cfg = getAusomeGatewayConfig(ausome)
+			if (cfg && await checkGatewayHealth(cfg)) {
+				return this._runGatewayAgent({ threadId, modelSelection, callThisToolFirst })
+			}
+			this._notificationService.notify({
+				severity: Severity.Warning,
+				message: 'Ausome gateway is unavailable. Using the local agent loop (direct LLM + local tools).',
+			})
 		}
 
 		let interruptedWhenIdle = false

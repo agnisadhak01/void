@@ -1345,7 +1345,7 @@ export const Settings = () => {
 															value={settingsState.globalSettings.agentOrchestrationEnabled}
 															onChange={(newVal) => voidSettingsService.setGlobalSetting('agentOrchestrationEnabled', newVal)}
 														/>
-														<span className='text-void-fg-3 text-xs pointer-events-none'>Server agent orchestration (ausome provider)</span>
+														<span className='text-void-fg-3 text-xs pointer-events-none'>Server agent orchestration (optional — falls back to local agent if gateway is down)</span>
 													</div>
 													<div className='flex items-center gap-x-2 my-2'>
 														<VoidSwitch

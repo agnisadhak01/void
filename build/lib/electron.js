@@ -239,11 +239,24 @@ function getElectron(arch) {
             .pipe(vinyl_fs_1.default.dest('.build/electron'));
     };
 }
+function getDevElectronExecutable() {
+    const electronPath = path_1.default.join(root, '.build', 'electron');
+    if (process.platform === 'win32') {
+        return path_1.default.join(electronPath, `${product.nameShort}.exe`);
+    }
+    if (process.platform === 'darwin') {
+        return path_1.default.join(electronPath, `${product.nameShort}.app`, 'Contents', 'MacOS', 'Electron');
+    }
+    return path_1.default.join(electronPath, product.applicationName);
+}
 async function main(arch = process.arch) {
     const version = electronVersion;
     const electronPath = path_1.default.join(root, '.build', 'electron');
     const versionFile = path_1.default.join(electronPath, 'version');
-    const isUpToDate = fs_1.default.existsSync(versionFile) && fs_1.default.readFileSync(versionFile, 'utf8') === `${version}`;
+    const executable = getDevElectronExecutable();
+    const isUpToDate = fs_1.default.existsSync(versionFile)
+        && fs_1.default.readFileSync(versionFile, 'utf8') === `${version}`
+        && fs_1.default.existsSync(executable);
     if (!isUpToDate) {
         await util.rimraf(electronPath)();
         await util.streamToPromise(getElectron(arch)());

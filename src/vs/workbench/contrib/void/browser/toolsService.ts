@@ -494,27 +494,50 @@ export class ToolsService implements IToolsService {
 
 			semantic_search: async ({ query, limit, pageNumber }) => {
 				const gateway = getAusomeGatewayConfig(this.voidSettingsService.state.settingsOfProvider.ausome)
-				if (!gateway) {
-					throw new Error('Ausome gateway is not configured. Enable the Ausome provider in Settings with gateway URL and API key.')
-				}
-				const resp = await fetch(`${gateway.baseUrl}/v1/context/search`, {
-					method: 'POST',
-					headers: ausomeAuthHeaders(gateway.apiKey),
-					body: JSON.stringify({ project_id: gateway.projectId, query, limit: limit * pageNumber }),
-				})
-				if (!resp.ok) {
-					throw new Error(`Semantic search failed (${resp.status}): ${await resp.text()}`)
-				}
-				const data = await resp.json() as { results?: { path: string, score: number, chunk?: string, snippet?: string }[] }
-				const all = (data.results ?? []).map(r => ({
-					path: r.path,
-					score: r.score,
-					snippet: r.snippet ?? r.chunk ?? '',
-				}))
 				const pageSize = limit
-				const start = (pageNumber - 1) * pageSize
-				const page = all.slice(start, start + pageSize)
-				return { result: { results: page, hasNextPage: all.length > start + pageSize } }
+				const fallbackKeywordSearch = async () => {
+					const { result } = await this.callTool.search_for_files({
+						query,
+						isRegex: false,
+						searchInFolder: null,
+						pageNumber,
+					})
+					return {
+						result: {
+							results: result.uris.map(uri => ({
+								path: uri.fsPath,
+								score: 1,
+								snippet: '(keyword search — Ausome context engine unavailable)',
+							})),
+							hasNextPage: result.hasNextPage,
+							usedKeywordFallback: true,
+						},
+					}
+				}
+				if (!gateway) {
+					return fallbackKeywordSearch()
+				}
+				try {
+					const resp = await fetch(`${gateway.baseUrl}/v1/context/search`, {
+						method: 'POST',
+						headers: ausomeAuthHeaders(gateway.apiKey),
+						body: JSON.stringify({ project_id: gateway.projectId, query, limit: limit * pageNumber }),
+					})
+					if (!resp.ok) {
+						return fallbackKeywordSearch()
+					}
+					const data = await resp.json() as { results?: { path: string, score: number, chunk?: string, snippet?: string }[] }
+					const all = (data.results ?? []).map(r => ({
+						path: r.path,
+						score: r.score,
+						snippet: r.snippet ?? r.chunk ?? '',
+					}))
+					const start = (pageNumber - 1) * pageSize
+					const page = all.slice(start, start + pageSize)
+					return { result: { results: page, hasNextPage: all.length > start + pageSize, usedKeywordFallback: false } }
+				} catch {
+					return fallbackKeywordSearch()
+				}
 			},
 
 			git_status: async ({ cwd }) => {

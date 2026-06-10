@@ -131,7 +131,7 @@ export const subTextMdOfProviderName = (providerName: ProviderName): string => {
 	if (providerName === 'vLLM') return 'Read more about custom [Endpoints here](https://docs.vllm.ai/en/latest/getting_started/quickstart.html#openai-compatible-server).'
 	if (providerName === 'lmStudio') return 'Read more about custom [Endpoints here](https://lmstudio.ai/docs/app/api/endpoints/openai).'
 	if (providerName === 'liteLLM') return 'Read more about endpoints [here](https://docs.litellm.ai/docs/providers/openai_compatible).'
-	if (providerName === 'ausome') return 'Point at your Ausome API gateway (default `http://127.0.0.1:8000`). Use a Supabase JWT or `ausome-dev` when auth is disabled. Set `X-Ausome-Project-Id` and optional `X-Ausome-Sandbox` in Custom Headers JSON.'
+	if (providerName === 'ausome') return 'Optional. Pulse works standalone without Ausome — configure this only when running the self-hosted gateway. Use `ausome-dev` when auth is disabled. Custom headers: `X-Ausome-Project-Id`, optional `X-Ausome-Sandbox`.'
 
 	throw new Error(`subTextMdOfProviderName: Unknown provider name: "${providerName}"`)
 }
@@ -181,7 +181,7 @@ export const displayInfoOfSettingName = (providerName: ProviderName, settingName
 
 			placeholder: providerName === 'ollama' ? defaultProviderSettings.ollama.endpoint
 				: providerName === 'vLLM' ? defaultProviderSettings.vLLM.endpoint
-					: providerName === 'ausome' ? defaultProviderSettings.ausome.endpoint
+					: providerName === 'ausome' ? 'http://127.0.0.1:8000'
 						: providerName === 'openAICompatible' ? 'https://my-website.com/v1'
 						: providerName === 'lmStudio' ? defaultProviderSettings.lmStudio.endpoint
 							: providerName === 'liteLLM' ? 'http://localhost:4000'
@@ -465,7 +465,7 @@ export type GlobalSettings = {
 	isOnboardingComplete: boolean;
 	disableSystemMessage: boolean;
 	autoAcceptLLMChanges: boolean;
-	/** When true and provider is ausome, delegate agent loop to gateway runtime (M7). */
+	/** When true, provider is ausome, and gateway is reachable: delegate agent loop to server runtime. Otherwise uses local Void agent loop. */
 	agentOrchestrationEnabled: boolean;
 	/** Auto-approve server-generated plans without manual gate (M8). */
 	agentAutoApprovePlan: boolean;

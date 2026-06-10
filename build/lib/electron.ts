@@ -224,11 +224,25 @@ function getElectron(arch: string): () => NodeJS.ReadWriteStream {
 	};
 }
 
+function getDevElectronExecutable(): string {
+	const electronPath = path.join(root, '.build', 'electron');
+	if (process.platform === 'win32') {
+		return path.join(electronPath, `${product.nameShort}.exe`);
+	}
+	if (process.platform === 'darwin') {
+		return path.join(electronPath, `${product.nameShort}.app`, 'Contents', 'MacOS', 'Electron');
+	}
+	return path.join(electronPath, product.applicationName);
+}
+
 async function main(arch: string = process.arch): Promise<void> {
 	const version = electronVersion;
 	const electronPath = path.join(root, '.build', 'electron');
 	const versionFile = path.join(electronPath, 'version');
-	const isUpToDate = fs.existsSync(versionFile) && fs.readFileSync(versionFile, 'utf8') === `${version}`;
+	const executable = getDevElectronExecutable();
+	const isUpToDate = fs.existsSync(versionFile)
+		&& fs.readFileSync(versionFile, 'utf8') === `${version}`
+		&& fs.existsSync(executable);
 
 	if (!isUpToDate) {
 		await util.rimraf(electronPath)();

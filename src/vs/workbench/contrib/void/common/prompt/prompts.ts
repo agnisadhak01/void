@@ -269,7 +269,7 @@ export const builtinTools: {
 
 	semantic_search: {
 		name: 'semantic_search',
-		description: `Semantic codebase search via the Ausome context engine (embeddings + rerank). Use for conceptual queries when keyword search is insufficient.`,
+		description: `Semantic codebase search when the Ausome gateway is available; otherwise falls back to local keyword search. Use for conceptual queries when keyword search is insufficient.`,
 		params: {
 			query: { description: 'Natural language or keyword query describing what you are looking for.' },
 			limit: { description: 'Optional. Max results (default 10).' },

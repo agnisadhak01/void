@@ -2,6 +2,23 @@
 
 **Platform:** Ausome AI Studio | **Editor:** Pulse (desktop fork of Void)
 
+## Standalone-first (default)
+
+Pulse behaves like **Void** out of the box:
+
+- Talks **directly** to configured LLM providers (OpenAI, Anthropic, Ollama, etc.).
+- Runs the **local agent loop** in the editor: LLM proposes tools → Pulse executes them locally.
+- **No Docker, Postgres, or gateway required** for daily use.
+
+Ausome gateway features are **opt-in**:
+
+| Feature | When active | Fallback when gateway off |
+|---------|-------------|---------------------------|
+| `ausome` LLM provider | User fills gateway URL + API key in Settings | Provider hidden until configured |
+| Server agent orchestration | Setting on + `ausome` provider + `/health` OK | Local agent loop + notification |
+| `semantic_search` tool | Gateway configured + context API up | Local `search_for_files` (keyword) |
+| Docker sandbox terminal | `X-Ausome-Sandbox: true` in headers | Local integrated terminal |
+
 ## High-level diagram
 
 ```mermaid

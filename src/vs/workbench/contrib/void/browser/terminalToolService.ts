@@ -72,6 +72,8 @@ export class TerminalToolService extends Disposable implements ITerminalToolServ
 
 	private persistentTerminalInstanceOfId: Record<string, ITerminalInstance> = {}
 	private temporaryTerminalInstanceOfId: Record<string, ITerminalInstance> = {}
+	/** One-shot: skip Ausome sandbox after a failed remote exec. */
+	private _preferLocalTerminalForCommand = false
 
 	constructor(
 		@ITerminalService private readonly terminalService: ITerminalService,
@@ -281,9 +283,17 @@ export class TerminalToolService extends Disposable implements ITerminalToolServ
 
 	runCommand: ITerminalToolService['runCommand'] = async (command, params) => {
 		const gateway = getAusomeGatewayConfig(this.voidSettingsService.state.settingsOfProvider.ausome)
-		if (gateway?.sandboxEnabled && params.type === 'temporary') {
+		if (gateway?.sandboxEnabled && params.type === 'temporary' && !this._preferLocalTerminalForCommand) {
 			const cwd = params.cwd
-			const resPromise = this._runInAusomeSandbox(command, cwd)
+			const resPromise = this._runInAusomeSandbox(command, cwd).catch(async () => {
+				// Sandbox unavailable — fall back to local terminal like stock Void.
+				this._preferLocalTerminalForCommand = true
+				try {
+					return (await this.runCommand(command, params)).resPromise
+				} finally {
+					this._preferLocalTerminalForCommand = false
+				}
+			})
 			return {
 				interrupt: () => { },
 				resPromise,
