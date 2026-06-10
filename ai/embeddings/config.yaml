@@ -1,4 +1,23 @@
-# BGE-M3 embedding configuration (served via vLLM or dedicated endpoint)
-model: bge-m3
-dimensions: 1024
-endpoint: /v1/embeddings
+# M15 — task-specific model matrix (gateway model_router.py)
+models:
+  completion:
+    primary: qwen3-coder
+    fallback: deepseek-coder-v2
+    latency_target_ms: 150
+  chat:
+    primary: qwen3-coder
+    fallback: deepseek-coder-v2
+  reasoning:
+    primary: qwen3-235b-a22b
+    fallback: deepseek-v3
+  review:
+    primary: deepseek-v3
+    fallback: qwen3-coder
+  embedding:
+    primary: bge-m3
+    fallback: bge-m3
+    dimensions: 1024
+    endpoint: /v1/embeddings
+  rerank:
+    primary: bge-reranker-v2
+    fallback: bge-reranker-v2

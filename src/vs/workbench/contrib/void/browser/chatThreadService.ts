@@ -39,6 +39,14 @@ import { IDirectoryStrService } from '../common/directoryStrService.js';
 import { IFileService } from '../../../../platform/files/common/files.js';
 import { IMCPService } from '../common/mcpService.js';
 import { RawMCPToolCall } from '../common/mcpServiceTypes.js';
+import {
+	approveAgentPlan,
+	cancelAgentRun,
+	getAusomeGatewayConfig,
+	pollAgentRun,
+	startAgentRun,
+	submitAgentToolResult,
+} from '../common/ausomeGatewayHelper.js';
 
 
 // related to retrying when LLM message has error
@@ -729,6 +737,102 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 
 
 
+	private _shouldUseGatewayAgent(modelSelection: ModelSelection | null): boolean {
+		if (!this._settingsService.state.globalSettings.agentOrchestrationEnabled) return false
+		if (modelSelection?.providerName !== 'ausome') return false
+		const ausome = this._settingsService.state.settingsOfProvider.ausome
+		return getAusomeGatewayConfig(ausome) !== null
+	}
+
+	private async _runGatewayAgent({
+		threadId,
+		modelSelection,
+		callThisToolFirst,
+	}: {
+		threadId: string,
+		modelSelection: ModelSelection | null,
+		callThisToolFirst?: ToolMessage<ToolName> & { type: 'tool_request' }
+	}) {
+		const ausome = this._settingsService.state.settingsOfProvider.ausome
+		const cfg = getAusomeGatewayConfig(ausome)
+		if (!cfg) return
+
+		const { agentAutoApprovePlan } = this._settingsService.state.globalSettings
+		const chatMessages = this.state.allThreads[threadId]?.messages ?? []
+		const lastUser = findLast(chatMessages, m => m.role === 'user')
+		const goal = lastUser?.role === 'user'
+			? (lastUser.displayContent || lastUser.content || '')
+			: ''
+
+		if (callThisToolFirst) {
+			const { interrupted } = await this._runToolCall(threadId, callThisToolFirst.name, callThisToolFirst.id, callThisToolFirst.mcpServerName, { preapproved: true, unvalidatedToolParams: callThisToolFirst.rawParams, validatedParams: callThisToolFirst.params })
+			if (interrupted) {
+				this._setStreamState(threadId, undefined)
+				return
+			}
+		}
+
+		this._setStreamState(threadId, { isRunning: 'LLM', llmInfo: { displayContentSoFar: 'Starting gateway agent run…', reasoningSoFar: '', toolCallSoFar: null }, interrupt: 'not_needed' })
+
+		try {
+			let run = await startAgentRun(cfg, {
+				goal,
+				project_id: cfg.projectId,
+				pulse_thread_id: threadId,
+				require_plan_approval: !agentAutoApprovePlan,
+			})
+
+			if (run.status === 'awaiting_approval') {
+				const planText = run.plan ? JSON.stringify(run.plan, null, 2) : ''
+				this._addMessageToThread(threadId, { role: 'assistant', displayContent: `**Agent plan** (awaiting approval):\n\`\`\`json\n${planText}\n\`\`\``, reasoning: '', anthropicReasoning: null })
+				if (agentAutoApprovePlan) {
+					run = await approveAgentPlan(cfg, run.run_id)
+				} else {
+					this._setStreamState(threadId, { isRunning: 'awaiting_user' })
+					return
+				}
+			}
+
+			const terminal = new Set(['completed', 'failed', 'cancelled'])
+			while (!terminal.has(run.status)) {
+				if (run.pending_tool) {
+					const pt = run.pending_tool
+					const toolName = pt.tool_name as ToolName
+					if (!isABuiltinToolName(toolName)) {
+						this._addMessageToThread(threadId, { role: 'assistant', displayContent: `Unsupported gateway tool: ${toolName}`, reasoning: '', anthropicReasoning: null })
+						await cancelAgentRun(cfg, run.run_id)
+						break
+					}
+					const toolId = pt.tool_call_id || generateUuid()
+					const { interrupted } = await this._runToolCall(threadId, toolName, toolId, undefined, { preapproved: true, unvalidatedToolParams: pt.arguments as RawToolParamsObj })
+					if (interrupted) {
+						await cancelAgentRun(cfg, run.run_id)
+						this._setStreamState(threadId, undefined)
+						return
+					}
+					const afterMessages = this.state.allThreads[threadId]?.messages ?? []
+					const toolMsg = findLast(afterMessages, m => m.role === 'tool' && m.id === toolId)
+					const resultStr = toolMsg?.role === 'tool' ? toolMsg.content : ''
+					const success = toolMsg?.role === 'tool' && toolMsg.type === 'success'
+					run = await submitAgentToolResult(cfg, run.run_id, { tool_name: toolName, result: resultStr, success, tool_call_id: toolId })
+				} else {
+					await timeout(400)
+					run = await pollAgentRun(cfg, run.run_id)
+				}
+			}
+
+			const summary = run.message || `Agent run finished: ${run.status}`
+			this._addMessageToThread(threadId, { role: 'assistant', displayContent: summary, reasoning: '', anthropicReasoning: null })
+		} catch (err) {
+			this._setStreamState(threadId, { isRunning: undefined, error: { message: getErrorMessage(err), fullError: err instanceof Error ? err : null } })
+			return
+		}
+
+		this._setStreamState(threadId, undefined)
+		this._addUserCheckpoint({ threadId })
+		this._metricsService.capture('Agent Loop Done (Gateway)', { chatMode: this._settingsService.state.globalSettings.chatMode })
+	}
+
 	private async _runChatAgent({
 		threadId,
 		modelSelection,
@@ -742,6 +846,9 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 		callThisToolFirst?: ToolMessage<ToolName> & { type: 'tool_request' }
 	}) {
 
+		if (this._shouldUseGatewayAgent(modelSelection)) {
+			return this._runGatewayAgent({ threadId, modelSelection, callThisToolFirst })
+		}
 
 		let interruptedWhenIdle = false
 		const idleInterruptor = Promise.resolve(() => { interruptedWhenIdle = true })

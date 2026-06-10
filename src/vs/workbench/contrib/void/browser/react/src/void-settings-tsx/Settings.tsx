@@ -1336,6 +1336,26 @@ export const Settings = () => {
 														<span className='text-void-fg-3 text-xs pointer-events-none'>Auto-accept LLM changes</span>
 													</div>
 												</ErrorBoundary>
+
+												{/* Gateway agent orchestration (Ausome M7) */}
+												<ErrorBoundary>
+													<div className='flex items-center gap-x-2 my-2'>
+														<VoidSwitch
+															size='xs'
+															value={settingsState.globalSettings.agentOrchestrationEnabled}
+															onChange={(newVal) => voidSettingsService.setGlobalSetting('agentOrchestrationEnabled', newVal)}
+														/>
+														<span className='text-void-fg-3 text-xs pointer-events-none'>Server agent orchestration (ausome provider)</span>
+													</div>
+													<div className='flex items-center gap-x-2 my-2'>
+														<VoidSwitch
+															size='xs'
+															value={settingsState.globalSettings.agentAutoApprovePlan}
+															onChange={(newVal) => voidSettingsService.setGlobalSetting('agentAutoApprovePlan', newVal)}
+														/>
+														<span className='text-void-fg-3 text-xs pointer-events-none'>Auto-approve agent plans</span>
+													</div>
+												</ErrorBoundary>
 											</div>
 										</div>
 

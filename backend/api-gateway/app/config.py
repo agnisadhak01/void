@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     minio_access_key: str = "ausome"
     minio_secret_key: str = "ausome_dev_minio"
     default_project_id: str = "00000000-0000-0000-0000-000000000001"
+    minio_bucket: str = "ausome-snapshots"
+    require_plan_approval: bool = True
+    keycloak_jwks_url: str = ""
+    keycloak_issuer: str = ""
+    opa_url: str = ""
+    rate_limit_per_minute: int = 120
+    redis_url: str = ""
 
 
 settings = Settings()

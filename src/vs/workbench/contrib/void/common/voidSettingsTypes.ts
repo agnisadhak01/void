@@ -465,6 +465,10 @@ export type GlobalSettings = {
 	isOnboardingComplete: boolean;
 	disableSystemMessage: boolean;
 	autoAcceptLLMChanges: boolean;
+	/** When true and provider is ausome, delegate agent loop to gateway runtime (M7). */
+	agentOrchestrationEnabled: boolean;
+	/** Auto-approve server-generated plans without manual gate (M8). */
+	agentAutoApprovePlan: boolean;
 }
 
 export const defaultGlobalSettings: GlobalSettings = {
@@ -481,6 +485,8 @@ export const defaultGlobalSettings: GlobalSettings = {
 	isOnboardingComplete: false,
 	disableSystemMessage: false,
 	autoAcceptLLMChanges: false,
+	agentOrchestrationEnabled: false,
+	agentAutoApprovePlan: true,
 }
 
 export type GlobalSettingName = keyof GlobalSettings

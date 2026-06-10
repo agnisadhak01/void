@@ -13,6 +13,7 @@ services:
     volumes:
       - ausome_pg_data:/var/lib/postgresql/data
       - ../backend/api-gateway/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../backend/api-gateway/db/schema_v3.sql:/docker-entrypoint-initdb.d/02-schema-v3.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ausome -d ausome"]
       interval: 5s
@@ -42,8 +43,8 @@ services:
 
   api-gateway:
     build:
-      context: ../backend/api-gateway
-      dockerfile: Dockerfile
+      context: ../backend
+      dockerfile: api-gateway/Dockerfile
     ports:
       - "8000:8000"
     environment:
@@ -56,7 +57,11 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ausome
       MINIO_SECRET_KEY: ausome_dev_minio
+      MINIO_BUCKET: ausome-snapshots
+      REQUIRE_PLAN_APPROVAL: "false"
     depends_on:
+      minio:
+        condition: service_started
       postgres:
         condition: service_healthy
       sandbox-service:
@@ -72,6 +77,21 @@ services:
       DATABASE_URL: postgresql://ausome:ausome_dev@postgres:5432/ausome
       GATEWAY_URL: http://api-gateway:8000
       WATCH_PATH: /workspace
+    volumes:
+      - ../:/workspace:ro
+    depends_on:
+      - api-gateway
+      - postgres
+
+  graph-indexing-worker:
+    build:
+      context: ..
+      dockerfile: workers/graph-indexing/Dockerfile
+    environment:
+      GATEWAY_URL: http://api-gateway:8000
+      PROJECT_ID: "00000000-0000-0000-0000-000000000001"
+      WATCH_PATH: /workspace
+      SCAN_INTERVAL: "120"
     volumes:
       - ../:/workspace:ro
     depends_on:

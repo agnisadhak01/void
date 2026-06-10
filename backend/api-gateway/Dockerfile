@@ -2,8 +2,8 @@
 
 FROM cgr.dev/chainguard/python:latest-dev AS builder
 
-WORKDIR /app
-COPY requirements.txt .
+WORKDIR /build
+COPY api-gateway/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 FROM cgr.dev/chainguard/python:latest
@@ -11,11 +11,16 @@ FROM cgr.dev/chainguard/python:latest
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
-COPY app ./app
-COPY db ./db
+COPY api-gateway/app ./app
+COPY api-gateway/db ./db
+COPY agent_service /agent_service
+COPY planner_service /planner_service
+COPY evaluation_service /evaluation_service
+COPY graph_service /graph_service
+COPY memory_service /memory_service
 
+ENV PYTHONPATH=/app:/
 ENV PYTHONUNBUFFERED=1
-ENV PATH="/usr/local/bin:${PATH}"
 EXPOSE 8000
 
 USER nonroot
