@@ -202,10 +202,29 @@ $vcvars = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\A
 cmd /c "`"$vcvars`" && set PATH=C:\Program Files\Git\cmd;%PATH% && set WindowsSdkDir=C:\Program Files (x86)\Windows Kits\10\ && set WindowsSDKVersion=10.0.22621.0\ && cd /d X:\Void && npm install"
 ```
 
+### npm 11 — approve native install scripts (required once)
+
+npm 11 blocks `node-gyp rebuild` install scripts until approved. Without this, dev launch fails with missing `.node` bindings (e.g. `@vscode/policy-watcher`).
+
+```powershell
+nvm use 20.18.2
+npm approve-scripts --all
+```
+
+Then rebuild native modules from the VS Developer environment (see `npm install` command above), or:
+
+```powershell
+npm rebuild @vscode/policy-watcher @vscode/windows-mutex @vscode/spdlog @vscode/sqlite3 @vscode/windows-registry native-keymap native-watchdog @parcel/watcher node-pty
+```
+
+Stop `npm run watch` before rebuilding if you see `EPERM` file-lock errors.
+
 ### Common failure → fix matrix
 
 | Error | Cause | Fix |
 |-------|-------|-----|
+| `Could not locate the bindings file` / `vscode-policy-watcher.node` | npm 11 blocked install scripts; native modules not compiled | `npm approve-scripts --all` then `npm rebuild` (see above) |
+| `Cannot find module out/main.js` | Source not compiled yet | `npm run watch` or `npm run compile` first |
 | `Invalid C/C++ Compiler Toolchain` | No VS 2022 | Install Build Tools (see prerequisites) |
 | `missing any Windows SDK` | SDK not linked to VS | Install Windows SDK 10.0.22621 via winget |
 | `unsupported version 17.14…` + Node 20 | Old node-gyp in npm 10 | `npm install -g npm@11` on Node 20 |
