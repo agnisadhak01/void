@@ -55,6 +55,15 @@ Void is a fork of the [vscode](https://github.com/microsoft/vscode) repository. 
 
 For a guide on how to develop your own version of Void, see [HOW_TO_CONTRIBUTE](https://github.com/voideditor/void/blob/main/HOW_TO_CONTRIBUTE.md) and [void-builder](https://github.com/voideditor/void-builder).
 
+### Quick start (this fork — Windows)
+
+```powershell
+cd X:\Void
+.\scripts\start-dev.ps1
+```
+
+Keeps **Void Dev Watch** running and opens Void when compile hits 0 errors (~2 min first run). Faster restarts: `-SkipBuildReact` or `-LaunchOnly`. Details: [docs/BUILD.md](docs/BUILD.md).
+
 ### Project documentation (knowledge graphs)
 
 | Doc | Description |

@@ -211,33 +211,48 @@ Repeat **implement → validate** until every checklist item passes.
 
 See [BUILD.md](BUILD.md) for full toolchain graphs (Windows NVM, VS Build Tools, SDK).
 
-```bash
-npm run watch
+**Recommended (Windows):** one command starts watch, waits for 0 errors, launches Void:
+
+```powershell
+.\scripts\start-dev.ps1
 ```
 
-Require **0 compilation errors** (see [HOW_TO_CONTRIBUTE.md](../HOW_TO_CONTRIBUTE.md)).
+If you only changed TypeScript/workbench code (not React UI):
 
-If React UI changed:
-
-```bash
-NODE_OPTIONS="--max-old-space-size=8192" npm run buildreact
+```powershell
+.\scripts\start-dev.ps1 -SkipBuildReact
 ```
+
+If watch is already running with 0 errors:
+
+```powershell
+.\scripts\start-dev.ps1 -LaunchOnly
+```
+
+Require **0 compilation errors** in the **Void Dev Watch** window (see [HOW_TO_CONTRIBUTE.md](../HOW_TO_CONTRIBUTE.md)). First `watch-client` compile takes ~2 minutes on this machine.
 
 Optional packaged smoke test:
 
-```bash
+```powershell
 npm run compile
 npm run gulp vscode-win32-x64
-# Launch: ../VSCode-win32-x64/Void.exe
+# Launch: X:\VSCode-win32-x64\Void.exe
 ```
 
-### Run dev build (Windows)
+### Manual alternative (all platforms)
+
+```powershell
+npm run buildreact   # if React UI changed
+npm run watch        # wait for 0 errors
+```
+
+Second terminal:
 
 ```bat
 scripts\code.bat --user-data-dir ./.tmp/user-data --extensions-dir ./.tmp/extensions
 ```
 
-Reload with Ctrl+R after code changes.
+Reload with **Ctrl+R** after code changes.
 
 ### Manual QA checklist
 
@@ -285,11 +300,11 @@ If any item fails, return to Phase 4, fix, and re-run validation. Items marked `
 
 | Script | Purpose |
 |--------|---------|
-| [scripts/start-dev.ps1](../scripts/start-dev.ps1) | **One command:** watch + launch Void dev mode |
+| [scripts/start-dev.ps1](../scripts/start-dev.ps1) | **Canonical dev launcher:** watch + wait for 0 errors + launch Void (`-SkipBuildReact`, `-LaunchOnly`) |
+| [scripts/start-dev.bat](../scripts/start-dev.bat) | Batch wrapper for `start-dev.ps1` |
 | [scripts/cursor-merge/start-merge.ps1](../scripts/cursor-merge/start-merge.ps1) | Extract + inventory manifest (no merge decisions) |
 | [scripts/cursor-merge/diff-manifests.ps1](../scripts/cursor-merge/diff-manifests.ps1) | File/component delta between two extractions (no merge decisions) |
 | [scripts/extract-cursor-client.ps1](../scripts/extract-cursor-client.ps1) | Low-level extraction (called by start-merge) |
 | [scripts/generate-cursor-manifest.ps1](../scripts/generate-cursor-manifest.ps1) | Build COMPONENT_MANIFEST.json |
 | [scripts/build-windows-exe.ps1](../scripts/build-windows-exe.ps1) | Local `Void.exe` packaging (see [BUILD.md](BUILD.md)) |
 | [scripts/install-windows-build-prereqs.ps1](../scripts/install-windows-build-prereqs.ps1) | Windows VS / NVM prerequisites |
-| [scripts/start-dev.ps1](../scripts/start-dev.ps1) | **One command:** `npm run watch` + launch Void dev mode |

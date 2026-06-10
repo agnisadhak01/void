@@ -78,9 +78,9 @@ _Validate only what you decided to ship._
 
 ### Build
 
-- [ ] `npm run watch` — 0 errors
-- [ ] `npm run buildreact` — if UI touched
-- [ ] `scripts\code.bat` — app launches
+- [ ] `.\scripts\start-dev.ps1` — watch 0 errors + Void launches (or `-SkipBuildReact` if React UI unchanged)
+- [ ] `npm run buildreact` — if UI touched and not covered by full `start-dev.ps1` run
+- [ ] Manual fallback: `npm run watch` 0 errors + `scripts\code.bat` launches
 
 ### Manual QA
 

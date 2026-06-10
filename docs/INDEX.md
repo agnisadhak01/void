@@ -56,7 +56,7 @@ graph TB
 | Document | Purpose | Knowledge graphs |
 |----------|---------|------------------|
 | [ECOSYSTEM.md](ECOSYSTEM.md) | Repos, remotes, CI/CD, auto-update distribution | Ecosystem, git, release pipeline, update flow |
-| [BUILD.md](BUILD.md) | Dev mode, local executable, Windows toolchain | Build paths, prerequisite DAG, command sequence |
+| [BUILD.md](BUILD.md) | Dev mode (`start-dev.ps1`), local executable, Windows toolchain | Build paths, prerequisite DAG, command sequence |
 | [FEATURES.md](FEATURES.md) | Implemented Void features + Cursor reference map | AI subsystem, services, component mapping |
 | [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) | User-driven Cursor → Void merge playbook | Phase flow, decision ontology, git tracking |
 | [merges/3.7.21/MERGE_REPORT.md](merges/3.7.21/MERGE_REPORT.md) | Active merge decisions for Cursor 3.7.21 | _(per-release tables)_ |
@@ -81,7 +81,7 @@ graph LR
     CURSOR_DIR["cursor/ — gitignored extractions"]
   end
 
-  VOID -.->|npm run gulp| OUTPUT
+  VOID -.->|start-dev.ps1 / npm run gulp| OUTPUT
   VOID -.->|workflow clones| BUILDER
   VOID -.->|start-merge.ps1| CURSOR_DIR
 ```
@@ -104,3 +104,16 @@ graph LR
 | Port Cursor features | [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) |
 | See what Void implements today | [FEATURES.md](FEATURES.md) |
 | Ship installers via GitHub Actions | [ECOSYSTEM.md](ECOSYSTEM.md) § void-builder |
+| Fast restart (watch already running) | `.\scripts\start-dev.ps1 -LaunchOnly` |
+| Skip React rebuild on restart | `.\scripts\start-dev.ps1 -SkipBuildReact` |
+
+## Scripts reference
+
+| Script | Purpose |
+|--------|---------|
+| [scripts/start-dev.ps1](../scripts/start-dev.ps1) | Canonical dev launcher (watch + app) |
+| [scripts/start-dev.bat](../scripts/start-dev.bat) | Batch wrapper |
+| [scripts/build-windows-exe.ps1](../scripts/build-windows-exe.ps1) | Local `Void.exe` packaging |
+| [scripts/install-windows-build-prereqs.ps1](../scripts/install-windows-build-prereqs.ps1) | Windows VS / SDK / NVM setup |
+| [scripts/cursor-merge/start-merge.ps1](../scripts/cursor-merge/start-merge.ps1) | Cursor extraction + manifest |
+| [scripts/cursor-merge/diff-manifests.ps1](../scripts/cursor-merge/diff-manifests.ps1) | Compare Cursor manifests |

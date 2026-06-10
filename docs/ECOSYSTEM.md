@@ -96,15 +96,14 @@ graph TB
 flowchart TB
   subgraph local["Local development — X:\\Void"]
     L1[npm install]
-    L2[npm run buildreact]
-    L3[npm run watch OR npm run compile]
     L4{Goal?}
-    L5[scripts/code.bat — Dev Mode]
+    L0["scripts/start-dev.ps1<br/>buildreact + watch + launch"]
+    L5[Void dev instance]
     L6[npm run gulp vscode-win32-x64]
     L7[VSCode-win32-x64/Void.exe]
 
-    L1 --> L2 --> L3 --> L4
-    L4 -->|edit & test| L5
+    L1 --> L4
+    L4 -->|daily dev| L0 --> L5
     L4 -->|portable folder| L6 --> L7
   end
 
@@ -130,6 +129,8 @@ flowchart TB
 | **Output** | `../VSCode-win32-x64/` folder | Platform installers on `binaries` release |
 | **Auto-update** | No | Yes via `versions` repo |
 | **Use when** | Dev, merge QA, quick test | Public releases, website downloads |
+
+**Daily dev on this machine:** `.\scripts\start-dev.ps1` (see [BUILD.md](BUILD.md) § Developer Mode). Flags: `-SkipBuildReact`, `-LaunchOnly`.
 
 Details: [BUILD.md](BUILD.md).
 

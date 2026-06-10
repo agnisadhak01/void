@@ -6,7 +6,7 @@ This document is grounded in source code. For architecture deep-dives, see [VOID
 
 **Merge workflow:** [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) — evaluate each Cursor release; **you** decide per feature what to implement, adapt, ignore, or defer.
 
-**Docs map:** [INDEX.md](INDEX.md) | **Build:** [BUILD.md](BUILD.md) | **Ecosystem:** [ECOSYSTEM.md](ECOSYSTEM.md)
+**Docs map:** [INDEX.md](INDEX.md) | **Build:** [BUILD.md](BUILD.md) (`.\scripts\start-dev.ps1`) | **Ecosystem:** [ECOSYSTEM.md](ECOSYSTEM.md)
 
 ## Feature domain knowledge graph
 
@@ -281,7 +281,7 @@ Local inventory only (gitignored): `cursor/extracted/{version}/COMPONENT_MANIFES
 ## Related docs
 
 - [INDEX.md](INDEX.md) — documentation knowledge graph
-- [BUILD.md](BUILD.md) — dev mode and local executable
+- [BUILD.md](BUILD.md) — dev mode (`start-dev.ps1`) and local executable
 - [ECOSYSTEM.md](ECOSYSTEM.md) — void-builder and release pipeline
 - [README.md](../README.md) — project overview
 - [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) — Cursor → Void merge playbook

@@ -67,13 +67,14 @@ Build toolchain documented in [BUILD.md](../../BUILD.md). Ecosystem/CI: [ECOSYST
 | `npm run buildreact` | Passed |
 | `npm run compile` | Passed (0 errors) |
 | `npm run gulp vscode-win32-x64` | Passed → `X:\VSCode-win32-x64\Void.exe` |
+| `.\scripts\start-dev.ps1` | Passed (2026-06-10) — watch + launch in ~2 min |
 
 ### Build
 
-- [ ] `npm run watch` — 0 errors
-- [ ] `npm run buildreact` — if UI touched
-- [ ] `scripts\code.bat` — app launches
-- [ ] _(optional)_ packaged smoke test — `Void.exe` launches
+- [x] `.\scripts\start-dev.ps1` — watch 0 errors + Void launches
+- [x] `npm run buildreact` — passed (included in start-dev)
+- [x] Dev instance launches — `scripts\code.bat` via start-dev
+- [x] _(optional)_ packaged smoke test — `Void.exe` launches
 
 ### Manual QA
 

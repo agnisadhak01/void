@@ -266,7 +266,8 @@ Stop `npm run watch` before rebuilding if you see `EPERM` file-lock errors.
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `Could not locate the bindings file` / `vscode-policy-watcher.node` | npm 11 blocked install scripts; native modules not compiled | `npm approve-scripts --all` then `npm rebuild` (see above) |
-| `Cannot find module out/main.js` | Source not compiled yet | `npm run watch` or `npm run compile` first |
+| `Cannot find module out/main.js` | Source not compiled yet | `.\scripts\start-dev.ps1` or `npm run watch` / `npm run compile` first |
+| `start-dev.ps1` stuck on "still compiling" | Normal wait for first `watch-client` (~2 min) | Wait for **Void Dev Watch** window; or `-LaunchOnly` if already compiled |
 | `Invalid C/C++ Compiler Toolchain` | No VS 2022 | Install Build Tools (see prerequisites) |
 | `missing any Windows SDK` | SDK not linked to VS | Install Windows SDK 10.0.22621 via winget |
 | `unsupported version 17.14…` + Node 20 | Old node-gyp in npm 10 | `npm install -g npm@11` on Node 20 |
@@ -308,6 +309,20 @@ Local gulp **does not** replace the release pipeline. For distributable installe
 4. Artifacts land on `voideditor/binaries`; version manifest on `voideditor/versions`.
 
 Full ecosystem map: [ECOSYSTEM.md](ECOSYSTEM.md).
+
+---
+
+## Scripts reference
+
+| Script | Purpose |
+|--------|---------|
+| [scripts/start-dev.ps1](../scripts/start-dev.ps1) | **Canonical dev launcher** — watch, wait for 0 errors, launch Void |
+| [scripts/start-dev.bat](../scripts/start-dev.bat) | Batch wrapper (no execution-policy change) |
+| [scripts/build-windows-exe.ps1](../scripts/build-windows-exe.ps1) | Full local `Void.exe` packaging pipeline |
+| [scripts/install-windows-build-prereqs.ps1](../scripts/install-windows-build-prereqs.ps1) | Windows VS Build Tools, SDK, NVM |
+| [scripts/cursor-merge/start-merge.ps1](../scripts/cursor-merge/start-merge.ps1) | Cursor extract + manifest (merge workflow) |
+
+Watch log while compiling: `%TEMP%\void-dev-watch.log`
 
 ---
 

@@ -54,6 +54,8 @@ First, run `npm install -g node-gyp`. Then:
 
 ### Developer Mode Instructions
 
+> **This workspace (Windows):** use the one-command launcher documented in [docs/BUILD.md](docs/BUILD.md): `.\scripts\start-dev.ps1`. The steps below are the upstream manual flow (all platforms).
+
 Here's how to start changing Void's code. These steps cover everything from cloning Void, to opening a Developer Mode window where you can play around with your updates.
 
 1. `git clone https://github.com/voideditor/void` to clone the repo.
