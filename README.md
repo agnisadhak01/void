@@ -74,6 +74,21 @@ Keeps **Void Dev Watch** running and opens Void when compile hits 0 errors (~2 m
 | [docs/FEATURES.md](docs/FEATURES.md) | Feature inventory + AI architecture graphs |
 | [docs/CURSOR_MERGE_WORKFLOW.md](docs/CURSOR_MERGE_WORKFLOW.md) | Cursor → Void merge (user-driven per release) |
 
+### Ausome AI Studio (this fork)
+
+Pulse is the desktop editor; **Ausome** is the self-hosted AI platform (gateway, agents, observability) in `backend/`.
+
+| Doc | Description |
+|-----|-------------|
+| [docs/ausome/ARCHITECTURE.md](docs/ausome/ARCHITECTURE.md) | Hybrid agent flow, services, workers |
+| [docs/ausome/ROADMAP.md](docs/ausome/ROADMAP.md) | M1–M16 milestones (complete) |
+| [docs/ausome/PRODUCTIZATION.md](docs/ausome/PRODUCTIZATION.md) | Phases A–I — Phase A (Agent Observatory) done |
+| [docs/ausome/SECURITY.md](docs/ausome/SECURITY.md) | Auth, RBAC, sandbox, OPA |
+| [backend/README.md](backend/README.md) | Python services and API surface |
+| [deployment/README.md](deployment/README.md) | `docker compose` local stack |
+
+**Quick start (platform):** `docker compose -f deployment/docker-compose.yml up --build` then configure Pulse **ausome** provider (`http://127.0.0.1:8000`, key `ausome-dev` when auth disabled). Enable **Server agent orchestration** in Settings for gateway hybrid agent runs; use the **Agent runs** panel in the chat sidebar for traces.
+
 Sibling clone: `void-builder` at `X:\void-builder` (see [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md)).
 
 

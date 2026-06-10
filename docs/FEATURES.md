@@ -99,6 +99,7 @@ Derived from [void.contribution.ts](../src/vs/workbench/contrib/void/browser/voi
 | Auto-update UI | `implemented` | update actions | [voidUpdateActions.ts](../src/vs/workbench/contrib/void/browser/voidUpdateActions.ts), [voidUpdateService.ts](../src/vs/workbench/contrib/void/common/voidUpdateService.ts) |
 | Selection helper | `implemented` | editor widget | [voidSelectionHelperWidget.ts](../src/vs/workbench/contrib/void/browser/voidSelectionHelperWidget.ts) |
 | Thread history | `implemented` | sidebar threads | [chatThreadService.ts](../src/vs/workbench/contrib/void/browser/chatThreadService.ts) |
+| Agent runs panel | `implemented` | chat sidebar (collapsible) | [AgentRunsPanel.tsx](../src/vs/workbench/contrib/void/browser/react/src/sidebar-tsx/agent-runs/AgentRunsPanel.tsx) |
 | Explorer file actions | `implemented` | context menu | [fileService.ts](../src/vs/workbench/contrib/void/browser/fileService.ts) |
 | Tooltips | `implemented` | UI hints | [tooltipService.ts](../src/vs/workbench/contrib/void/browser/tooltipService.ts) |
 
@@ -135,6 +136,8 @@ Defined in `builtinTools` in [prompts.ts](../src/vs/workbench/contrib/void/commo
 - `search_for_files`
 - `search_in_file`
 - `read_lint_errors`
+- `semantic_search` (gateway pgvector when `ausome` provider)
+- `git_status`, `git_diff`, `git_log` (when orchestration / gateway tools enabled)
 
 **Edit**
 
@@ -162,9 +165,23 @@ Defined in `builtinTools` in [prompts.ts](../src/vs/workbench/contrib/void/commo
 
 Configured in [modelCapabilities.ts](../src/vs/workbench/contrib/void/common/modelCapabilities.ts):
 
-`anthropic` | `openAI` | `deepseek` | `ollama` | `vLLM` | `openRouter` | `openAICompatible` | `gemini` | `groq` | `xAI` | `mistral` | `lmStudio` | `liteLLM` | `googleVertex` | `microsoftAzure` | `awsBedrock`
+`anthropic` | `openAI` | `deepseek` | `ollama` | `vLLM` | `openRouter` | `openAICompatible` | `gemini` | `groq` | `xAI` | `mistral` | `lmStudio` | `liteLLM` | `googleVertex` | `microsoftAzure` | `awsBedrock` | **`ausome`**
 
 Local auto-detected providers: `ollama`, `vLLM`, `lmStudio`.
+
+### Ausome gateway provider
+
+| Capability | Status | Code / endpoint |
+|------------|--------|-----------------|
+| OpenAI-compatible chat/FIM/embeddings | `implemented` | [sendLLMMessage.ausomeGateway.ts](../src/vs/workbench/contrib/void/electron-main/llmMessage/sendLLMMessage.ausomeGateway.ts) |
+| Gateway HTTP helper | `implemented` | [ausomeGatewayHelper.ts](../src/vs/workbench/contrib/void/common/ausomeGatewayHelper.ts) |
+| Server agent orchestration (hybrid loop) | `implemented` | [chatThreadService.ts](../src/vs/workbench/contrib/void/browser/chatThreadService.ts) — `agentOrchestrationEnabled` |
+| Plan auto-approve | `implemented` | `agentAutoApprovePlan` in [voidSettingsTypes.ts](../src/vs/workbench/contrib/void/common/voidSettingsTypes.ts) |
+| Agent runs / trace UI | `implemented` | [AgentRunsPanel.tsx](../src/vs/workbench/contrib/void/browser/react/src/sidebar-tsx/agent-runs/AgentRunsPanel.tsx) |
+| Sandbox terminal routing | `implemented` | [terminalToolService.ts](../src/vs/workbench/contrib/void/browser/terminalToolService.ts) when `X-Ausome-Sandbox: true` |
+| FIM debounce (ausome) | `implemented` | 120ms in [autocompleteService.ts](../src/vs/workbench/contrib/void/browser/autocompleteService.ts) |
+
+Backend APIs: `POST /v1/agent/run`, `GET /v1/agent/runs`, `GET /v1/agent/runs/{id}/trace`, `POST /v1/context/search`. See [ausome/ARCHITECTURE.md](ausome/ARCHITECTURE.md).
 
 ### LLM pipeline
 
@@ -281,6 +298,8 @@ Local inventory only (gitignored): `cursor/extracted/{version}/COMPONENT_MANIFES
 
 ## Related docs
 
+- [ausome/ARCHITECTURE.md](ausome/ARCHITECTURE.md) — Ausome platform + hybrid agent flow
+- [ausome/PRODUCTIZATION.md](ausome/PRODUCTIZATION.md) — Agent Observatory (Phase A)
 - [INDEX.md](INDEX.md) — documentation knowledge graph
 - [BUILD.md](BUILD.md) — dev mode (`start-dev.ps1`) and local executable
 - [ECOSYSTEM.md](ECOSYSTEM.md) — void-builder and release pipeline

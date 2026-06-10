@@ -2,6 +2,20 @@
 
 Production map of repositories, build pipelines, and distribution. Companion to [INDEX.md](INDEX.md).
 
+## Ausome AI Studio (in-repo platform)
+
+This fork adds **Ausome** — a self-hosted AI platform alongside **Pulse** (the editor). It is not a separate git remote; code lives under `backend/`, `workers/`, `deployment/`, and Pulse integration in `src/vs/workbench/contrib/void/`.
+
+| Layer | Location | Role |
+|-------|----------|------|
+| Editor | Pulse (`product.json`, `src/vs/workbench/contrib/void/`) | Chat, tools, `ausome` provider, Agent runs panel |
+| Gateway | `backend/api-gateway/` | Auth, LLM proxy, agent runtime, observability APIs |
+| Workers | `workers/indexing/`, `workers/graph-indexing/` | Embeddings + graph extraction |
+| Local stack | `deployment/docker-compose.yml` | Postgres, MinIO, gateway, sandbox, workers |
+| K8s | `infrastructure/helm/` | vLLM + ausome-studio charts |
+
+See [ausome/ARCHITECTURE.md](ausome/ARCHITECTURE.md) and [ausome/PRODUCTIZATION.md](ausome/PRODUCTIZATION.md).
+
 ## Ecosystem entity graph
 
 ```mermaid

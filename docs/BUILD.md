@@ -326,8 +326,21 @@ Watch log while compiling: `%TEMP%\void-dev-watch.log`
 
 ---
 
+## Ausome platform (backend)
+
+Editor builds use the steps above. The Ausome gateway stack is separate:
+
+```powershell
+docker compose -f deployment/docker-compose.yml up --build
+```
+
+Then run Pulse via `start-dev.ps1` and configure the **ausome** provider. See [deployment/README.md](../deployment/README.md) and [ausome/ARCHITECTURE.md](ausome/ARCHITECTURE.md).
+
+---
+
 ## Related
 
 - [INDEX.md](INDEX.md) — documentation map
 - [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) — validate merges via dev build
 - [FEATURES.md](FEATURES.md) — feature locations in source
+- [ausome/PRODUCTIZATION.md](ausome/PRODUCTIZATION.md) — Agent Observatory (Phase A)

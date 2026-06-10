@@ -20,6 +20,14 @@ graph TB
     MERGE_WF[CURSOR_MERGE_WORKFLOW.md]
     CURSOR_DEV[CURSOR_DEV.md]
     MERGE_RPT[merges/3.7.21/MERGE_REPORT.md]
+    AUSOME_ARCH[ausome/ARCHITECTURE.md]
+    AUSOME_PROD[ausome/PRODUCTIZATION.md]
+  end
+
+  subgraph platform["Ausome platform — in-repo"]
+    BACKEND[backend/]
+    DEPLOY[deployment/docker-compose.yml]
+    WORKERS[workers/]
   end
 
   subgraph external["Sibling / upstream"]
@@ -42,6 +50,11 @@ graph TB
   INDEX --> FEATURES
   INDEX --> MERGE_WF
   INDEX --> CURSOR_DEV
+  INDEX --> AUSOME_ARCH
+  INDEX --> AUSOME_PROD
+  AUSOME_ARCH --> BACKEND
+  AUSOME_PROD --> DEPLOY
+  BACKEND --> WORKERS
   MERGE_WF --> MERGE_RPT
   CURSOR_DEV --> CURSOR_REF
   FEATURES --> VOID_GUIDE
@@ -71,11 +84,16 @@ graph TB
 
 | Document | Purpose |
 |----------|---------|
-| [ausome/ARCHITECTURE.md](ausome/ARCHITECTURE.md) | Platform topology: Pulse → gateway → vLLM / context |
-| [ausome/ROADMAP.md](ausome/ROADMAP.md) | Milestones M1–M6 and phase horizons |
-| [ausome/SECURITY.md](ausome/SECURITY.md) | Auth, RBAC, audit, sandbox policy |
-| [../backend/README.md](../backend/README.md) | Backend services layout |
-| [../deployment/README.md](../deployment/README.md) | Local `docker compose` stack |
+| [ausome/ARCHITECTURE.md](ausome/ARCHITECTURE.md) | Hybrid orchestration, observability, modular monolith topology |
+| [ausome/ROADMAP.md](ausome/ROADMAP.md) | M1–M16 engineering milestones (complete) + productization pointer |
+| [ausome/PRODUCTIZATION.md](ausome/PRODUCTIZATION.md) | Phases A–I — **Phase A (Agent Observatory)** implemented |
+| [ausome/SECURITY.md](ausome/SECURITY.md) | Auth, RBAC, audit, sandbox, OPA, rate limits |
+| [../backend/README.md](../backend/README.md) | All Python packages, schemas v1–v4, API table |
+| [../backend/api-gateway/README.md](../backend/api-gateway/README.md) | Gateway routes, env, local run |
+| [../backend/agent-service/README.md](../backend/agent-service/README.md) | Agent runtime state machine |
+| [../deployment/README.md](../deployment/README.md) | Docker Compose: postgres, minio, gateway, sandbox, workers |
+| [../workers/README.md](../workers/README.md) | Indexing + graph-indexing workers |
+| [../ai/README.md](../ai/README.md) | Model matrix (M15), embedding cost config |
 | [../infrastructure/README.md](../infrastructure/README.md) | Kubernetes namespaces + Helm charts |
 
 ## Upstream references (not duplicated here)
@@ -125,6 +143,9 @@ graph LR
 | Ship installers via GitHub Actions | [ECOSYSTEM.md](ECOSYSTEM.md) § void-builder |
 | Fast restart (watch already running) | `.\scripts\start-dev.ps1 -LaunchOnly` |
 | Skip React rebuild on restart | `.\scripts\start-dev.ps1 -SkipBuildReact` |
+| Run Ausome gateway stack locally | `docker compose -f deployment/docker-compose.yml up --build` — [deployment/README.md](../deployment/README.md) |
+| Debug agent runs / traces | Pulse **Agent runs** panel + `GET /v1/agent/runs/{id}/trace` — [ausome/PRODUCTIZATION.md](ausome/PRODUCTIZATION.md) |
+| Ausome architecture overview | [ausome/ARCHITECTURE.md](ausome/ARCHITECTURE.md) |
 
 ## Scripts reference
 

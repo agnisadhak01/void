@@ -155,6 +155,48 @@ workspace/
 </details>
 
 
+## Ausome AI Studio backend (this fork)
+
+Pulse (editor) + Ausome (platform) share this repo. Editor dev follows the steps above; platform work uses Docker and Python under `backend/`.
+
+### Platform quick start
+
+```powershell
+cd X:\Void
+docker compose -f deployment/docker-compose.yml up --build
+```
+
+| Service | URL |
+|---------|-----|
+| API gateway | http://127.0.0.1:8000 |
+| Health | http://127.0.0.1:8000/health |
+
+Configure Pulse: **Settings → Models → Ausome Gateway** — endpoint `http://127.0.0.1:8000`, API key `ausome-dev` when `AUSOME_AUTH_DISABLED=true`. Enable **Server agent orchestration** for hybrid gateway agent runs.
+
+### Backend layout
+
+| Path | Role |
+|------|------|
+| `backend/api-gateway/` | FastAPI entry, all `/v1/*` routes |
+| `backend/agent_service/` | Hybrid agent state machine |
+| `backend/observability_service/` | Traces, usage, cost |
+| `workers/indexing/`, `workers/graph-indexing/` | Background indexers |
+
+Docs: [docs/ausome/ARCHITECTURE.md](docs/ausome/ARCHITECTURE.md), [backend/README.md](backend/README.md), [deployment/README.md](deployment/README.md).
+
+### Python gateway without Docker
+
+```powershell
+$env:PYTHONPATH="X:\Void\backend\api-gateway\app;X:\Void\backend"
+cd X:\Void\backend\api-gateway
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+Requires local Postgres with schemas from `backend/api-gateway/db/`.
+
+---
+
 ## Pull Request Guidelines
 
 

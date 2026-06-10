@@ -54,20 +54,38 @@ North-star document for the platform. Pulse editor docs remain in [../INDEX.md](
 | Memory | `backend/memory_service/` |
 | API routes | `backend/api-gateway/app/routes/` |
 | Schema v3 | `backend/api-gateway/db/schema_v3.sql` |
+| Schema v4 (observability) | `backend/api-gateway/db/schema_v4.sql` |
+| Observability | `backend/observability_service/` |
+| Trace APIs | `backend/api-gateway/app/routes/observability.py` |
+| Agent runs UI | `src/.../sidebar-tsx/agent-runs/AgentRunsPanel.tsx` |
 | Pulse gateway client | `src/vs/workbench/contrib/void/common/ausomeGatewayHelper.ts` |
+
+## Productization Phase A (complete)
+
+| Deliverable | Path |
+|-------------|------|
+| Trace spans + LLM usage tables | `schema_v4.sql` |
+| Span instrumentation | `agent_service/runtime.py`, `planner_service/`, gateway `main.py` |
+| List runs / trace / summary APIs | `routes/observability.py` |
+| Pulse Agent Observatory | `AgentRunsPanel.tsx` in chat sidebar |
+| Eval exit codes (no `\|\| true`) | `evaluation_service/runner.py` |
+| Token cost config | `ai/embeddings/config.yaml` |
+
+Details and smoke test: **[PRODUCTIZATION.md](PRODUCTIZATION.md)** § Phase A.
 
 ## Current status
 
-- Pulse editor fork with chat, agent, apply, FIM
-- `backend/api-gateway` — modular FastAPI with agent, eval, graph, memory, snapshots
+- Pulse editor fork with chat, agent, apply, FIM, **Agent runs** panel
+- `backend/api-gateway` — agent, eval, graph, memory, snapshots, **observability**
 - `deployment/docker-compose.yml` — Postgres, MinIO, gateway, sandbox, indexing + graph workers
-- `ausome` LLM provider with optional server-side agent orchestration
+- `ausome` LLM provider with server-side hybrid agent orchestration
+- Phase A observability: traces, token/cost, run timeline in Pulse
 
 ## Productization (post M16)
 
-Engineering milestones are complete; next work is **productization** — observability, enterprise workflows, deployment agents, team platform.
+Engineering milestones M1–M16 are complete. **Phase A** (Agent Observatory) is done.
 
-See **[PRODUCTIZATION.md](PRODUCTIZATION.md)** for Phases A–I. Phase A (Agent Observatory) adds trace spans, token/cost tracking, and a Pulse **Agent runs** panel.
+Next: Phases B–I in **[PRODUCTIZATION.md](PRODUCTIZATION.md)** — human-in-the-loop, graph v2, deployment agents, team platform.
 
 ## Execution order (reference)
 

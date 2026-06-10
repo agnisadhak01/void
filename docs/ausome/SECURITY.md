@@ -5,7 +5,8 @@
 - **Gateway-only inference:** Production Pulse builds route all model traffic through `backend/api-gateway`. No direct cloud API keys in enterprise mode.
 - **Authentication:** Supabase JWT (HS256) or Keycloak OIDC (JWKS) on every API request (`Authorization: Bearer`).
 - **RBAC:** Roles enforced at gateway — `admin`, `developer`, `viewer`. Keycloak groups map to roles when `KEYCLOAK_JWKS_URL` is set.
-- **Audit:** Append-only `audit_logs` and `agent_run_steps` for agent actions, terminal commands, and file mutations.
+- **Audit:** Append-only `audit_logs`, `agent_run_steps`, and `agent_trace_spans` for agent actions, phase transitions, LLM calls, and tool events.
+- **Observability:** `llm_usage` records token counts and estimated cost per run (Phase A); traces exposed via `/v1/agent/runs/{id}/trace` (RBAC same as agent routes).
 - **Sandbox:** Agent terminal commands run in Docker containers when `AUSOME_SANDBOX_ENABLED=true` (not on host).
 - **Secrets:** Use K8s Secrets / Vault in production; never commit `.env` with real keys.
 
@@ -29,6 +30,8 @@
 - [x] JWT validation on all `/v1/*` routes (Supabase or Keycloak)
 - [x] RBAC `require_role` on mutating endpoints
 - [x] Audit log writes on agent runs and LLM calls
+- [x] Trace spans + token usage persisted (`schema_v4.sql`)
+- [x] Observability APIs require authenticated JWT
 - [x] OPA hook for agent routes (enable with `OPA_URL`)
 - [x] Rate limiting middleware
 - [ ] Audit log retention policy defined
