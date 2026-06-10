@@ -14,8 +14,9 @@ flowchart TD
   Q2 -->|Yes| GULP[Local gulp package]
   Q2 -->|No| DEV
 
-  DEV --> D1[npm run watch]
-  DEV --> D2[scripts/code.bat]
+  DEV --> D0[scripts/start-dev.ps1]
+  D0 --> D1[npm run watch]
+  D0 --> D2[scripts/code.bat]
 
   GULP --> G1[npm run compile]
   GULP --> G2[npm run gulp vscode-win32-x64]
@@ -27,7 +28,7 @@ flowchart TD
 
 | Path | Time (first run) | Output |
 |------|------------------|--------|
-| Developer Mode | ~5–15 min compile | Live Electron from source |
+| Developer Mode (`start-dev.ps1`) | ~2 min watch compile + ~5 s React UI | Live Electron from source |
 | Local gulp (Windows x64) | ~30–60 min total | `X:\VSCode-win32-x64\Void.exe` |
 | void-builder CI | ~30–90 min (runners) | Signed/platform installers |
 
@@ -86,30 +87,71 @@ graph TB
 
 Automated prerequisite script: [scripts/install-windows-build-prereqs.ps1](../scripts/install-windows-build-prereqs.ps1).
 
+Dev launcher (watch + app): [scripts/start-dev.ps1](../scripts/start-dev.ps1) or `scripts\start-dev.bat`.
+
 ---
 
 ## Developer Mode
 
 Recommended for Cursor merge work and feature development.
 
-```mermaid
-sequenceDiagram
-  participant Dev as Developer
-  participant NPM as npm
-  participant Watch as npm run watch
-  participant React as npm run buildreact
-  participant Code as scripts/code.bat
+### Canonical one-liner (Windows)
 
-  Dev->>NPM: npm install
-  Dev->>React: npm run buildreact
-  Dev->>Watch: npm run watch (background)
-  Watch-->>Dev: 0 errors in client + extensions
-  Dev->>Code: scripts/code.bat
-  Code-->>Dev: Void dev window
-  Dev->>Code: Ctrl+R to reload after edits
+From repo root — starts watch, waits for **0 errors**, opens Void:
+
+```powershell
+.\scripts\start-dev.ps1
 ```
 
-### Commands (Windows)
+Equivalent: `scripts\start-dev.bat` (no execution-policy change needed).
+
+**Validated timeline (this machine):** `buildreact` ~5 s → extensions compile ~40 s → `watch-client` ~2 min → Void launches. Keep the **Void Dev Watch** terminal open; press **Ctrl+R** in Void after code changes.
+
+### Fast restarts
+
+When the React UI has **not** changed since your last run, skip `buildreact` (~5 s saved):
+
+```powershell
+.\scripts\start-dev.ps1 -SkipBuildReact
+```
+
+| Scenario | Command |
+|----------|---------|
+| First start / full day | `.\scripts\start-dev.ps1` |
+| Restart after closing Void (watch still running) | `.\scripts\start-dev.ps1 -LaunchOnly` |
+| Restart watch + app, no React changes | `.\scripts\start-dev.ps1 -SkipBuildReact` |
+| Watch only (launch Void later) | `.\scripts\start-dev.ps1 -WatchOnly` then `-LaunchOnly` |
+
+### All flags
+
+| Flag | Effect |
+|------|--------|
+| `-WatchOnly` | Start watch only; no app launch |
+| `-LaunchOnly` | Launch Void only (watch must already be running with 0 errors) |
+| `-SkipBuildReact` | Skip `npm run buildreact` (use when Void React UI unchanged) |
+| `-SkipNativeCheck` | Skip native `.node` module rebuild check |
+| `-CompileTimeoutSec 900` | Max seconds to wait for first clean compile (default 15 min) |
+
+The script automatically: sets Node 20 via NVM, approves/rebuilds native modules if needed, fetches dev Electron, runs `buildreact` (unless skipped), tails `%TEMP%\void-dev-watch.log` until both watch tasks report 0 errors, then runs `code.bat` with isolated `.tmp/user-data` and `.tmp/extensions`.
+
+```mermaid
+sequenceDiagram
+  participant Dev as start-dev.ps1
+  participant Watch as Void Dev Watch window
+  participant Void as Void.exe dev
+
+  Dev->>Dev: NVM + native modules + electron
+  opt React UI changed
+    Dev->>Dev: npm run buildreact
+  end
+  Dev->>Watch: npm run watch (new terminal)
+  Watch-->>Dev: extensions 0 errors (~40s)
+  Watch-->>Dev: watch-client 0 errors (~2min)
+  Dev->>Void: scripts/code.bat
+  Void-->>Dev: running
+```
+
+### Manual steps (alternative)
 
 ```powershell
 cd X:\Void
@@ -252,7 +294,7 @@ $env:NODE_OPTIONS = '--max-old-space-size=8192'
 npm run buildreact
 ```
 
-Run after any React UI change before compile or dev reload.
+Run after any React UI change before compile or dev reload. For day-to-day restarts when only TypeScript/workbench code changed, use `.\scripts\start-dev.ps1 -SkipBuildReact`.
 
 ---
 

@@ -28,7 +28,7 @@ graph TB
   end
 
   subgraph artifacts["Generated artifacts"]
-    DEV_VOID[scripts/code.bat dev instance]
+    DEV_VOID[scripts/start-dev.ps1 + code.bat]
     LOCAL_EXE[VSCode-win32-x64/Void.exe]
     CI_RELEASE[voideditor/binaries releases]
     VERSIONS[voideditor/versions]
@@ -99,7 +99,7 @@ graph LR
 | I want to… | Start here |
 |------------|------------|
 | Understand repos and releases | [ECOSYSTEM.md](ECOSYSTEM.md) |
-| Run Void from source (daily dev) | [BUILD.md](BUILD.md) § Developer Mode |
+| Run Void from source (daily dev) | `.\scripts\start-dev.ps1` — [BUILD.md](BUILD.md) § Developer Mode |
 | Build `Void.exe` locally | [BUILD.md](BUILD.md) § Local executable |
 | Port Cursor features | [CURSOR_MERGE_WORKFLOW.md](CURSOR_MERGE_WORKFLOW.md) |
 | See what Void implements today | [FEATURES.md](FEATURES.md) |

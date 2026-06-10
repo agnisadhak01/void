@@ -285,9 +285,11 @@ If any item fails, return to Phase 4, fix, and re-run validation. Items marked `
 
 | Script | Purpose |
 |--------|---------|
+| [scripts/start-dev.ps1](../scripts/start-dev.ps1) | **One command:** watch + launch Void dev mode |
 | [scripts/cursor-merge/start-merge.ps1](../scripts/cursor-merge/start-merge.ps1) | Extract + inventory manifest (no merge decisions) |
 | [scripts/cursor-merge/diff-manifests.ps1](../scripts/cursor-merge/diff-manifests.ps1) | File/component delta between two extractions (no merge decisions) |
 | [scripts/extract-cursor-client.ps1](../scripts/extract-cursor-client.ps1) | Low-level extraction (called by start-merge) |
 | [scripts/generate-cursor-manifest.ps1](../scripts/generate-cursor-manifest.ps1) | Build COMPONENT_MANIFEST.json |
 | [scripts/build-windows-exe.ps1](../scripts/build-windows-exe.ps1) | Local `Void.exe` packaging (see [BUILD.md](BUILD.md)) |
 | [scripts/install-windows-build-prereqs.ps1](../scripts/install-windows-build-prereqs.ps1) | Windows VS / NVM prerequisites |
+| [scripts/start-dev.ps1](../scripts/start-dev.ps1) | **One command:** `npm run watch` + launch Void dev mode |
