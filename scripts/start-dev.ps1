@@ -32,6 +32,7 @@ $ExtensionsDir = Join-Path $RepoRoot '.tmp/extensions'
 $WatchLogFile = Join-Path $env:TEMP 'void-dev-watch.log'
 $ElectronExe = $Product.ElectronPath
 $MainJs = Join-Path $RepoRoot 'out/main.js'
+$WorkbenchJs = Join-Path $RepoRoot 'out/vs/workbench/workbench.desktop.main.js'
 $script:WatchStartedAt = $null
 
 $NativeModules = @(
@@ -212,20 +213,39 @@ function Test-WatchExtensionsReady([string]$Log) {
     return $Log -match '\[watch-extensions\s*\][^\r\n]*Finished compilation extensions with 0 errors after [0-9]{5,}'
 }
 
-function Test-WatchClientReady([string]$Log) {
-    if ($script:WatchStartedAt -and (Test-Path $MainJs)) {
-        $main = Get-Item $MainJs
-        if ($main.LastWriteTime -ge $script:WatchStartedAt.AddSeconds(-15)) {
-            return $true
-        }
-    }
+function Test-WatchClientCompileIdle([string]$Log) {
+    $clientLines = @([regex]::Matches($Log, '\[watch-client\s*\][^\r\n]*') | ForEach-Object { $_.Value })
+    if ($clientLines.Count -eq 0) { return $false }
+    $last = $clientLines[-1]
+    if ($last -match 'Starting compilation') { return $false }
+    return $last -match 'Finished compilation[^\r\n]*with 0 errors' -and $last -notmatch 'api-proposal-names'
+}
 
-    foreach ($match in [regex]::Matches($Log, '\[watch-client\s*\][^\r\n]*Finished compilation[^\r\n]*with 0 errors')) {
-        if ($match.Value -notmatch 'api-proposal-names') {
-            return $true
+function Test-WatchClientReady([string]$Log) {
+    if (-not (Test-WatchClientCompileIdle $Log)) { return $false }
+    if (-not (Test-Path $MainJs) -or -not (Test-Path $WorkbenchJs)) { return $false }
+    $main = Get-Item $MainJs
+    $workbench = Get-Item $WorkbenchJs
+    if ($workbench.Length -lt 10000) { return $false }
+    if ($script:WatchStartedAt) {
+        $readyAfter = $script:WatchStartedAt.AddSeconds(-15)
+        if ($main.LastWriteTime -lt $readyAfter -or $workbench.LastWriteTime -lt $readyAfter) {
+            return $false
         }
     }
-    return $false
+    return $true
+}
+
+function Sync-VoidReactBundles {
+    $src = Join-Path $RepoRoot 'src/vs/workbench/contrib/void/browser/react/out'
+    $dest = Join-Path $RepoRoot 'out/vs/workbench/contrib/void/browser/react/out'
+    if (-not (Test-Path $src)) {
+        Write-Host 'React bundles missing - run npm run buildreact' -ForegroundColor Yellow
+        return
+    }
+    New-Item -ItemType Directory -Force -Path $dest | Out-Null
+    Copy-Item -Path (Join-Path $src '*') -Destination $dest -Recurse -Force
+    Write-Host 'React bundles synced to out/' -ForegroundColor DarkGray
 }
 
 function Wait-ForCleanCompile {
@@ -255,7 +275,12 @@ function Wait-ForCleanCompile {
         }
 
         if ($clientOk -and $extensionsOk) {
-            return
+            Start-Sleep -Seconds 2
+            if (Test-WatchClientReady (Remove-AnsiEscapeCodes (Read-WatchLogTail $WatchLogFile 400))) {
+                if (-not $SkipBuildReact) { Sync-VoidReactBundles }
+                return
+            }
+            $clientOk = $false
         }
 
         if ($log -match 'Finished compilation[^\r\n]* with [1-9]\d* errors') {
@@ -281,8 +306,13 @@ function Wait-ForCleanCompile {
 
 function Start-VoidApp {
     Write-Step 'Launching Void Developer Mode...'
+    if (-not (Test-Path $WorkbenchJs)) {
+        Write-Host "Missing $WorkbenchJs - wait for watch-client to finish compiling." -ForegroundColor Red
+        exit 1
+    }
     New-Item -ItemType Directory -Force -Path $UserDataDir, $ExtensionsDir | Out-Null
 
+    $env:VSCODE_SKIP_PRELAUNCH = '1'
     $codeBat = Join-Path $RepoRoot 'scripts/code.bat'
     $args = @(
         '--user-data-dir', $UserDataDir,
@@ -320,6 +350,7 @@ if (-not $LaunchOnly) {
         Write-Step 'Building Void React UI (npm run buildreact)...'
         npm run buildreact
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Sync-VoidReactBundles
     }
 
     Start-WatchProcess
@@ -335,6 +366,10 @@ if ($WatchOnly) {
 if ($LaunchOnly) {
     if (-not (Test-Path $MainJs)) {
         Write-Host "Missing $MainJs - run without -LaunchOnly first." -ForegroundColor Red
+        exit 1
+    }
+    if (-not (Test-Path $WorkbenchJs)) {
+        Write-Host "Missing $WorkbenchJs - wait for watch-client to finish compiling." -ForegroundColor Red
         exit 1
     }
 }

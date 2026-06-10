@@ -11,8 +11,8 @@ import {
 	getAgentTrace,
 	getAusomeGatewayConfig,
 	listAgentRuns,
-} from '../../../../../common/ausomeGatewayHelper.js';
-import { useSettingsState } from '../../../util/services.js';
+} from '../../../../../../../workbench/contrib/void/common/ausomeGatewayHelper.js';
+import { useSettingsState } from '../../util/services.js';
 
 type Props = {
 	threadId: string;

@@ -119,6 +119,7 @@ Per-model configuration slots defined in [voidSettingsTypes.ts](../src/vs/workbe
 |------|-------|-------|
 | `normal` | none | chat only |
 | `gather` | read/search tools only | no edit or terminal tools |
+| `plan` | read/search tools only | structured implementation plan; **Build plan** hands off to Agent |
 | `agent` | all builtin tools + MCP | full agent loop |
 
 Tool availability is computed in `availableTools()` in [prompts.ts](../src/vs/workbench/contrib/void/common/prompt/prompts.ts).

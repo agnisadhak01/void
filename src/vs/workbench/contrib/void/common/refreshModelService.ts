@@ -174,7 +174,7 @@ export class RefreshModelService extends Disposable implements IRefreshModelServ
 						if (providerName === 'ollama') return (model as OllamaModelResponse).name;
 						else if (providerName === 'vLLM') return (model as OpenaiCompatibleModelResponse).id;
 						else if (providerName === 'lmStudio') return (model as OpenaiCompatibleModelResponse).id;
-						else throw new Error('refreshMode fn: unknown provider', providerName);
+						else throw new Error(`refreshMode fn: unknown provider ${providerName}`);
 					}),
 					{ enableProviderOnSuccess: options.enableProviderOnSuccess, hideRefresh: options.doNotFire }
 				)

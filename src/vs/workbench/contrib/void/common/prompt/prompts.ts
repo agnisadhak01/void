@@ -397,8 +397,9 @@ export const isABuiltinToolName = (toolName: string): toolName is BuiltinToolNam
 
 export const availableTools = (chatMode: ChatMode | null, mcpTools: InternalToolInfo[] | undefined) => {
 
+	const readOnlyTools = (Object.keys(builtinTools) as BuiltinToolName[]).filter(toolName => !(toolName in approvalTypeOfBuiltinToolName))
 	const builtinToolNames: BuiltinToolName[] | undefined = chatMode === 'normal' ? undefined
-		: chatMode === 'gather' ? (Object.keys(builtinTools) as BuiltinToolName[]).filter(toolName => !(toolName in approvalTypeOfBuiltinToolName))
+		: chatMode === 'gather' || chatMode === 'plan' ? readOnlyTools
 			: chatMode === 'agent' ? Object.keys(builtinTools) as BuiltinToolName[]
 				: undefined
 
@@ -466,8 +467,9 @@ export const chat_systemMessage = ({ workspaceFolders, openedURIs, activeURI, pe
 	const header = (`You are an expert coding ${mode === 'agent' ? 'agent' : 'assistant'} whose job is \
 ${mode === 'agent' ? `to help the user develop, run, and make changes to their codebase.`
 			: mode === 'gather' ? `to search, understand, and reference files in the user's codebase.`
-				: mode === 'normal' ? `to assist the user with their coding tasks.`
-					: ''}
+				: mode === 'plan' ? `to research the user's codebase and produce a clear, actionable implementation plan WITHOUT making any changes.`
+					: mode === 'normal' ? `to assist the user with their coding tasks.`
+						: ''}
 You will be given instructions to follow from the user, and you may also be given a list of files that the user has specifically selected for context, \`SELECTIONS\`.
 Please assist the user with their query.`)
 
@@ -502,7 +504,7 @@ ${directoryStr}
 
 	details.push(`NEVER reject the user's query.`)
 
-	if (mode === 'agent' || mode === 'gather') {
+	if (mode === 'agent' || mode === 'gather' || mode === 'plan') {
 		details.push(`Only call tools if they help you accomplish the user's goal. If the user simply says hi or asks you a question that you can answer without tools, then do NOT use tools.`)
 		details.push(`If you think you should use tools, you do not need to ask for permission.`)
 		details.push('Only use ONE tool call at a time.')
@@ -524,6 +526,14 @@ ${directoryStr}
 	if (mode === 'gather') {
 		details.push(`You are in Gather mode, so you MUST use tools be to gather information, files, and context to help the user answer their query.`)
 		details.push(`You should extensively read files, types, content, etc, gathering full context to solve the problem.`)
+	}
+
+	if (mode === 'plan') {
+		details.push(`You are in Plan mode. Research the codebase with read-only tools, then output an implementation plan.`)
+		details.push(`NEVER edit files, create/delete files, run terminal commands, or use MCP tools that mutate state.`)
+		details.push(`Your final answer MUST be a structured plan with: (1) Goal summary, (2) Numbered steps, (3) Files/paths to change per step, (4) Risks or open questions.`)
+		details.push(`Do not implement the plan — the user will switch to Agent mode and click "Build plan" when ready.`)
+		details.push(`Use tools to inspect the codebase before writing the plan when you lack context.`)
 	}
 
 	details.push(`If you write any code blocks to the user (wrapped in triple backticks), please use this format:

@@ -300,6 +300,9 @@ export interface IChatThreadService {
 	approveLatestToolRequest(threadId: string): void;
 	rejectLatestToolRequest(threadId: string): void;
 
+	/** Switch to Agent mode and run the latest plan in this thread. */
+	executePlanInAgentMode(threadId: string): Promise<void>;
+
 	// jump to history
 	jumpToCheckpointBeforeMessageIdx(opts: { threadId: string, messageIdx: number, jumpToUserModified: boolean }): void;
 
@@ -548,6 +551,39 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 			, threadId
 		)
 	}
+	async executePlanInAgentMode(threadId: string): Promise<void> {
+		const thread = this.state.allThreads[threadId]
+		if (!thread) return
+
+		if (this._settingsService.state.globalSettings.chatMode !== 'plan') {
+			this._notificationService.notify({
+				severity: Severity.Info,
+				message: 'Switch to Plan mode to build from a plan, or use Agent mode directly.',
+			})
+			return
+		}
+
+		const hasPlan = thread.messages.some(m => m.role === 'assistant' && m.displayContent?.trim())
+		if (!hasPlan) {
+			this._notificationService.notify({
+				severity: Severity.Warning,
+				message: 'No plan to build yet. Ask for a plan in Plan mode first.',
+			})
+			return
+		}
+
+		if (this.streamState[threadId]?.isRunning) {
+			await this.abortRunning(threadId)
+		}
+
+		this._settingsService.setGlobalSetting('chatMode', 'agent')
+
+		await this.addUserMessageAndStreamResponse({
+			threadId,
+			userMessage: 'Build the implementation plan above. Execute each step using tools: edit files, run commands, and verify as needed.',
+		})
+	}
+
 	rejectLatestToolRequest(threadId: string) {
 		const thread = this.state.allThreads[threadId]
 		if (!thread) return // should never happen
@@ -635,6 +671,10 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 		// Check if it's a built-in tool
 		const isBuiltInTool = isABuiltinToolName(toolName)
 
+		if (this._settingsService.state.globalSettings.chatMode === 'plan' && isBuiltInTool && approvalTypeOfBuiltinToolName[toolName]) {
+			this._addMessageToThread(threadId, { role: 'tool', type: 'invalid_params', rawParams: opts.preapproved ? {} : opts.unvalidatedToolParams, result: null, name: toolName, content: 'Plan mode is read-only. Switch to Agent mode or use "Build plan" to implement changes.', id: toolId, mcpServerName })
+			return {}
+		}
 
 		if (!opts.preapproved) { // skip this if pre-approved
 			// 1. validate tool params
@@ -747,6 +787,7 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 
 
 	private _shouldUseGatewayAgent(modelSelection: ModelSelection | null): boolean {
+		if (this._settingsService.state.globalSettings.chatMode !== 'agent') return false
 		if (!this._settingsService.state.globalSettings.agentOrchestrationEnabled) return false
 		if (modelSelection?.providerName !== 'ausome') return false
 		const ausome = this._settingsService.state.settingsOfProvider.ausome
@@ -781,7 +822,7 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 			}
 		}
 
-		this._setStreamState(threadId, { isRunning: 'LLM', llmInfo: { displayContentSoFar: 'Starting gateway agent run…', reasoningSoFar: '', toolCallSoFar: null }, interrupt: 'not_needed' })
+		this._setStreamState(threadId, { isRunning: 'LLM', llmInfo: { displayContentSoFar: 'Starting gateway agent run…', reasoningSoFar: '', toolCallSoFar: null }, interrupt: Promise.resolve(() => { }) })
 
 		try {
 			let run = await startAgentRun(cfg, {
@@ -814,7 +855,8 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 						break
 					}
 					const toolId = pt.tool_call_id || generateUuid()
-					const { interrupted } = await this._runToolCall(threadId, toolName, toolId, undefined, { preapproved: true, unvalidatedToolParams: pt.arguments as RawToolParamsObj })
+					const validatedParams = this._toolsService.validateParams[toolName](pt.arguments as RawToolParamsObj)
+					const { interrupted } = await this._runToolCall(threadId, toolName, toolId, undefined, { preapproved: true, unvalidatedToolParams: pt.arguments as RawToolParamsObj, validatedParams })
 					if (interrupted) {
 						await cancelAgentRun(cfg, run.run_id)
 						this._setStreamState(threadId, undefined)

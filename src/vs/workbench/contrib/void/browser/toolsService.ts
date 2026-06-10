@@ -235,7 +235,7 @@ export class ToolsService implements IToolsService {
 				const { query: queryUnknown, limit: limitUnknown, page_number: pageNumberUnknown } = params
 				const query = validateStr('query', queryUnknown)
 				const pageNumber = validatePageNum(pageNumberUnknown)
-				const limit = validateNumber(limitUnknown, { default: 10 })
+				const limit = validateNumber(limitUnknown, { default: 10 }) ?? 10
 				return { query, limit, pageNumber }
 			},
 
@@ -496,20 +496,21 @@ export class ToolsService implements IToolsService {
 				const gateway = getAusomeGatewayConfig(this.voidSettingsService.state.settingsOfProvider.ausome)
 				const pageSize = limit
 				const fallbackKeywordSearch = async () => {
-					const { result } = await this.callTool.search_for_files({
+					const { result: searchResult } = await this.callTool.search_for_files({
 						query,
 						isRegex: false,
 						searchInFolder: null,
 						pageNumber,
 					})
+					const resolved = await searchResult
 					return {
 						result: {
-							results: result.uris.map(uri => ({
+							results: resolved.uris.map((uri: URI) => ({
 								path: uri.fsPath,
 								score: 1,
 								snippet: '(keyword search — Ausome context engine unavailable)',
 							})),
-							hasNextPage: result.hasNextPage,
+							hasNextPage: resolved.hasNextPage,
 							usedKeywordFallback: true,
 						},
 					}

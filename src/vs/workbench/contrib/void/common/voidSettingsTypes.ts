@@ -399,7 +399,7 @@ export const displayInfoOfFeatureName = (featureName: FeatureName) => {
 
 
 // the models of these can be refreshed (in theory all can, but not all should)
-export const refreshableProviderNames = localProviderNames
+export const refreshableProviderNames = ['ollama', 'vLLM', 'lmStudio'] as const satisfies readonly ProviderName[]
 export type RefreshableProviderName = typeof refreshableProviderNames[number]
 
 // models that come with download buttons
@@ -413,7 +413,7 @@ export const hasDownloadButtonsOnModelsProviderNames = ['ollama'] as const satis
 export const isProviderNameDisabled = (providerName: ProviderName, settingsState: VoidSettingsState) => {
 
 	const settingsAtProvider = settingsState.settingsOfProvider[providerName]
-	const isAutodetected = (refreshableProviderNames as string[]).includes(providerName)
+	const isAutodetected = (refreshableProviderNames as readonly string[]).includes(providerName)
 
 	const isDisabled = settingsAtProvider.models.length === 0
 	if (isDisabled) {
@@ -448,7 +448,7 @@ export const isFeatureNameDisabled = (featureName: FeatureName, settingsState: V
 
 
 
-export type ChatMode = 'agent' | 'gather' | 'normal'
+export type ChatMode = 'agent' | 'gather' | 'normal' | 'plan'
 
 
 export type GlobalSettings = {

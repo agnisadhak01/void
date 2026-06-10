@@ -14,6 +14,7 @@ import { URI } from '../../../../../../../base/common/uri.js';
 import { IDisposable } from '../../../../../../../base/common/lifecycle.js';
 import { ErrorDisplay } from './ErrorDisplay.js';
 import { BlockCode, TextAreaFns, VoidCustomDropdownBox, VoidInputBox2, VoidSlider, VoidSwitch, VoidDiffEditor } from '../util/inputs.js';
+import { IconLoading } from '../util/IconLoading.js';
 import { ModelDropdown, } from '../void-settings-tsx/ModelDropdown.js';
 import { PastThreadsList } from './SidebarThreadSelector.js';
 import { VOID_CTRL_L_ACTION_ID } from '../../../actionIDs.js';
@@ -121,34 +122,6 @@ export const IconWarning = ({ size, className = '' }: { size: number, className?
 };
 
 
-export const IconLoading = ({ className = '' }: { className?: string }) => {
-
-	const [loadingText, setLoadingText] = useState('.');
-
-	useEffect(() => {
-		let intervalId;
-
-		// Function to handle the animation
-		const toggleLoadingText = () => {
-			if (loadingText === '...') {
-				setLoadingText('.');
-			} else {
-				setLoadingText(loadingText + '.');
-			}
-		};
-
-		// Start the animation loop
-		intervalId = setInterval(toggleLoadingText, 300);
-
-		// Cleanup function to clear the interval when component unmounts
-		return () => clearInterval(intervalId);
-	}, [loadingText, setLoadingText]);
-
-	return <div className={`${className}`}>{loadingText}</div>;
-
-}
-
-
 
 // SLIDER ONLY:
 const ReasoningOptionSlider = ({ featureName }: { featureName: FeatureName }) => {
@@ -251,12 +224,14 @@ const ReasoningOptionSlider = ({ featureName }: { featureName: FeatureName }) =>
 const nameOfChatMode = {
 	'normal': 'Chat',
 	'gather': 'Gather',
+	'plan': 'Plan',
 	'agent': 'Agent',
 }
 
 const detailOfChatMode = {
 	'normal': 'Normal chat',
 	'gather': 'Reads files, but can\'t edit',
+	'plan': 'Research and write a plan; then Build',
 	'agent': 'Edits files and uses tools',
 }
 
@@ -267,7 +242,7 @@ const ChatModeDropdown = ({ className }: { className: string }) => {
 	const voidSettingsService = accessor.get('IVoidSettingsService')
 	const settingsState = useSettingsState()
 
-	const options: ChatMode[] = useMemo(() => ['normal', 'gather', 'agent'], [])
+	const options: ChatMode[] = useMemo(() => ['normal', 'gather', 'plan', 'agent'], [])
 
 	const onChangeOption = useCallback((newVal: ChatMode) => {
 		voidSettingsService.setGlobalSetting('chatMode', newVal)
@@ -1322,15 +1297,17 @@ max-w-none
 		{children}
 	</div>
 }
-const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted, messageIdx }: { chatMessage: ChatMessage & { role: 'assistant' }, isCheckpointGhost: boolean, messageIdx: number, isCommitted: boolean }) => {
+const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted, messageIdx, threadId, chatIsRunning, showExecutePlanButton }: { chatMessage: ChatMessage & { role: 'assistant' }, isCheckpointGhost: boolean, messageIdx: number, isCommitted: boolean, threadId: string, chatIsRunning: IsRunningType, showExecutePlanButton: boolean }) => {
 
 	const accessor = useAccessor()
 	const chatThreadsService = accessor.get('IChatThreadService')
+	const settingsState = useSettingsState()
 
 	const reasoningStr = chatMessage.reasoning?.trim() || null
 	const hasReasoning = !!reasoningStr
 	const isDoneReasoning = !!chatMessage.displayContent
 	const thread = chatThreadsService.getCurrentThread()
+	const isPlanMode = settingsState.globalSettings.chatMode === 'plan'
 
 
 	const chatMessageLocation: ChatMessageLocation = {
@@ -1365,12 +1342,24 @@ const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted
 					<ChatMarkdownRender
 						string={chatMessage.displayContent || ''}
 						chatMessageLocation={chatMessageLocation}
-						isApplyEnabled={true}
+						isApplyEnabled={!isPlanMode}
 						isLinkDetectionEnabled={true}
 					/>
 				</ProseWrapper>
 			</div>
 		}
+		{showExecutePlanButton && isPlanMode && !chatIsRunning && isCommitted && chatMessage.displayContent?.trim() && (
+			<div className={`mt-2 ${isCheckpointGhost ? 'opacity-50 pointer-events-none' : ''}`}>
+				<button
+					type='button'
+					className='text-xs px-2.5 py-1 rounded bg-void-bg-2 border border-void-border-2 text-void-fg-1 hover:bg-void-bg-3 transition-colors'
+					onClick={() => { void chatThreadsService.executePlanInAgentMode(threadId) }}
+				>
+					Build plan
+				</button>
+				<span className='text-void-fg-3 text-xs ml-2'>Switches to Agent and implements this plan</span>
+			</div>
+		)}
 	</>
 
 }
@@ -2528,6 +2517,8 @@ const ChatBubble = (props: ChatBubbleProps) => {
 }
 
 const _ChatBubble = ({ threadId, chatMessage, currCheckpointIdx, isCommitted, messageIdx, chatIsRunning, _scrollToBottom }: ChatBubbleProps) => {
+	const accessor = useAccessor()
+	const chatThreadsService = accessor.get('IChatThreadService')
 	const role = chatMessage.role
 
 	const isCheckpointGhost = messageIdx > (currCheckpointIdx ?? Infinity) && !chatIsRunning // whether to show as gray (if chat is running, for good measure just dont show any ghosts)
@@ -2542,11 +2533,17 @@ const _ChatBubble = ({ threadId, chatMessage, currCheckpointIdx, isCommitted, me
 		/>
 	}
 	else if (role === 'assistant') {
+		const threadMessages = chatThreadsService.state.allThreads[threadId]?.messages ?? []
+		const lastAssistantIdx = threadMessages.reduce((acc, m, i) => m.role === 'assistant' ? i : acc, -1)
+		const showExecutePlanButton = messageIdx === lastAssistantIdx
 		return <AssistantMessageComponent
 			chatMessage={chatMessage}
 			isCheckpointGhost={isCheckpointGhost}
 			messageIdx={messageIdx}
 			isCommitted={isCommitted}
+			threadId={threadId}
+			chatIsRunning={chatIsRunning}
+			showExecutePlanButton={showExecutePlanButton}
 		/>
 	}
 	else if (role === 'tool') {
