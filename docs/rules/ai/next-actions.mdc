@@ -1,0 +1,264 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Next Actions Determination Rules
+
+## 🎯 Project State Analysis
+
+### Current State Assessment
+```yaml
+state_analysis:
+  codebase:
+    - type: "file_changes"
+      indicators:
+        - "recently_modified_files"
+        - "active_branches"
+        - "pending_pull_requests"
+      action: "Analyze changes for impact and dependencies"
+      
+    - type: "test_coverage"
+      indicators:
+        - "unit_test_coverage"
+        - "integration_test_coverage"
+        - "e2e_test_coverage"
+      action: "Identify areas needing test coverage"
+      
+    - type: "documentation"
+      indicators:
+        - "outdated_docs"
+        - "missing_docs"
+        - "incomplete_docs"
+      action: "Prioritize documentation updates"
+
+  development:
+    - type: "active_features"
+      indicators:
+        - "in_progress_features"
+        - "blocked_features"
+        - "completed_features"
+      action: "Assess feature completion status"
+      
+    - type: "technical_debt"
+      indicators:
+        - "code_smells"
+        - "duplicated_code"
+        - "complexity_metrics"
+      action: "Identify technical debt priorities"
+
+  deployment:
+    - type: "environment_status"
+      indicators:
+        - "staging_health"
+        - "production_health"
+        - "deployment_frequency"
+      action: "Evaluate deployment needs"
+      
+    - type: "monitoring"
+      indicators:
+        - "error_rates"
+        - "performance_metrics"
+        - "user_feedback"
+      action: "Analyze system health"
+```
+
+### Priority Determination
+```yaml
+priority_rules:
+  critical:
+    - condition: "production_issues"
+      weight: 10
+      action: "Immediate investigation and fix"
+      
+    - condition: "security_vulnerabilities"
+      weight: 9
+      action: "Security patch deployment"
+      
+    - condition: "data_loss_risk"
+      weight: 9
+      action: "Data protection measures"
+
+  high:
+    - condition: "blocked_features"
+      weight: 8
+      action: "Unblock development"
+      
+    - condition: "failing_tests"
+      weight: 7
+      action: "Test fixes"
+      
+    - condition: "performance_degradation"
+      weight: 7
+      action: "Performance optimization"
+
+  medium:
+    - condition: "documentation_gaps"
+      weight: 5
+      action: "Documentation updates"
+      
+    - condition: "technical_debt"
+      weight: 4
+      action: "Code improvements"
+      
+    - condition: "feature_requests"
+      weight: 3
+      action: "Feature implementation"
+
+  low:
+    - condition: "code_style"
+      weight: 2
+      action: "Code formatting"
+      
+    - condition: "minor_improvements"
+      weight: 1
+      action: "Enhancement implementation"
+```
+
+## 🧠 Decision Making Process
+
+### Context Analysis
+```yaml
+context_analysis:
+  user_intent:
+    - type: "explicit_requests"
+      analysis: "Direct user instructions take highest priority"
+      action: "Address user requests first"
+      
+    - type: "implicit_needs"
+      analysis: "Infer from conversation context"
+      action: "Suggest relevant actions"
+      
+    - type: "project_goals"
+      analysis: "Align with project objectives"
+      action: "Prioritize goal-aligned tasks"
+
+  technical_context:
+    - type: "current_implementation"
+      analysis: "Review existing code"
+      action: "Ensure compatibility"
+      
+    - type: "dependencies"
+      analysis: "Check affected components"
+      action: "Manage dependencies"
+      
+    - type: "constraints"
+      analysis: "Identify limitations"
+      action: "Work within constraints"
+```
+
+### Action Selection
+```yaml
+action_selection:
+  criteria:
+    - factor: "impact"
+      weight: 0.4
+      evaluation: "Measure potential impact"
+      
+    - factor: "effort"
+      weight: 0.3
+      evaluation: "Estimate required effort"
+      
+    - factor: "urgency"
+      weight: 0.3
+      evaluation: "Assess time sensitivity"
+
+  validation:
+    - check: "feasibility"
+      criteria: "Can be implemented with available resources"
+      
+    - check: "alignment"
+      criteria: "Aligns with project goals"
+      
+    - check: "dependencies"
+      criteria: "All prerequisites are met"
+```
+
+## 📋 Action Categories
+
+### Immediate Actions
+```yaml
+immediate_actions:
+  - type: "critical_fixes"
+    triggers:
+      - "production_errors"
+      - "security_issues"
+      - "data_corruption"
+    priority: "highest"
+    
+  - type: "blocker_resolution"
+    triggers:
+      - "blocked_development"
+      - "failed_deployments"
+      - "broken_builds"
+    priority: "high"
+```
+
+### Planned Actions
+```yaml
+planned_actions:
+  - type: "feature_development"
+    planning:
+      - "requirements_analysis"
+      - "design_review"
+      - "implementation_plan"
+    priority: "medium"
+    
+  - type: "improvements"
+    planning:
+      - "code_optimization"
+      - "documentation"
+      - "testing"
+    priority: "normal"
+```
+
+### Maintenance Actions
+```yaml
+maintenance_actions:
+  - type: "routine_updates"
+    schedule:
+      - "dependency_updates"
+      - "security_patches"
+      - "performance_optimization"
+    priority: "low"
+    
+  - type: "cleanup"
+    schedule:
+      - "code_cleanup"
+      - "documentation_updates"
+      - "test_maintenance"
+    priority: "low"
+```
+
+## 🔄 Continuous Improvement
+
+### Feedback Integration
+```yaml
+feedback_integration:
+  sources:
+    - type: "user_feedback"
+      action: "Incorporate user suggestions"
+      
+    - type: "system_metrics"
+      action: "Analyze performance data"
+      
+    - type: "team_input"
+      action: "Consider team feedback"
+
+  improvement:
+    - type: "process_refinement"
+      action: "Optimize workflows"
+      
+    - type: "tool_enhancement"
+      action: "Improve tooling"
+      
+    - type: "knowledge_base"
+      action: "Update documentation"
+```
+
+## 📚 Related Rules
+- [AI Behavior](mdc:ai/ai-behavior.mdc)
+- [Prompting Patterns](mdc:ai/prompting-patterns.mdc)
+- [Development Checklist](mdc:dev/development-checklist.mdc)
+- [Checklist Management](mdc:dev/checklist-management.mdc)
+

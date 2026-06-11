@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 📝 Rule Change Log
+
+## 2025-06-05
+- `action-execution.mdc`: Updated success criteria to include stakeholder alignment.
+- `ai-behavior.mdc`: Planned integration with feedback-loop rule.
+- `index-management.mdc`: Scheduled quarterly tag audit added.
+
+> _All rule changes must include date, rationale, author, and affected rules._

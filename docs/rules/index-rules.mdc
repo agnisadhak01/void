@@ -1,0 +1,139 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+title: Project Rule Index — Living Map & Instructor
+description: Central control panel for Cursor AI project rules. Guides AI and human collaborators across rule structure, usage, and evolution.
+tags: [index, map, instructor, cursor-rules, ai-governance]
+alwaysApply: true
+---
+
+# 🧭 Project Rule Index — Living Map & Instructor
+
+> _"A rule is not a restriction — it's an instruction encoded in clarity."_
+
+This file is the **starting point** and **instructor** for all AI-driven rule logic. It acts as both:
+- 🧠 A semantic **map** that organizes project logic into discrete, understandable components.
+- 👨‍🏫 A live **instruction guide** for Cursor AI and collaborators to operate with precision, alignment, and contextual clarity.
+
+---
+
+## 🔗 Rule Directory
+
+Each rule file defines a unique layer of knowledge. All are modular, structured, and Cursor-optimized.
+
+### Core Rules
+| Rule File                           | Purpose                                                            | Attach Type     | Tags                                 |
+|------------------------------------|--------------------------------------------------------------------|------------------|----------------------------------------|
+| [`init.mdc`](mdc:init.mdc)         | Entry point: overview + rule pointers                              | `alwaysApply`   | `routing`, `summary`, `project-start` |
+| [`context.mdc`](mdc:context.mdc)   | Guides AI on context framing, hallucination prevention, symbol use | `alwaysApply`   | `context`, `mcp`, `ai`                |
+| [`stakeholders.mdc`](mdc:stakeholders.mdc) | Defines personas, business needs, and use case logic        | `alwaysApply`   | `value`, `gherkin`, `personas`        |
+| [`architecture.mdc`](mdc:architecture.mdc) | Core architecture principles and patterns | `alwaysApply`   | `architecture`, `design`                |
+| [`rules.deepmind.init.mdc`](mdc:rules.deepmind.init.mdc) | DeepMind initialization rules | `alwaysApply`   | `init`, `deepmind`                |
+| [`adaptation-guide.mdc`](mdc:adaptation-guide.mdc) | Guide for adapting DeepMind rules to any project | `manual`   | `adaptation`, `implementation`                |
+| [`universal-bootstrap.mdc`](mdc:universal-bootstrap.mdc) | Instant project assessment and actionable steps for any project state | `alwaysApply`   | `bootstrap`, `quick-start`, `adaptive`                |
+| [`optimization-engine.mdc`](mdc:optimization-engine.mdc) | Unified optimization engine that consolidates and streamlines the universal ruleset | `alwaysApply`   | `optimization`, `consolidation`, `efficiency`                |
+
+### Development Standards
+| Rule File                           | Purpose                                                            | Attach Type     | Tags                                 |
+|------------------------------------|--------------------------------------------------------------------|------------------|----------------------------------------|
+| [`development-checklist.mdc`](mdc:dev/development-checklist.mdc) | Development process and requirements | `alwaysApply`   | `dev`, `process`                |
+| [`conventions.mdc`](mdc:dev/conventions.mdc) | Code and naming conventions | `alwaysApply`   | `conventions`, `standards`                |
+| [`testing-standards.mdc`](mdc:dev/testing-standards.mdc) | Comprehensive testing requirements including unit, integration, E2E, and analysis | `alwaysApply`   | `dev`, `testing`, `quality`, `automation`                |
+| [`deployment-standards.mdc`](mdc:dev/deployment-standards.mdc) | Standards for build pipeline, deployment, and delivery processes | `alwaysApply`   | `dev`, `deployment`, `ci-cd`, `infrastructure`                |
+| [`checklist-management.mdc`](mdc:dev/checklist-management.mdc) | Guidelines for managing and updating project checklists | `alwaysApply`   | `checklist`, `management`, `process`                |
+| [`onboarding-guide.mdc`](mdc:dev/onboarding-guide.mdc) | Guide for new team members | `alwaysApply`   | `onboarding`, `guide`                |
+| [`development-stage.mdc`](mdc:dev/checklists/development-stage.mdc) | Development stage specific checklists | `alwaysApply`   | `checklist`, `development`, `process`                |
+| [`testing-stage.mdc`](mdc:dev/checklists/testing-stage.mdc) | Testing stage specific checklists | `alwaysApply`   | `checklist`, `testing`, `quality`                |
+| [`deployment-stage.mdc`](mdc:dev/checklists/deployment-stage.mdc) | Deployment stage specific checklists | `alwaysApply`   | `checklist`, `deployment`, `ci-cd`                |
+
+### AI-Specific Rules
+| Rule File                           | Purpose                                                            | Attach Type     | Tags                                 |
+|------------------------------------|--------------------------------------------------------------------|------------------|----------------------------------------|
+| [`ai-behavior.mdc`](mdc:ai/ai-behavior.mdc) | Standards for AI behavior and interaction | `alwaysApply`   | `ai`, `behavior`                |
+| [`prompting-patterns.mdc`](mdc:ai/prompting-patterns.mdc) | Patterns and best practices for AI prompting | `alwaysApply`   | `ai`, `prompting`                |
+| [`next-actions.mdc`](mdc:ai/next-actions.mdc) | Guidelines for determining next actions based on project state | `alwaysApply`   | `ai`, `process`, `automation`                |
+| [`action-execution.mdc`](mdc:ai/action-execution.mdc) | Standards for executing the best possible moves | `alwaysApply`   | `ai`, `process`, `automation`                |
+| [`project-intelligence.mdc`](mdc:ai/project-intelligence.mdc) | AI-driven project assessment and adaptive guidance for any stage | `alwaysApply`   | `intelligence`, `assessment`, `adaptive`                |
+
+### Compliance & Security
+| Rule File                           | Purpose                                                            | Attach Type     | Tags                                 |
+|------------------------------------|--------------------------------------------------------------------|------------------|----------------------------------------|
+| [`compliance/security-rules.mdc`](mdc:compliance/security-rules.mdc) | Security requirements and best practices | `alwaysApply`   | `security`, `compliance`                |
+| [`compliance/privacy.mdc`](mdc:compliance/privacy.mdc) | Privacy and data protection standards | `alwaysApply`   | `privacy`, `security`                |
+
+### Meta Information
+| Rule File                           | Purpose                                                            | Attach Type     | Tags                                 |
+|------------------------------------|--------------------------------------------------------------------|------------------|----------------------------------------|
+| [`changelog.mdc`](mdc:meta/changelog.mdc) | Guidelines for maintaining changelog | `alwaysApply`   | `meta`, `changelog`                |
+| [`index-management.mdc`](mdc:meta/index-management.mdc) | Guidelines for maintaining and updating the project rules index | `alwaysApply`   | `meta`, `index`, `management`                |
+
+> 📌 These rules are "always-on." Additional domain-specific rules may be loaded dynamically or referenced manually.
+
+---
+
+## 🔍 Rule Search & Navigation Guide
+
+To effectively find and navigate rules within this index, leverage the structured format and metadata provided.
+
+### Searching for Rules
+
+You can "search" or filter rules by utilizing the columns in the `Rule Directory` tables:
+
+1.  **By Tags**: The `Tags` column provides keywords for each rule. To find rules related to a specific topic (e.g., `security`, `testing`, `ai`), scan or filter by these tags.
+    *   *Example*: Looking for `security` rules? Scan the `Tags` column for entries containing "security".
+2.  **By Purpose (Description)**: The `Purpose` column offers a concise summary of each rule. Use keywords from your query to identify relevant descriptions.
+    *   *Example*: Need to understand "deployment processes"? Look for descriptions containing "deployment" or "delivery".
+3.  **By Category**: Rules are grouped into logical categories (e.g., `Core Rules`, `Development Standards`, `AI-Specific Rules`). Start by identifying the most relevant category for your query.
+    *   *Example*: For anything related to how the AI should behave, start with `AI-Specific Rules`.
+
+### Navigation Tips
+
+*   **Direct Links**: Each rule file in the `Rule File` column is a direct link (`mdc:path/to/rule.mdc`). Click or reference these links to jump directly to the detailed rule content.
+*   **Table of Contents**: For a high-level overview, use the document's inherent table of contents (if rendered by your Markdown viewer) to quickly jump between major sections and categories.
+*   **Contextual References**: Many rules contain `Related Rules` sections at their end, providing direct links to other relevant rules. Use these to explore interconnected guidelines.
+
+---
+
+## 🧠 How Cursor Should Interpret This Index
+
+- Treat this file as the **instruction manual** for navigating project rules.
+- Use the tables above to determine which rule to load or follow for each scenario.
+- When uncertain about behavior or intent, **check this index first** — it defines the "root knowledge."
+
+---
+
+## 🛠️ Developer Guidance — How to Author & Maintain Rules
+
+### 📁 File Placement
+- Place all rule files in `.cursor/rules/`.
+- Use lowercase, kebab-case naming (e.g., `deployment-guidelines.mdc`).
+
+### 🏷 Frontmatter Format
+```yaml
+---
+description: Clear summary of rule's purpose
+alwaysApply: true  # or false
+tags: [semantic, categories]
+globs: ["src/**/*.ts"] # optional for file-matching
+---
+```
+
+### Rule Categories
+1. **Mandatory Rules** - Must be followed without exception
+2. **Guidelines** - Best practices and recommendations
+3. **Reference** - Informational content for context
+
+### Rule Format
+Each rule file follows this structure:
+- Title and Description
+- Tags for categorization
+- Rule Type (Mandatory/Guideline/Reference)
+- Implementation Details
+- Examples
+- Related Rules
+
+### Rule Updates
+Rules are versioned and changes are tracked in the changelog. Major changes require stakeholder review.

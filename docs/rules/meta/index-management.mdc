@@ -1,0 +1,153 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Index Management and Update Rules
+
+## 🔄 When to Update the Index
+
+The index file (`index-rules.mdc`) must be updated in the following scenarios:
+
+1. **New Rule Addition**
+   - When a new rule file is created
+   - When a new rule category is introduced
+   - When a rule is moved to a different category
+
+2. **Rule Modification**
+   - When a rule's purpose or scope changes
+   - When a rule's tags are updated
+   - When a rule's attach type changes
+
+3. **Rule Deletion**
+   - When a rule file is removed
+   - When a rule category is deprecated
+   - When a rule is merged with another
+
+4. **Structural Changes**
+   - When the index format is updated
+   - When new sections are added
+   - When the organization of rules changes
+
+## 📝 How to Update the Index
+
+### 1. File Structure
+```markdown
+### Category Name
+| Rule File                           | Purpose                                                            | Attach Type     | Tags                                 |
+|------------------------------------|--------------------------------------------------------------------|------------------|----------------------------------------|
+| [`path/to/rule.mdc`](mdc:path/to/rule.mdc) | Clear, concise description of rule's purpose | `alwaysApply`   | `tag1`, `tag2`, `tag3`                |
+```
+
+### 2. Update Process
+1. **Verify Changes**
+   - Confirm the rule file exists
+   - Validate the rule's purpose
+   - Check all tags are relevant
+   - Ensure correct attach type
+
+2. **Update Index**
+   - Add/update/remove rule entry
+   - Maintain consistent formatting
+   - Update category if needed
+   - Verify all links work
+
+3. **Document Changes**
+   - Update changelog
+   - Note any structural changes
+   - Document category changes
+   - Record tag updates
+
+### 3. Validation Checklist
+- [ ] Rule file exists and is accessible
+- [ ] Purpose is clear and concise
+- [ ] Tags are relevant and consistent
+- [ ] Attach type is correct
+- [ ] Category placement is appropriate
+- [ ] Links are working
+- [ ] Formatting is consistent
+- [ ] Changelog is updated
+
+## 🎯 Index Update Guidelines
+
+### Rule Entry Format
+```markdown
+| [`path/to/rule.mdc`](mdc:path/to/rule.mdc) | Purpose description | `alwaysApply` | `tag1`, `tag2` |
+```
+
+### Purpose Description
+- Keep it concise (max 100 characters)
+- Focus on key functionality
+- Use active voice
+- Be specific about scope
+
+### Tags
+- Use consistent tag naming
+- Include category tags
+- Add functional tags
+- Limit to 3-5 most relevant tags
+
+### Categories
+- Use clear, descriptive names
+- Maintain logical grouping
+- Keep related rules together
+- Use consistent hierarchy
+
+## 🔍 Quality Checks
+
+### Before Update
+- [ ] Review existing index structure
+- [ ] Check for duplicate entries
+- [ ] Verify category organization
+- [ ] Validate tag consistency
+
+### After Update
+- [ ] Test all links
+- [ ] Verify formatting
+- [ ] Check tag consistency
+- [ ] Validate category placement
+- [ ] Review overall structure
+
+## 📋 Maintenance Schedule
+
+### Regular Reviews
+- Weekly: Check for broken links
+- Monthly: Review tag consistency
+- Quarterly: Full index audit
+- Annually: Structural review
+
+### Update Triggers
+- New rule addition
+- Rule modification
+- Rule deletion
+- Category changes
+- Format updates
+
+## 🔄 Related Rules
+- [Changelog Awareness](mdc:meta/changelog-awareness.mdc)
+- [Architecture Standards](mdc:architecture.mdc)
+- [Development Checklist](mdc:dev/development-checklist.mdc)
+
+# 🗺 Rule Overview Map (for Team Orientation)
+
+| Category              | File                                     | Description                                                  | Always Active |
+|-----------------------|------------------------------------------|--------------------------------------------------------------|---------------|
+| 🔧 Project Setup       | `init.mdc`                               | Entry point for rule awareness and rule linking               | ✅            |
+| 🧠 AI Behavior         | `ai/ai-behavior.mdc`                     | Rules for code autonomy, safety, and generation scopes        | ✅            |
+| 🧠 Prompting           | `ai/prompting-patterns.mdc`              | Context-first prompting and example templates                 | ✅            |
+| 🔁 AI Execution        | `ai/action-execution.mdc`                | Standardized implementation, validation, and monitoring       | ✅            |
+| 📍 Next Steps Engine   | `ai/next-actions.mdc`                    | Decision-making tree for selecting the next action            | ✅            |
+| 🛡️ Security & Privacy  | `compliance/security-rules.mdc`          | Auth, input validation, and infrastructure compliance         | ✅            |
+| 🔨 Dev Guidelines       | `dev/conventions.mdc`                    | Linting, code style, naming, and TypeScript structure         | ✅            |
+| 📦 Development         | `dev/development-checklist.mdc`          | Project-wide checklist: requirements → coding → testing       | ✅            |
+| 🧪 Testing Standards   | `dev/testing-standards.mdc`              | Unit, integration, E2E, automation, coverage thresholds        | ✅            |
+| 🚀 Deployment Process  | `dev/deployment-standards.mdc`          | CI/CD, rollback, canary deployment, alerts, observability     | ✅            |
+| 📋 Checklist Engine    | `dev/checklist-management.mdc`          | Checkpoint definitions + role mapping                         | ✅            |
+| 👥 Stakeholders        | `stakeholders.mdc`                      | Personas, goals, Gherkin specs, use case mapping              | ✅            |
+| 🧭 Rule Index          | `index-rules.mdc`                        | Human-readable semantic rule map for AI and humans            | ✅            |
+| 🔄 Feedback Engine     | `ai/feedback-loop.mdc`                   | Tracks rule refinements triggered by AI suggestions           | ✅            |
+| 📜 Changelog           | `meta/changelog.mdc`                     | Human and AI-readable log of rule changes                     | ✅            |
+| 🪦 Deprecations        | `meta/deprecations.mdc`                  | Logs legacy rules and their replacements                      | ✅            |
+
+> This rule map serves as a quickstart for new engineers, AI agents, and auditors alike.
+

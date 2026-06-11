@@ -1,0 +1,150 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Coding Conventions and Standards
+
+## 🎯 Core Principles
+
+1. **Type Safety**
+   - Use TypeScript for all new code
+   - Define explicit types for all variables and functions
+   - Avoid `any` type unless absolutely necessary
+   - Use strict type checking
+
+2. **Code Organization**
+   - Follow modular architecture
+   - Keep files focused and single-responsibility
+   - Use clear, descriptive file and directory names
+   - Maintain consistent directory structure
+
+3. **Documentation**
+   - JSDoc comments for all public APIs
+   - Inline comments for complex logic
+   - README files in each major directory
+   - Keep documentation up-to-date
+
+## 📝 Code Style
+
+### General
+- Use 2 spaces for indentation
+- Maximum line length: 100 characters
+- Use semicolons
+- Use single quotes for strings
+- Use template literals for string interpolation
+
+### Naming Conventions
+- **Files**: kebab-case (e.g., `user-profile.ts`)
+- **Classes**: PascalCase (e.g., `UserProfile`)
+- **Functions/Methods**: camelCase (e.g., `getUserProfile`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_RETRY_COUNT`)
+- **Variables**: camelCase (e.g., `userProfile`)
+
+### TypeScript Specific
+```typescript
+// Interfaces
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// Type aliases
+type UserRole = 'admin' | 'user' | 'guest';
+
+// Enums
+enum Status {
+  Active = 'active',
+  Inactive = 'inactive',
+  Pending = 'pending'
+}
+```
+
+## 🔍 Linting and Formatting
+
+### ESLint Configuration
+```json
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules": {
+    "no-console": "warn",
+    "@typescript-eslint/explicit-function-return-type": "error",
+    "@typescript-eslint/no-explicit-any": "error"
+  }
+}
+```
+
+### Prettier Configuration
+```json
+{
+  "singleQuote": true,
+  "trailingComma": "es5",
+  "printWidth": 100,
+  "tabWidth": 2
+}
+```
+
+## 🧪 Testing Standards
+
+### Unit Tests
+- Use Jest as the testing framework
+- Follow AAA pattern (Arrange, Act, Assert)
+- Mock external dependencies
+- Test edge cases and error scenarios
+
+```typescript
+describe('UserService', () => {
+  it('should create a new user', async () => {
+    // Arrange
+    const userData = { name: 'Test User', email: 'test@example.com' };
+    
+    // Act
+    const result = await userService.createUser(userData);
+    
+    // Assert
+    expect(result).toHaveProperty('id');
+    expect(result.name).toBe(userData.name);
+  });
+});
+```
+
+## 🔒 Security Guidelines
+
+1. **Secrets Management**
+   - Never commit secrets to version control
+   - Use environment variables for configuration
+   - Use a secrets manager in production
+   - Rotate credentials regularly
+
+2. **Input Validation**
+   - Validate all user input
+   - Sanitize data before storage
+   - Use parameterized queries
+   - Implement rate limiting
+
+## 📦 Dependency Management
+
+1. **Package Management**
+   - Use exact versions in package.json
+   - Regular security audits
+   - Keep dependencies up-to-date
+   - Document all dependencies
+
+2. **Version Control**
+   - Semantic versioning
+   - Clear commit messages
+   - Feature branches
+   - Pull request reviews
+
+## 🔄 Maintenance
+
+This document should be:
+- Reviewed quarterly
+- Updated based on team feedback
+- Aligned with industry best practices
+- Enforced through automated tools
+

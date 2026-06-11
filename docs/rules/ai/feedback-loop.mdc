@@ -1,0 +1,36 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 🔁 AI Feedback Loop
+
+## Feedback Sources
+```yaml
+- source: "AI-generated Pull Requests"
+  signals:
+    - hallucination reports
+    - invalid refactor attempts
+    - ignored business rules
+  response:
+    - trigger rule review
+    - propose rule update
+```
+
+## Rule Update Mechanism
+```yaml
+- monitored_rules:
+    - ai/ai-behavior.mdc
+    - ai/action-execution.mdc
+- escalation:
+    - repeat issues → human review
+    - >3 issues/month → stakeholder alert
+```
+
+## Example Log
+```yaml
+2025-06-03:
+  issue: "Code suggestion ignored user role constraints"
+  file: ai-behavior.mdc
+  action: "Refactored role-handling examples"
+```

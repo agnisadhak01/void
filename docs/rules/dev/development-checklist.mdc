@@ -1,0 +1,104 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Development Checklist
+
+This checklist provides a high-level overview of development requirements. For detailed checklists and tracking, refer to the [Checklist Management System](mdc:dev/checklist-management.mdc).
+
+## 🔧 Development Stage
+
+### Requirements & Planning
+- [ ] Functional requirements documented
+  - Reference: [REQ-001](mdc:dev/checklist-management.mdc#requirements)
+- [ ] Non-functional requirements specified
+  - Reference: [REQ-002](mdc:dev/checklist-management.mdc#requirements)
+- [ ] Gherkin scenarios created
+  - Reference: [REQ-003](mdc:dev/checklist-management.mdc#requirements)
+
+### Environment Setup
+- [ ] Dev environment mirrors staging/production
+  - Reference: [ENV-001](mdc:dev/checklist-management.mdc#environment)
+- [ ] Bootstrap script available
+  - Reference: [ENV-002](mdc:dev/checklist-management.mdc#environment)
+
+### Coding Standards
+- [ ] Follow project coding standards
+  - Reference: [CODE-001](mdc:dev/checklist-management.mdc#coding)
+  - See also: [Conventions](mdc:dev/conventions.mdc)
+
+## 🧪 Testing Stage
+
+### Unit Testing
+- [ ] Core logic unit tests
+  - Reference: [UNIT-001](mdc:dev/checklist-management.mdc#unit)
+- [ ] Dependencies mocked
+  - Reference: [UNIT-002](mdc:dev/checklist-management.mdc#unit)
+
+### Integration Testing
+- [ ] API integration tests
+  - Reference: [INT-001](mdc:dev/checklist-management.mdc#integration)
+- [ ] Feature flow tests
+  - Reference: [INT-002](mdc:dev/checklist-management.mdc#integration)
+
+### End-to-End Testing
+- [ ] Core user journeys
+  - Reference: [E2E-001](mdc:dev/checklist-management.mdc#e2e)
+- [ ] Browser testing
+  - Reference: [E2E-002](mdc:dev/checklist-management.mdc#e2e)
+
+## 🚀 Deployment Stage
+
+### Build Pipeline
+- [ ] CI pipeline defined
+  - Reference: [BUILD-001](mdc:dev/checklist-management.mdc#build)
+- [ ] Artifact versioning
+  - Reference: [BUILD-002](mdc:dev/checklist-management.mdc#build)
+
+### Pre-Deployment
+- [ ] Infrastructure review
+  - Reference: [PRE-001](mdc:dev/checklist-management.mdc#pre_deploy)
+- [ ] Feature flags
+  - Reference: [PRE-002](mdc:dev/checklist-management.mdc#pre_deploy)
+
+### Staging
+- [ ] Auto-deploy configuration
+  - Reference: [STAGE-001](mdc:dev/checklist-management.mdc#staging)
+- [ ] Smoke tests
+  - Reference: [STAGE-002](mdc:dev/checklist-management.mdc#staging)
+
+### Production
+- [ ] Deployment approval
+  - Reference: [PROD-001](mdc:dev/checklist-management.mdc#production)
+- [ ] Zero-downtime deployment
+  - Reference: [PROD-002](mdc:dev/checklist-management.mdc#production)
+
+## 📊 Post-Deployment
+
+### Monitoring
+- [ ] Log centralization
+  - Reference: [MON-001](mdc:dev/checklist-management.mdc#monitoring)
+- [ ] Alert configuration
+  - Reference: [MON-002](mdc:dev/checklist-management.mdc#monitoring)
+
+### Feedback
+- [ ] Feature analytics
+  - Reference: [FB-001](mdc:dev/checklist-management.mdc#feedback)
+- [ ] Crash reporting
+  - Reference: [FB-002](mdc:dev/checklist-management.mdc#feedback)
+
+## 🔄 Maintenance
+
+This checklist should be:
+- Reviewed monthly
+- Updated based on team feedback
+- Integrated with the checklist management system
+- Automated where possible
+
+## 📚 Related Rules
+- [Checklist Management System](mdc:dev/checklist-management.mdc)
+- [Testing Standards](mdc:dev/testing-standards.mdc)
+- [Deployment Standards](mdc:dev/deployment-standards.mdc)
+- [Conventions](mdc:dev/conventions.mdc)
+

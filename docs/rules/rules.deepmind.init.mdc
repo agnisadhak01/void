@@ -1,0 +1,311 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: "Comprehensive standards for AI-interpretable documentation and project initialization within Cursor AI workflows"
+alwaysApply: true
+tags: ["initialization", "documentation", "ai-context", "cursor-rules", "project-setup"]
+author: "DeepMind Standards Team"
+version: "1.0.0"
+lastUpdated: "2025-01-16"
+ruleType: "mandatory"
+---
+
+# Universal Adaptive Project Ruleset
+
+## 🎯 Overview
+
+This ruleset automatically adapts to your project's current state and provides contextual guidance regardless of:
+- **Project Stage**: New, ongoing, legacy, or maintenance
+- **Technology Stack**: Any language, framework, or platform
+- **Team Size**: Solo developer to enterprise teams
+- **Project Type**: Web apps, APIs, mobile, desktop, data science, DevOps, etc.
+
+## 🔗 Core Context Mechanisms
+
+### @-Symbol Usage Guidelines
+
+#### @code - Surgical Function References
+- **When to use**: Reference specific functions, constants, or symbols
+- **Example**: `@LRUCachedFunction` for specific function definitions
+- **Best practice**: Use when you know the exact code element needed
+- **Limitation**: Requires deep codebase knowledge
+
+#### @file - Complete File Context
+- **When to use**: When entire file is relevant but no specific location needed
+- **Example**: `@cache.ts` for full file context
+- **Best practice**: Use for smaller, focused files
+- **Limitation**: May introduce irrelevant context in large files
+
+#### @folder - Directory-Level Context
+- **When to use**: When majority of files in directory are relevant
+- **Example**: `@utils/` for utility functions
+- **Best practice**: Use for cohesive, related file groups
+- **Limitation**: Can dilute AI focus with too much context
+
+### Context Provision Rules
+
+```yaml
+context_efficiency:
+  principle: "Specificity over breadth"
+  guidelines:
+    - Prefer surgical context (@code) over broad context (@folder)
+    - Provide just enough context to prevent hallucinations
+    - Avoid overwhelming the AI with irrelevant information
+    - Use progressive disclosure for complex tasks
+```
+
+## 📁 Project Structure Rules
+
+### .cursor/rules Directory Standards
+
+#### Rule Types and Usage
+
+1. **Always Rules** (`alwaysApply: true`)
+   - Project-wide standards and architectural principles
+   - Core conventions that must always influence AI behavior
+   - Example: coding standards, security guidelines
+
+2. **Auto Attached Rules** (`globs: ["pattern"]`)
+   - Domain-specific knowledge for file types
+   - Activated when matching files are in context
+   - Example: Docker rules for Dockerfile operations
+
+3. **Agent Requested Rules** (`description: "..."`)
+   - Specialized guidelines the AI can fetch when relevant
+   - Optimizes context usage for specific scenarios
+   - Example: performance optimization rules
+
+4. **Manual Rules** (explicitly invoked with `@ruleName`)
+   - On-demand application for specific tasks
+   - Override default behaviors when needed
+   - Example: refactoring patterns
+
+#### Rule File Template
+
+```markdown
+---
+description: "Clear description of rule purpose"
+alwaysApply: false # or true for always-active rules
+globs: ["*.ts", "src/**"] # for auto-attached rules
+tags: [relevant, semantic, tags]
+---
+
+# Rule Name
+
+## Purpose
+Clear explanation of what this rule does
+
+## Guidelines
+- Specific, actionable directives
+- Use clear examples
+- Reference other files: @path/to/file.ts
+
+## Examples
+Concrete code examples showing expected behavior
+```
+
+### Required Project Documentation
+
+#### 1. Project Root Files
+```yaml
+required_files:
+  README.md:
+    purpose: "High-level project overview and setup"
+    content: "Goals, tech stack, setup instructions, usage examples"
+    format: "Markdown with detailed sections"
+    
+  instructions.md:
+    purpose: "Complete project requirements for Cursor"
+    content: "Setup instructions, API overview, development guidelines"
+    format: "Markdown with maximum detail for AI consumption"
+```
+
+#### 2. Architecture Documentation
+```yaml
+architecture_docs:
+  format: "Text-based diagrams (PlantUML, Mermaid)"
+  location: ".cursor/rules/architecture.mdc or dedicated docs/"
+  content:
+    - Component relationships
+    - Data flow diagrams
+    - Dependency mappings
+    - Service boundaries
+    
+  example: |
+    ```mermaid
+    graph TD
+      A[AuthService] --> B[UserService]
+      B --> C[Database]
+      A --> D[TokenService]
+    ```
+```
+
+## 🏗️ Structured Metadata Standards
+
+### Frontmatter Best Practices
+
+```yaml
+metadata_standards:
+  keys:
+    - Use descriptive names (description vs desc)
+    - Explicit datatypes (strings, numbers, booleans)
+    - Arrays for multiple values
+    
+  example_frontmatter: |
+    ---
+    title: "Component Name"
+    description: "Clear purpose description"
+    tags: ["category", "feature", "domain"]
+    version: "1.0.0"
+    lastUpdated: "2025-01-16"
+    dependencies: ["react", "typescript"]
+    ---
+```
+
+### Semantic Tagging
+
+```yaml
+semantic_tagging:
+  purpose: "Provide explicit meaning and context for machines"
+  methods:
+    - Custom XML tags in documentation
+    - Structured comments in code
+    - Schema.org-like markup for entities
+    
+  examples:
+    - "<api_endpoint>/users/{id}</api_endpoint>"
+    - "<concept>Authentication Flow</concept>"
+    - "<dependency>React 18.x</dependency>"
+```
+
+## 📊 Stakeholder & Requirements Documentation
+
+### Structured Stakeholder Data
+
+```yaml
+stakeholder_template:
+  project_name: "String - Unique project identifier"
+  project_sponsor: "String - Primary decision maker"
+  business_goal: "String - Overarching objective"
+  success_metrics: ["Array of measurable KPIs"]
+  stakeholders:
+    - role: "String - Stakeholder role"
+      name: "String - Person/team name"
+      interest_level: "high|medium|low"
+      influence_level: "high|medium|low"
+      communication_preference: "String - How they prefer updates"
+  target_users:
+    - persona: "String - User type"
+      needs: ["Array of user needs"]
+      pain_points: ["Array of challenges"]
+      technical_level: "beginner|intermediate|advanced"
+```
+
+### Gherkin Scenarios for Requirements
+
+```gherkin
+# Use clear Given-When-Then structure for functional requirements
+
+Scenario: User authentication flow
+  Given a registered user is on the login page
+  When they enter valid credentials
+  Then they are redirected to their dashboard
+  And their session is established
+  
+Scenario: Invalid login attempt
+  Given a user is on the login page
+  When they enter invalid credentials
+  Then they see an error message
+  And remain on the login page
+```
+
+## 🔄 Living Documentation Practices
+
+### Automation Rules
+
+```yaml
+living_documentation:
+  generation:
+    - Use Cursor to generate API docs from code
+    - Auto-generate JSDoc comments
+    - Create READMEs from development conversations
+    
+  updates:
+    - Detect when documentation needs updates
+    - AI-suggested changes for review
+    - Automated file header management
+    
+  version_control:
+    - All docs version-controlled with code
+    - Documentation changes in pull requests
+    - Sync documentation with code changes
+    
+  human_oversight:
+    - Review all AI-generated content
+    - Validate accuracy and alignment
+    - Ensure quality standards are met
+```
+
+## 🎯 Implementation Checklist
+
+### Project Initialization
+
+- [ ] Create `.cursor/rules/` directory structure
+- [ ] Implement core rule files (architecture, conventions, security)
+- [ ] Set up structured README.md and instructions.md
+- [ ] Define stakeholder documentation format
+- [ ] Create Gherkin scenarios for key requirements
+- [ ] Establish frontmatter standards
+- [ ] Set up living documentation automation
+
+### Quality Assurance
+
+- [ ] Validate all rule files have proper frontmatter
+- [ ] Ensure consistent tagging across documentation
+- [ ] Test @-symbol references work correctly
+- [ ] Verify AI can parse and understand all rules
+- [ ] Check documentation stays current with code changes
+
+### Continuous Improvement
+
+- [ ] Monitor AI performance with current rules
+- [ ] Gather feedback on documentation effectiveness
+- [ ] Refine rules based on actual usage patterns
+- [ ] Adapt to Cursor feature updates and changes
+- [ ] Regular review and update cycles
+
+## 🚀 Best Practices Summary
+
+### For AI-Friendly Documentation
+
+1. **Structure First**: Always use proper frontmatter and clear sections
+2. **Be Specific**: Avoid ambiguous language, use "must" vs "should"
+3. **Provide Examples**: Include concrete code examples and use cases
+4. **Modular Content**: Break large documents into focused, granular files
+5. **Semantic Enrichment**: Use tags and structured markup for meaning
+6. **Version Control**: Treat documentation as code
+7. **Automation**: Leverage AI for generation and maintenance
+8. **Human Review**: Always validate AI-generated content
+
+### Context Provision Strategy
+
+1. **Surgical Precision**: Use @code for specific elements
+2. **Progressive Disclosure**: Start with high-level, add detail as needed
+3. **Relevance First**: Only include context directly related to the task
+4. **Avoid Overload**: Too much context can dilute AI effectiveness
+5. **Iterate and Refine**: Adjust based on AI performance
+
+## 📚 Related Rules
+
+- [Architecture Standards](mdc:architecture.mdc)
+- [Code Conventions](mdc:dev/conventions.mdc) 
+- [Security Guidelines](mdc:compliance/security-rules.mdc)
+- [Testing Standards](mdc:dev/testing-standards.mdc)
+- [Stakeholder Management](mdc:stakeholders.mdc)
+
+---
+
+*This ruleset intelligently adapts to any project's current state and provides contextual guidance for continuous improvement, regardless of stage, technology, or team composition.*

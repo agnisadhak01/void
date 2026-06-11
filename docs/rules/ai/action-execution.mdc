@@ -1,0 +1,261 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Action Execution Rules
+
+## 🎯 Execution Strategy
+
+### Implementation Approach
+```yaml
+implementation_strategy:
+  code_changes:
+    - type: "new_feature"
+      steps:
+        - "Analyze requirements"
+        - "Design solution"
+        - "Implement with tests"
+        - "Document changes"
+      validation: "Feature meets requirements"
+      
+    - type: "bug_fix"
+      steps:
+        - "Reproduce issue"
+        - "Identify root cause"
+        - "Implement fix"
+        - "Add regression tests"
+      validation: "Issue is resolved"
+
+  documentation:
+    - type: "code_documentation"
+      steps:
+        - "Update inline comments"
+        - "Document public APIs"
+        - "Update README if needed"
+      validation: "Documentation is clear and complete"
+      
+    - type: "process_documentation"
+      steps:
+        - "Document workflow"
+        - "Update guidelines"
+        - "Add examples"
+      validation: "Process is well documented"
+```
+
+### Quality Assurance
+```yaml
+quality_assurance:
+  code_quality:
+    - type: "static_analysis"
+      checks:
+        - "Linting"
+        - "Type checking"
+        - "Complexity analysis"
+      threshold: "Zero errors, warnings reviewed"
+      
+    - type: "test_coverage"
+      checks:
+        - "Unit tests"
+        - "Integration tests"
+        - "E2E tests"
+      threshold: "Coverage meets project standards"
+
+  review_process:
+    - type: "code_review"
+      checks:
+        - "Functionality"
+        - "Code style"
+        - "Performance"
+      validation: "Review feedback addressed"
+      
+    - type: "security_review"
+      checks:
+        - "Vulnerability scan"
+        - "Security best practices"
+        - "Data protection"
+      validation: "Security requirements met"
+```
+
+## 🛠️ Execution Guidelines
+
+### Code Implementation
+```yaml
+code_implementation:
+  best_practices:
+    - type: "clean_code"
+      principles:
+        - "Single responsibility"
+        - "DRY (Don't Repeat Yourself)"
+        - "KISS (Keep It Simple)"
+      validation: "Code follows principles"
+      
+    - type: "error_handling"
+      principles:
+        - "Graceful degradation"
+        - "Proper error messages"
+        - "Error logging"
+      validation: "Errors are handled properly"
+
+  optimization:
+    - type: "performance"
+      focus:
+        - "Algorithm efficiency"
+        - "Resource usage"
+        - "Response time"
+      validation: "Performance meets requirements"
+      
+    - type: "maintainability"
+      focus:
+        - "Code organization"
+        - "Modularity"
+        - "Documentation"
+      validation: "Code is maintainable"
+```
+
+### Testing Strategy
+```yaml
+testing_strategy:
+  unit_testing:
+    - type: "test_design"
+      principles:
+        - "Test isolation"
+        - "Clear assertions"
+        - "Edge cases"
+      validation: "Tests are effective"
+      
+    - type: "test_implementation"
+      principles:
+        - "Fast execution"
+        - "Reliable results"
+        - "Good coverage"
+      validation: "Tests are reliable"
+
+  integration_testing:
+    - type: "component_testing"
+      focus:
+        - "Component interaction"
+        - "Data flow"
+        - "Error scenarios"
+      validation: "Components work together"
+      
+    - type: "system_testing"
+      focus:
+        - "End-to-end flows"
+        - "System behavior"
+        - "Performance under load"
+      validation: "System works as expected"
+```
+
+## 📊 Execution Monitoring
+
+### Progress Tracking
+```yaml
+progress_tracking:
+  metrics:
+    - type: "completion"
+      indicators:
+        - "Tasks completed"
+        - "Time spent"
+        - "Quality metrics"
+      validation: "Progress is on track"
+      
+    - type: "quality"
+      indicators:
+        - "Test results"
+        - "Code review feedback"
+        - "Performance metrics"
+      validation: "Quality meets standards"
+
+  adjustments:
+    - type: "course_correction"
+      triggers:
+        - "Missed deadlines"
+        - "Quality issues"
+        - "Scope changes"
+      action: "Adjust approach as needed"
+      
+    - type: "optimization"
+      triggers:
+        - "Performance issues"
+        - "Resource constraints"
+        - "User feedback"
+      action: "Optimize implementation"
+```
+
+### Success Criteria
+```yaml
+success_criteria:
+  technical:
+    - type: "functionality"
+      criteria:
+        - "All requirements met"
+        - "No critical bugs"
+        - "Performance targets achieved"
+      validation: "Technical goals achieved"
+      
+    - type: "quality"
+      criteria:
+        - "Code quality standards met"
+        - "Test coverage adequate"
+        - "Documentation complete"
+      validation: "Quality goals achieved"
+
+  business:
+    - type: "value_delivery"
+      criteria:
+        - "User needs met"
+        - "Business goals achieved"
+        - "ROI positive"
+      validation: "Business goals achieved"
+      
+    - type: "sustainability"
+      criteria:
+        - "Maintainable code"
+        - "Scalable solution"
+        - "Future-proof design"
+      validation: "Solution is sustainable"
+```
+
+## 🔄 Continuous Improvement
+
+### Learning and Adaptation
+```yaml
+learning_adaptation:
+  feedback_loop:
+    - type: "implementation_feedback"
+      sources:
+        - "User feedback"
+        - "System metrics"
+        - "Team input"
+      action: "Incorporate feedback"
+      
+    - type: "process_improvement"
+      sources:
+        - "Execution metrics"
+        - "Team retrospectives"
+        - "Industry best practices"
+      action: "Improve processes"
+
+  knowledge_base:
+    - type: "documentation"
+      updates:
+        - "Implementation patterns"
+        - "Best practices"
+        - "Lessons learned"
+      action: "Maintain knowledge base"
+      
+    - type: "training"
+      updates:
+        - "Team skills"
+        - "Tool proficiency"
+        - "Process understanding"
+      action: "Enhance team capabilities"
+```
+
+## 📚 Related Rules
+- [Next Actions](mdc:ai/next-actions.mdc)
+- [AI Behavior](mdc:ai/ai-behavior.mdc)
+- [Development Checklist](mdc:dev/development-checklist.mdc)
+- [Testing Standards](mdc:dev/testing-standards.mdc)
+

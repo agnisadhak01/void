@@ -1,0 +1,167 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Prompting Patterns
+
+## Overview
+This document defines standardized patterns and best practices for interacting with AI assistants in the development process.
+
+## Tags
+- ai
+- prompting
+- interaction
+- patterns
+
+## Rule Type: Mandatory
+
+## Core Prompting Principles
+
+### 1. Context First
+- Provide relevant code context
+- Specify file locations
+- Include error messages
+- Reference related components
+
+### 2. Clear Intent
+- State the goal clearly
+- Specify constraints
+- Define success criteria
+- Mention alternatives
+
+### 3. Progressive Disclosure
+- Start with high-level requirements
+- Add details as needed
+- Break complex tasks into steps
+- Validate understanding
+
+## Prompt Templates
+
+### 1. Code Generation
+```
+Context: [File/Component being modified]
+Goal: [What needs to be implemented]
+Constraints:
+- [Technical constraints]
+- [Business rules]
+- [Performance requirements]
+Success Criteria:
+- [Expected behavior]
+- [Edge cases to handle]
+- [Testing requirements]
+```
+
+### 2. Code Review
+```
+Context: [Code to be reviewed]
+Focus Areas:
+- [Specific aspects to review]
+- [Known issues]
+- [Performance concerns]
+Review Criteria:
+- [Code quality standards]
+- [Security requirements]
+- [Best practices]
+```
+
+### 3. Bug Fixing
+```
+Context: [Bug description]
+Environment:
+- [OS/Browser/Version]
+- [Reproduction steps]
+- [Error messages]
+Expected Behavior:
+- [What should happen]
+- [What actually happens]
+- [Relevant logs]
+```
+
+## Interaction Patterns
+
+### 1. Code Completion
+```typescript
+// Example: Completing a function
+function processUserData(user: IUser): ProcessedUser {
+  // AI should complete this function
+  // following the interface and business rules
+}
+```
+
+### 2. Code Refactoring
+```typescript
+// Example: Refactoring request
+// Current code:
+function complexFunction() {
+  // ... existing code ...
+}
+
+// Request: Refactor to follow SOLID principles
+// and improve testability
+```
+
+### 3. Documentation
+```typescript
+// Example: Documentation request
+/**
+ * AI should add comprehensive documentation
+ * including:
+ * - Function purpose
+ * - Parameters
+ * - Return value
+ * - Examples
+ * - Edge cases
+ */
+function complexFunction() {
+  // ... implementation ...
+}
+```
+
+## Best Practices
+
+### 1. Code Generation
+- Provide complete interfaces
+- Specify error handling
+- Include test cases
+- Document assumptions
+
+### 2. Code Review
+- Focus on specific areas
+- Provide context
+- Reference standards
+- Ask for improvements
+
+### 3. Problem Solving
+- Describe the problem
+- Show error messages
+- Provide reproduction steps
+- Specify constraints
+
+## Examples
+
+### ✅ Good Practice
+```
+Context: src/components/UserProfile.tsx
+Goal: Implement user profile update functionality
+Constraints:
+- Must validate input
+- Must handle API errors
+- Must show loading state
+Success Criteria:
+- Updates user data
+- Shows success message
+- Handles validation errors
+- Updates UI immediately
+```
+
+### ❌ Bad Practice
+```
+Fix the user profile update
+```
+
+## Related Rules
+- [AI Behavior Guidelines](mdc:ai-behavior.mdc)
+- [Code Conventions](mdc:../dev/conventions.mdc)
+- [Testing Standards](mdc:../dev/testing-standards.mdc)
+

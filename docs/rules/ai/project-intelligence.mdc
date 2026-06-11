@@ -1,0 +1,358 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Intelligence & Adaptive Guidance System
+
+## 🧠 Intelligent Project Assessment Framework
+
+### Automatic State Detection
+```yaml
+project_analysis:
+  discovery_process:
+    step_1_file_analysis:
+      - Scan project root for key files
+      - Identify technology stack indicators
+      - Assess project structure maturity
+      - Detect existing tooling configuration
+      
+    step_2_content_analysis:
+      - Analyze codebase complexity
+      - Review documentation quality
+      - Assess test coverage patterns
+      - Identify architectural patterns
+      
+    step_3_process_analysis:
+      - Check for CI/CD configuration
+      - Review git history and patterns
+      - Assess deployment artifacts
+      - Identify team workflow indicators
+      
+    step_4_context_synthesis:
+      - Combine technical and process insights
+      - Identify improvement opportunities
+      - Prioritize recommendations
+      - Generate adaptive action plan
+```
+
+### Context-Aware Recommendation Engine
+```yaml
+recommendation_engine:
+  assessment_dimensions:
+    technical_maturity:
+      indicators:
+        - Code organization and structure
+        - Testing infrastructure
+        - Documentation quality
+        - Dependency management
+        - Security practices
+        
+    process_maturity:
+      indicators:
+        - Version control practices
+        - CI/CD implementation
+        - Code review processes
+        - Deployment procedures
+        - Monitoring and observability
+        
+    team_dynamics:
+      indicators:
+        - Commit patterns and collaboration
+        - Documentation style and completeness
+        - Code review participation
+        - Issue tracking usage
+        - Communication patterns
+        
+  adaptive_guidance:
+    new_project:
+      priority: "Establish foundation"
+      actions:
+        immediate: ["Project structure", "Version control", "Basic docs"]
+        short_term: ["Testing setup", "CI basics", "Code standards"]
+        long_term: ["Advanced tooling", "Performance optimization"]
+        
+    growing_project:
+      priority: "Scale practices"
+      actions:
+        immediate: ["Process documentation", "Team standards", "Review workflows"]
+        short_term: ["Advanced testing", "Deployment automation", "Monitoring"]
+        long_term: ["Architecture docs", "Performance tuning", "Security hardening"]
+        
+    mature_project:
+      priority: "Optimize and maintain"
+      actions:
+        immediate: ["Technical debt assessment", "Security review", "Performance audit"]
+        short_term: ["Modernization planning", "Process optimization", "Knowledge transfer"]
+        long_term: ["Strategic refactoring", "Technology evolution", "Team scaling"]
+        
+    legacy_project:
+      priority: "Stabilize and modernize"
+      actions:
+        immediate: ["Risk assessment", "Documentation recovery", "Testing addition"]
+        short_term: ["Incremental improvements", "Security updates", "Monitoring addition"]
+        long_term: ["Gradual modernization", "Architecture evolution", "Technical debt reduction"]
+```
+
+## 🔍 Intelligent Analysis Patterns
+
+### Technology Stack Intelligence
+```yaml
+stack_intelligence:
+  detection_patterns:
+    frontend_frameworks:
+      react: 
+        files: ["package.json with react", "*.jsx", "*.tsx"]
+        patterns: ["import React", "JSX syntax", "React components"]
+        recommendations: ["React best practices", "Testing with RTL", "Performance optimization"]
+        
+      vue:
+        files: ["package.json with vue", "*.vue"]
+        patterns: ["Vue components", "Vue directives", "Composition API"]
+        recommendations: ["Vue 3 patterns", "Pinia state management", "Vue testing"]
+        
+      angular:
+        files: ["angular.json", "*.component.ts", "*.module.ts"]
+        patterns: ["@Component decorator", "Angular services", "TypeScript"]
+        recommendations: ["Angular best practices", "RxJS patterns", "Angular testing"]
+        
+    backend_frameworks:
+      node_express:
+        files: ["package.json with express", "app.js", "server.js"]
+        patterns: ["Express middleware", "Route handlers", "Node.js patterns"]
+        recommendations: ["Express security", "API design", "Node.js testing"]
+        
+      python_django:
+        files: ["manage.py", "settings.py", "models.py", "requirements.txt with django"]
+        patterns: ["Django models", "Django views", "Django templates"]
+        recommendations: ["Django best practices", "DRF patterns", "Python testing"]
+        
+      java_spring:
+        files: ["pom.xml with spring", "*.java"]
+        patterns: ["@SpringBootApplication", "@Controller", "@Service"]
+        recommendations: ["Spring best practices", "Spring Security", "JUnit testing"]
+        
+  adaptive_suggestions:
+    - Technology-specific linting and formatting
+    - Framework-appropriate testing strategies
+    - Stack-specific security considerations
+    - Performance optimization patterns
+    - Deployment strategies for the stack
+```
+
+### Project Health Assessment
+```yaml
+health_assessment:
+  code_quality_indicators:
+    positive_signals:
+      - Consistent code formatting
+      - Clear naming conventions
+      - Appropriate code comments
+      - Modular architecture
+      - Error handling patterns
+      
+    warning_signals:
+      - Inconsistent formatting
+      - Long functions or files
+      - Missing error handling
+      - Circular dependencies
+      - Outdated dependencies
+      
+    critical_issues:
+      - Security vulnerabilities
+      - No version control
+      - No testing whatsoever
+      - Hardcoded secrets
+      - Production data in code
+      
+  process_health_indicators:
+    positive_signals:
+      - Regular commits with clear messages
+      - Active code review process
+      - Automated testing in CI
+      - Documentation updates with code changes
+      - Deployment automation
+      
+    warning_signals:
+      - Infrequent commits
+      - Large, monolithic commits
+      - Manual deployment processes
+      - Outdated documentation
+      - No code review process
+      
+    critical_issues:
+      - No version control history
+      - Direct production modifications
+      - No backup or recovery procedures
+      - No access control
+      - No monitoring or logging
+```
+
+## 🎯 Contextual Action Generator
+
+### Situation-Aware Recommendations
+```yaml
+action_generator:
+  assessment_triggers:
+    new_contributor:
+      context: "Someone new joining the project"
+      priorities: ["Clear onboarding docs", "Development setup guide", "Code review process"]
+      actions: ["Create CONTRIBUTING.md", "Document dev environment", "Set up PR templates"]
+      
+    production_issues:
+      context: "Recent production problems or outages"
+      priorities: ["Monitoring and alerting", "Error handling", "Rollback procedures"]
+      actions: ["Implement health checks", "Add error tracking", "Create runbooks"]
+      
+    scaling_needs:
+      context: "Project growing in complexity or team size"
+      priorities: ["Architecture documentation", "Process standardization", "Tool automation"]
+      actions: ["Document architecture", "Standardize workflows", "Automate repetitive tasks"]
+      
+    technical_debt:
+      context: "Code quality degradation or maintenance burden"
+      priorities: ["Code refactoring", "Test coverage", "Documentation updates"]
+      actions: ["Identify refactoring targets", "Add missing tests", "Update outdated docs"]
+      
+    security_concerns:
+      context: "Security vulnerabilities or compliance requirements"
+      priorities: ["Security scanning", "Dependency updates", "Access control review"]
+      actions: ["Implement security tools", "Update vulnerable deps", "Review permissions"]
+```
+
+### Progressive Enhancement Strategy
+```yaml
+enhancement_strategy:
+  incremental_improvement:
+    week_1_foundations:
+      - Establish basic project structure
+      - Set up version control properly
+      - Create essential documentation
+      - Configure basic development tools
+      
+    month_1_automation:
+      - Implement automated testing
+      - Set up continuous integration
+      - Automate code quality checks
+      - Establish deployment pipeline
+      
+    quarter_1_optimization:
+      - Enhance monitoring and observability
+      - Optimize performance bottlenecks
+      - Strengthen security practices
+      - Improve team collaboration processes
+      
+    ongoing_evolution:
+      - Regular architecture reviews
+      - Continuous learning and improvement
+      - Technology stack evolution
+      - Process optimization based on metrics
+      
+  adaptive_pacing:
+    startup_pace: "Move fast, establish minimum viable practices"
+    growth_pace: "Balance speed with sustainability"
+    enterprise_pace: "Prioritize stability and compliance"
+    maintenance_pace: "Focus on reliability and incremental improvements"
+```
+
+## 🔄 Continuous Intelligence Loop
+
+### Feedback and Adaptation
+```yaml
+intelligence_loop:
+  monitoring_points:
+    - Project file changes and additions
+    - Team collaboration patterns
+    - Development velocity metrics
+    - Code quality trends
+    - Deployment frequency and success
+    
+  adaptation_triggers:
+    - New technology introduction
+    - Team size changes
+    - Process bottlenecks identified
+    - Quality metrics degradation
+    - Stakeholder feedback
+    
+  improvement_cycles:
+    daily: "Monitor immediate blockers and quick fixes"
+    weekly: "Assess process effectiveness and team feedback"
+    monthly: "Review strategic improvements and long-term trends"
+    quarterly: "Evaluate major changes and technology evolution"
+    
+  learning_integration:
+    - Capture what works well for similar projects
+    - Document anti-patterns and their solutions
+    - Build knowledge base of contextual recommendations
+    - Refine assessment algorithms based on outcomes
+```
+
+## 📊 Intelligent Metrics and Insights
+
+### Adaptive Success Metrics
+```yaml
+success_metrics:
+  universal_indicators:
+    developer_experience:
+      - Time to productive contribution for new team members
+      - Frequency of development environment issues
+      - Developer satisfaction with tooling and processes
+      
+    code_quality:
+      - Consistent improvement in code review feedback
+      - Reduction in production bugs and hotfixes
+      - Maintainability metrics and technical debt trends
+      
+    delivery_effectiveness:
+      - Deployment frequency and success rate
+      - Lead time from idea to production
+      - Recovery time from failures
+      
+  context_specific_metrics:
+    early_stage: "Speed of feature delivery and experimentation"
+    growth_stage: "Quality and scalability improvements"
+    mature_stage: "Stability and operational excellence"
+    legacy_stage: "Risk reduction and modernization progress"
+```
+
+## 🚀 Implementation Intelligence
+
+### Smart Implementation Guidance
+```yaml
+implementation_intelligence:
+  effort_estimation:
+    - Assess current state complexity
+    - Estimate resource requirements
+    - Identify dependencies and blockers
+    - Provide realistic timelines
+    
+  risk_assessment:
+    - Identify potential implementation risks
+    - Suggest mitigation strategies
+    - Recommend pilot approaches
+    - Plan rollback procedures
+    
+  priority_optimization:
+    - Balance effort vs. impact
+    - Consider team capacity and skills
+    - Account for business priorities
+    - Sequence improvements logically
+    
+  success_validation:
+    - Define measurable outcomes
+    - Set up monitoring and tracking
+    - Plan regular review points
+    - Adjust based on results
+```
+
+## 📚 Related Intelligence Resources
+
+- [Universal Adaptive Rules](mdc:rules.deepmind.init.mdc)
+- [Context-Aware Architecture](mdc:architecture.mdc)
+- [Intelligent Testing Strategies](mdc:dev/testing-standards.mdc)
+- [Adaptive Deployment Patterns](mdc:dev/deployment-standards.mdc)
+- [Smart Stakeholder Management](mdc:stakeholders.mdc)
+
+---
+
+*This intelligence system continuously learns and adapts to provide contextual guidance that evolves with your project's needs and circumstances.*

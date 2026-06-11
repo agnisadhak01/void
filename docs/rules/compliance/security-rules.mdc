@@ -1,0 +1,126 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Security Rules
+
+## Overview
+This document defines security boundaries, data protection requirements, and sensitive information handling guidelines.
+
+## Tags
+- security
+- privacy
+- data-protection
+- compliance
+
+## Rule Type: Mandatory
+
+## Core Security Principles
+
+### 1. Data Classification
+- **Public**: Non-sensitive, publicly accessible information
+- **Internal**: Company-internal information
+- **Confidential**: Sensitive business information
+- **Restricted**: Highly sensitive data (PII, credentials)
+
+### 2. Information Boundaries
+- Never expose internal endpoints or APIs
+- Never generate or modify security credentials
+- Never include sensitive data in logs or error messages
+- Never hardcode secrets or tokens
+
+### 3. Code Security
+- All authentication must be implemented server-side
+- Input validation must be performed on all user inputs
+- Security headers must be properly configured
+- Dependencies must be regularly updated
+
+## Implementation Guidelines
+
+### Data Handling
+1. Use environment variables for sensitive configuration
+2. Implement proper data encryption at rest and in transit
+3. Follow principle of least privilege
+4. Implement proper access controls
+
+### Code Security
+1. Use parameterized queries for database operations
+2. Implement proper CORS policies
+3. Use secure session management
+4. Implement rate limiting
+
+### Automated Compliance
+```yaml
+automated_compliance:
+  - type: "policy_as_code"
+    description: "Define compliance policies in machine-readable format"
+    checks:
+      - "Infrastructure as Code (IaC) policies"
+      - "Configuration drift detection"
+      - "Cloud security posture management (CSPM)"
+    automation:
+      - "Policy enforcement tools (e.g., OPA, Sentinel)"
+      - "Automated configuration audits"
+      - "Cloud security scanners"
+    validation: "Policies are enforced and deviations are reported"
+    
+  - type: "continuous_monitoring"
+    description: "Continuously monitor systems for compliance violations"
+    checks:
+      - "Real-time log analysis for security events"
+      - "Vulnerability management system integration"
+      - "Access control policy enforcement"
+    automation:
+      - "SIEM integration for alerts"
+      - "Automated vulnerability scans"
+      - "Automated access reviews"
+    validation: "Violations are detected and alerted in real-time"
+    
+  - type: "reporting_and_auditing"
+    description: "Automate compliance reporting and audit trail generation"
+    checks:
+      - "Automated generation of compliance reports (e.g., SOC2, GDPR)"
+      - "Immutable audit trails for all changes"
+      - "Evidence collection for audits"
+    automation:
+      - "Reporting tools integration"
+      - "Blockchain-based audit trails (if applicable)"
+      - "Automated evidence gathering"
+    validation: "Reports are accurate and audit trails are complete"
+
+## Examples
+
+### ✅ Secure Implementation
+```typescript
+// Using environment variables
+const apiKey = process.env.API_KEY;
+
+// Proper input validation
+function validateUserInput(input: string): boolean {
+  return /^[a-zA-Z0-9]{1,50}$/.test(input);
+}
+
+// Secure database query
+async function getUser(id: string) {
+  return db.query('SELECT * FROM users WHERE id = ?', [id]);
+}
+```
+
+### ❌ Insecure Implementation
+```typescript
+// Never hardcode credentials
+const apiKey = 'sk_live_123456789';
+
+// Never expose sensitive data in errors
+throw new Error(`Invalid token: ${userToken}`);
+
+// Never use string concatenation for queries
+const query = `SELECT * FROM users WHERE id = ${userId}`;
+```
+
+## Related Rules
+- [AI Behavior Guidelines](mdc:../ai/ai-behavior.mdc)
+- [Code Conventions](mdc:../dev/conventions.mdc)
+- [Testing Standards](mdc:../dev/testing-standards.mdc)
+

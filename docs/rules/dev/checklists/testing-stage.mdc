@@ -1,0 +1,362 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Testing Stage Checklists
+
+## Unit Testing
+```yaml
+unit_testing:
+  core:
+    - id: UNIT-001
+      description: "Core logic unit tests"
+      validation:
+        - "Test coverage > 80%"
+        - "All critical paths tested"
+        - "Edge cases covered"
+        - "Error handling verified"
+        - "Performance benchmarks met"
+      responsible: "Developer"
+      reference: 
+        - "testing-standards.mdc#unit-tests"
+        - "dev/checklists/development-stage.mdc#implementation"
+        - "dev/checklists/deployment-stage.mdc#testing"
+      automation:
+        tools:
+          - "Jest for JavaScript"
+          - "Pytest for Python"
+          - "JUnit for Java"
+        commands:
+          - "jest --coverage"
+          - "pytest --cov"
+          - "mvn test"
+        integration:
+          - "Sync with development checklist IMP-002"
+          - "Link to deployment checklist TEST-001"
+          - "Connect with action execution UNIT-001"
+      
+    - id: UNIT-002
+      description: "Dependency mocking"
+      validation:
+        - "External dependencies mocked"
+        - "Mock behavior verified"
+        - "Integration points tested"
+        - "Error scenarios covered"
+        - "Performance impact assessed"
+      responsible: "Developer"
+      reference: 
+        - "testing-standards.mdc#mocking"
+        - "dev/checklists/development-stage.mdc#implementation"
+        - "dev/checklists/deployment-stage.mdc#testing"
+      automation:
+        tools:
+          - "Sinon for JavaScript"
+          - "Mockito for Java"
+          - "unittest.mock for Python"
+        commands:
+          - "jest --coverage --config=mock.config.js"
+          - "mvn test -Dtest=MockTest"
+          - "pytest --mock"
+        integration:
+          - "Sync with development checklist IMP-002"
+          - "Link to deployment checklist TEST-001"
+          - "Connect with action execution UNIT-002"
+
+  quality:
+    - id: UQUAL-001
+      description: "Test organization"
+      validation:
+        - "Tests follow project structure"
+        - "Test files properly named"
+        - "Test categories clear"
+        - "Setup/teardown implemented"
+      responsible: "Developer"
+      reference: 
+        - "conventions.mdc#testing"
+        - "testing-standards.mdc#test-organization"
+      automation:
+        - "Structure validation"
+        - "Naming convention checks"
+        - "Category verification"
+        - "Setup/teardown validation"
+      
+    - id: UQUAL-002
+      description: "Test naming"
+      validation:
+        - "Clear and descriptive test names"
+        - "Follows naming convention"
+        - "Indicates test scenario"
+        - "Includes expected outcome"
+      responsible: "Developer"
+      reference: 
+        - "conventions.mdc#naming"
+        - "testing-standards.mdc#test-naming"
+      automation:
+        - "Naming convention enforcement"
+        - "Scenario validation"
+        - "Outcome verification"
+        - "Documentation generation"
+```
+
+## Integration Testing
+```yaml
+integration:
+  api:
+    - id: INT-001
+      description: "API integration tests"
+      validation:
+        - "All endpoints tested"
+        - "Request/response validation"
+        - "Error handling verified"
+        - "Performance metrics met"
+        - "Security checks passed"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#api-tests"
+        - "dev/checklists/development-stage.mdc#implementation"
+        - "dev/checklists/deployment-stage.mdc#testing"
+      automation:
+        tools:
+          - "Postman for API testing"
+          - "RestAssured for Java"
+          - "Requests for Python"
+        commands:
+          - "newman run api-tests.json"
+          - "mvn test -Dtest=ApiTest"
+          - "pytest api_tests/"
+        integration:
+          - "Sync with development checklist IMP-002"
+          - "Link to deployment checklist TEST-002"
+          - "Connect with action execution INT-001"
+      
+    - id: INT-002
+      description: "Feature flow tests"
+      validation:
+        - "User journeys tested"
+        - "Data flow verified"
+        - "State transitions tested"
+        - "Error recovery verified"
+        - "Performance impact assessed"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#flow-tests"
+        - "dev/checklists/development-stage.mdc#implementation"
+        - "dev/checklists/deployment-stage.mdc#testing"
+      automation:
+        tools:
+          - "Cucumber for BDD"
+          - "Robot Framework"
+          - "Behave for Python"
+        commands:
+          - "cucumber features/"
+          - "robot flow_tests/"
+          - "behave features/"
+        integration:
+          - "Sync with development checklist IMP-002"
+          - "Link to deployment checklist TEST-002"
+          - "Connect with action execution INT-002"
+
+  components:
+    - id: COMP-001
+      description: "Component interaction"
+      validation:
+        - "Components work together"
+        - "Event handling verified"
+        - "State management tested"
+        - "Performance impact measured"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#component-testing"
+        - "architecture.mdc#component-design"
+      automation:
+        - "Interaction testing"
+        - "Event simulation"
+        - "State management verification"
+        - "Performance monitoring"
+      
+    - id: COMP-002
+      description: "Data flow"
+      validation:
+        - "Data flows correctly"
+        - "Transformations verified"
+        - "Validation rules tested"
+        - "Error states handled"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#data-flow"
+        - "development-checklist.mdc#data-handling"
+      automation:
+        - "Flow verification"
+        - "Transformation testing"
+        - "Validation automation"
+        - "Error state simulation"
+```
+
+## End-to-End Testing
+```yaml
+e2e:
+  user_journeys:
+    - id: E2E-001
+      description: "Core user journeys"
+      validation:
+        - "Critical paths tested"
+        - "User flows verified"
+        - "Data integrity checked"
+        - "Performance requirements met"
+        - "Error handling verified"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#e2e-tests"
+        - "dev/checklists/development-stage.mdc#implementation"
+        - "dev/checklists/deployment-stage.mdc#testing"
+      automation:
+        tools:
+          - "Cypress for web"
+          - "Appium for mobile"
+          - "Selenium for cross-browser"
+        commands:
+          - "cypress run"
+          - "appium --test"
+          - "selenium-side-runner"
+        integration:
+          - "Sync with development checklist IMP-002"
+          - "Link to deployment checklist TEST-003"
+          - "Connect with action execution E2E-001"
+      
+    - id: E2E-002
+      description: "Browser testing"
+      validation:
+        - "Cross-browser compatibility"
+        - "Responsive design verified"
+        - "Accessibility standards met"
+        - "Performance across browsers"
+        - "Error handling consistent"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#browser-tests"
+        - "dev/checklists/development-stage.mdc#implementation"
+        - "dev/checklists/deployment-stage.mdc#testing"
+      automation:
+        tools:
+          - "BrowserStack"
+          - "Sauce Labs"
+          - "LambdaTest"
+        commands:
+          - "browserstack-runner"
+          - "saucelabs-runner"
+          - "lambdatest-runner"
+        integration:
+          - "Sync with development checklist IMP-002"
+          - "Link to deployment checklist TEST-003"
+          - "Connect with action execution E2E-002"
+
+  performance:
+    - id: PERF-001
+      description: "Load testing"
+      validation:
+        - "System handles expected load"
+        - "Response times within SLA"
+        - "Resource usage monitored"
+        - "Bottlenecks identified"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#performance"
+        - "deployment-standards.mdc#performance"
+      automation:
+        - "Load simulation"
+        - "Response time monitoring"
+        - "Resource tracking"
+        - "Bottleneck detection"
+      
+    - id: PERF-002
+      description: "Stress testing"
+      validation:
+        - "System degrades gracefully"
+        - "Recovery procedures tested"
+        - "Error handling verified"
+        - "Monitoring alerts configured"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#stress-testing"
+        - "deployment-standards.mdc#recovery"
+      automation:
+        - "Stress simulation"
+        - "Recovery automation"
+        - "Error handling verification"
+        - "Alert configuration"
+```
+
+## Test Automation
+```yaml
+automation:
+  ci:
+    - id: AUTO-001
+      description: "CI integration"
+      validation:
+        - "Tests run on every commit"
+        - "Results reported"
+        - "Coverage tracked"
+        - "Performance monitored"
+        - "Failures notified"
+      responsible: "DevOps"
+      reference: 
+        - "testing-standards.mdc#ci-integration"
+        - "dev/checklists/development-stage.mdc#implementation"
+        - "dev/checklists/deployment-stage.mdc#testing"
+      automation:
+        tools:
+          - "Jenkins"
+          - "GitHub Actions"
+          - "CircleCI"
+        commands:
+          - "jenkins-cli build"
+          - "gh run test"
+          - "circleci local execute"
+        integration:
+          - "Sync with development checklist IMP-002"
+          - "Link to deployment checklist TEST-004"
+          - "Connect with action execution AUTO-001"
+      
+    - id: AUTO-002
+      description: "Test environment"
+      validation:
+        - "Environment provisioned"
+        - "Data seeded"
+        - "Services configured"
+        - "Monitoring active"
+        - "Cleanup automated"
+      responsible: "DevOps"
+      reference: 
+        - "testing-standards.mdc#test-env"
+        - "dev/checklists/development-stage.mdc#environment"
+        - "dev/checklists/deployment-stage.mdc#testing"
+      automation:
+        tools:
+          - "Docker"
+          - "Kubernetes"
+          - "Terraform"
+        commands:
+          - "docker-compose up -d"
+          - "kubectl apply -f test-env"
+          - "terraform apply"
+        integration:
+          - "Sync with development checklist ENV-001"
+          - "Link to deployment checklist ENV-001"
+          - "Connect with action execution AUTO-002"
+```
+
+## 🔄 Maintenance
+
+This checklist should be:
+- Reviewed monthly
+- Updated based on team feedback
+- Integrated with CI/CD pipeline
+- Automated where possible
+
+## 📚 Related Rules
+- [Testing Standards](mdc:dev/testing-standards.mdc)
+- [Development Checklist](mdc:dev/development-checklist.mdc)
+- [Deployment Standards](mdc:dev/deployment-standards.mdc)
+- [Next Actions](mdc:ai/next-actions.mdc)
+- [Action Execution](mdc:ai/action-execution.mdc)

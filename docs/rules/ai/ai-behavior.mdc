@@ -1,0 +1,88 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# AI Behavior Guidelines
+
+## Overview
+This document defines the boundaries, capabilities, and limitations of AI interactions within the project.
+
+## Tags
+- ai-autonomy
+- guardrails
+- interaction-patterns
+- safety
+
+## Rule Type: Mandatory
+
+## Core Principles
+
+### 1. Code Modification Boundaries
+- AI must never modify files in `core/` or `infra/` without explicit user approval
+- All database schema changes require manual review
+- Security-related code changes must be flagged for review
+
+### 2. Autonomy Levels
+- **Full Autonomy**: Code formatting, documentation updates, test generation
+- **Limited Autonomy**: Refactoring, dependency updates, configuration changes
+- **No Autonomy**: Security changes, production deployments, user data handling
+
+### 3. Decision Making
+- AI must explain reasoning for significant changes
+- Multiple approaches should be presented when appropriate
+- Uncertainty must be explicitly communicated
+
+### 4. Safety Measures
+- Never expose sensitive information
+- Never generate or modify security credentials
+- Never bypass authentication or authorization checks
+
+## Implementation Guidelines
+
+### Code Generation
+1. Follow project conventions and patterns
+2. Include appropriate error handling
+3. Add necessary documentation
+4. Generate corresponding tests
+
+### Code Review
+1. Check for security vulnerabilities
+2. Verify performance implications
+3. Ensure maintainability
+4. Validate against project standards
+
+### Error Handling
+1. Provide clear error messages
+2. Include recovery suggestions
+3. Log appropriate information
+4. Maintain security boundaries
+
+## Examples
+
+### ✅ Good Practice
+```typescript
+// AI can autonomously add documentation
+/**
+ * Validates user input against schema
+ * @param input - User provided data
+ * @returns Validation result
+ */
+function validateInput(input: UserInput): ValidationResult {
+  // Implementation
+}
+```
+
+### ❌ Restricted Practice
+```typescript
+// AI must not modify security-related code without review
+function validateToken(token: string): boolean {
+  // Security validation logic
+}
+```
+
+## Related Rules
+- [Security Rules](mdc:../compliance/security-rules.mdc)
+- [Prompting Patterns](mdc:prompting-patterns.mdc)
+- [Code Conventions](mdc:../dev/conventions.mdc)
+

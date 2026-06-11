@@ -1,0 +1,560 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Deployment and Delivery Standards
+
+## 🚀 Deployment & Delivery Requirements
+
+### 🔹 Build Pipeline
+
+#### CI/CD Configuration
+```yaml
+# Example GitHub Actions workflow with comprehensive CI/CD
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [published]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+            
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run linting
+        run: npm run lint
+        
+      - name: Run tests with coverage
+        run: npm test -- --coverage
+        
+      - name: Upload test coverage
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          
+      - name: Build
+        run: npm run build
+        
+      - name: Build and push Docker image
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  cd-staging:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Deploy to staging
+        uses: cloudfoundry/cf-cli-action@v1
+        with:
+          cf_api: ${{ secrets.CF_API }}
+          cf_username: ${{ secrets.CF_USERNAME }}
+          cf_password: ${{ secrets.CF_PASSWORD }}
+          cf_org: ${{ secrets.CF_ORG }}
+          cf_space: staging
+          command: |
+            cf push my-app --docker-image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            
+      - name: Run smoke tests
+        run: npm run test:smoke
+        
+      - name: Notify deployment status
+        if: always()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": "Deployment to staging ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Deployment to staging ${{ job.status }}*\nCommit: ${{ github.sha }}\nBranch: ${{ github.ref }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  cd-production:
+    needs: [ci, cd-staging]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy to production
+        uses: cloudfoundry/cf-cli-action@v1
+        with:
+          cf_api: ${{ secrets.CF_API }}
+          cf_username: ${{ secrets.CF_USERNAME }}
+          cf_password: ${{ secrets.CF_PASSWORD }}
+          cf_org: ${{ secrets.CF_ORG }}
+          cf_space: production
+          command: |
+            cf push my-app --docker-image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --strategy rolling
+            
+      - name: Verify deployment
+        run: |
+          curl -f https://my-app.example.com/health || exit 1
+          
+      - name: Notify production deployment
+        if: always()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": "Deployment to production ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Deployment to production ${{ job.status }}*\nVersion: ${{ github.event.release.tag_name }}\nCommit: ${{ github.sha }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+```
+
+#### CI Requirements
+- [ ] Pull Request triggers: lint → test → build
+- [ ] CI provider configuration (GitHub Actions/GitLab/CircleCI/Jenkins)
+- [ ] Secrets managed via CI provider's vault
+- [ ] Dependencies cached for faster builds
+- [ ] Test reports and code coverage uploaded
+- [ ] Build artifacts stored and versioned
+
+#### CD Requirements
+- [ ] Staging deployment auto-triggered on merge to main
+- [ ] Auto rollback on health check failure
+- [ ] Production deployment triggered by tagged releases
+- [ ] Versioned artifacts published
+- [ ] Canary/A/B deployment support
+
+### 🔹 Pre-Deployment
+
+#### Infrastructure as Code
+```hcl
+# Example Terraform configuration with canary deployment
+resource "aws_ecs_cluster" "main" {
+  name = "production-cluster"
+  
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
+  
+  tags = {
+    Environment = "production"
+    ManagedBy   = "terraform"
+  }
+}
+
+# Canary deployment configuration
+resource "aws_appconfig_application" "main" {
+  name = "my-application"
+  
+  deployment_strategy {
+    name                           = "canary"
+    deployment_duration_in_minutes = 30
+    growth_factor                 = 10
+    replicate_to                  = "NONE"
+  }
+  
+  feature_flags = {
+    "new-feature" = {
+      enabled = false
+      rollout = {
+        percentage = 0
+        type      = "linear"
+      }
+    }
+  }
+}
+```
+
+#### Pre-Deployment Checklist
+- [ ] Infrastructure as Code reviewed (Terraform, Pulumi)
+- [ ] Feature flags configured for risky rollouts
+- [ ] Database migrations prepared and reversible
+- [ ] Performance regression tests completed
+- [ ] Security scan results reviewed
+
+### 🔹 Staging Environment
+
+#### Deployment Configuration
+```yaml
+# Example staging deployment config with health checks
+staging:
+  environment:
+    name: staging
+    url: https://staging.example.com
+    
+  deploy:
+    branch: develop
+    auto_deploy: true
+    strategy: rolling
+    
+  health_checks:
+    - name: api
+      path: /health
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_grace_period: 30s
+    - name: web
+      path: /ready
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_grace_period: 30s
+      
+  notifications:
+    slack: "#deployments-staging"
+    discord: "#deployments"
+    
+  rollback:
+    automatic: true
+    threshold: 5% # Error rate threshold
+    timeout: 300s
+```
+
+#### Staging Requirements
+- [ ] Automatic deployment from main/dev branch
+- [ ] Testing data auto-seeded
+- [ ] Smoke test suite runs after deploy
+- [ ] Slack/Discord notifications configured
+- [ ] Environment variables properly set
+- [ ] Health checks configured
+- [ ] Auto-rollback on failure
+
+### 🔹 Production Deployment
+
+#### Production Configuration
+```yaml
+# Example production deployment config with canary
+production:
+  environment:
+    name: production
+    url: https://example.com
+    
+  deploy:
+    branch: main
+    auto_deploy: false
+    requires_approval: true
+    strategy: canary
+    
+  canary:
+    steps:
+      - percentage: 10
+        duration: 5m
+      - percentage: 30
+        duration: 10m
+      - percentage: 60
+        duration: 15m
+      - percentage: 100
+        duration: 20m
+        
+  health_checks:
+    - name: api
+      path: /health
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_grace_period: 30s
+    - name: web
+      path: /ready
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_grace_period: 30s
+      
+  rollback:
+    automatic: true
+    threshold: 5% # Error rate threshold
+    timeout: 300s
+    
+  monitoring:
+    sentry:
+      dsn: ${SENTRY_DSN}
+    datadog:
+      api_key: ${DATADOG_API_KEY}
+    prometheus:
+      endpoint: /metrics
+```
+
+#### Production Requirements
+- [ ] Manual approval required
+- [ ] Protected release branch
+- [ ] Zero-downtime deployment setup
+- [ ] Rollback strategy and scripts
+- [ ] Error monitoring connected
+- [ ] Health check endpoints working
+- [ ] Canary deployment support
+- [ ] Versioned artifacts
+
+### 🔹 Post-Deployment
+
+#### Monitoring Configuration
+```yaml
+# Example monitoring stack configuration
+monitoring:
+  logging:
+    provider: elasticsearch
+    config:
+      hosts: ["https://logs.example.com:9200"]
+      index_pattern: "app-logs-*"
+      retention: 30d
+      
+  metrics:
+    provider: prometheus
+    config:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      alerting_rules:
+        - name: high_error_rate
+          expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: High error rate detected
+            description: Error rate is above 10% for 5 minutes
+            
+  tracing:
+    provider: jaeger
+    config:
+      sampling_rate: 0.1
+      max_trace_duration: 10m
+      
+  alerts:
+    channels:
+      - type: slack
+        channel: "#alerts-critical"
+        severity: [critical, warning]
+      - type: email
+        recipients: ["oncall@example.com"]
+        severity: [critical]
+        
+  dashboards:
+    - name: application-overview
+      provider: grafana
+      refresh_interval: 1m
+      panels:
+        - name: error_rate
+          type: graph
+          query: rate(http_requests_total{status=~"5.."}[5m])
+        - name: response_time
+          type: graph
+          query: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+```
+
+#### Observability Configuration
+```yaml
+# Example observability configuration
+observability:
+  feature_analytics:
+    provider: amplitude
+    config:
+      api_key: ${AMPLITUDE_API_KEY}
+      events:
+        - name: feature_used
+          properties:
+            - feature_name
+            - user_id
+            - duration
+        - name: error_occurred
+          properties:
+            - error_type
+            - stack_trace
+            - user_id
+            
+  crash_reporting:
+    provider: sentry
+    config:
+      dsn: ${SENTRY_DSN}
+      environment: production
+      traces_sample_rate: 0.1
+      performance_monitoring: true
+      
+  user_feedback:
+    provider: intercom
+    config:
+      app_id: ${INTERCOM_APP_ID}
+      feedback_channels:
+        - in_app
+        - email
+        - chat
+      auto_collection:
+        enabled: true
+        events:
+          - page_view
+          - feature_usage
+          - error_occurred
+```
+
+#### Post-Deployment Requirements
+
+##### Monitoring & Validation
+- [ ] Logging Infrastructure
+  - [ ] Centralized log collection (ELK, Loki, CloudWatch)
+  - [ ] Log retention policies configured
+  - [ ] Log search and filtering capabilities
+  - [ ] Log aggregation and parsing rules
+
+- [ ] Alerting System
+  - [ ] Critical alerts configured (5xx errors, latency)
+  - [ ] Warning alerts for potential issues
+  - [ ] Alert routing and escalation
+  - [ ] Alert suppression and grouping
+
+- [ ] Uptime Monitoring
+  - [ ] Endpoint health checks
+  - [ ] Synthetic monitoring
+  - [ ] Real user monitoring
+  - [ ] SLA tracking
+
+- [ ] Performance Dashboards
+  - [ ] Key metrics visualization
+  - [ ] Custom dashboards for teams
+  - [ ] Real-time data updates
+  - [ ] Historical trend analysis
+
+##### Feedback & Observability
+- [ ] Feature Analytics
+  - [ ] Usage tracking implementation
+  - [ ] User behavior analysis
+  - [ ] Feature adoption metrics
+  - [ ] A/B test tracking
+
+- [ ] Error Tracking
+  - [ ] Crash report collection
+  - [ ] Error aggregation and analysis
+  - [ ] Stack trace processing
+  - [ ] Error trend monitoring
+
+- [ ] User Feedback
+  - [ ] Feedback collection channels
+  - [ ] User survey implementation
+  - [ ] Feedback analysis process
+  - [ ] Action item tracking
+
+- [ ] Behavior Analysis
+  - [ ] User session recording
+  - [ ] Heat map generation
+  - [ ] Conversion funnel analysis
+  - [ ] User journey mapping
+
+#### Implementation Guidelines
+
+##### For DevOps
+1. **Monitoring Setup**
+   - Configure log shipping
+   - Set up metric collection
+   - Implement alerting rules
+   - Create monitoring dashboards
+
+2. **Observability Implementation**
+   - Deploy APM tools
+   - Configure tracing
+   - Set up error tracking
+   - Implement analytics
+
+3. **Maintenance**
+   - Regular log rotation
+   - Alert rule tuning
+   - Dashboard updates
+   - Performance optimization
+
+##### For Developers
+1. **Instrumentation**
+   - Add logging statements
+   - Implement metrics
+   - Add tracing
+   - Configure error reporting
+
+2. **Analytics**
+   - Track feature usage
+   - Monitor user behavior
+   - Collect feedback
+   - Analyze trends
+
+3. **Documentation**
+   - Document monitoring setup
+   - Maintain runbooks
+   - Update alert procedures
+   - Document metrics
+
+##### For Product Teams
+1. **Feedback Collection**
+   - Gather user feedback
+   - Analyze usage patterns
+   - Track feature adoption
+   - Monitor user satisfaction
+
+2. **Analysis**
+   - Review analytics data
+   - Identify trends
+   - Make data-driven decisions
+   - Plan improvements
+
+## 📋 Maintenance
+
+This document should be:
+- Reviewed quarterly
+- Updated based on team feedback
+- Aligned with industry best practices
+- Integrated with monitoring tools
+
+## 🔄 Related Rules
+- [Development Checklist](mdc:dev/development-checklist.mdc)
+- [Testing Standards](mdc:dev/testing-standards.mdc)
+- [Security Rules](mdc:compliance/security-rules.mdc)
+
+
+
+
+

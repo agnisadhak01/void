@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Define code architecture, AI rule types, documentation, and metadata standards
+alwaysApply: true
+tags: [architecture, design, standards, documentation, metadata]
+---
+- **Rule File Structure:** Classify each rule by type via frontmatter:
+  - **Always:** `alwaysApply: true` – rule is always included in context:contentReference[oaicite:11]{index=11}.
+  - **Auto:** specify `globs` (file pattern) with `alwaysApply: false` – rule auto-attaches when relevant files are referenced:contentReference[oaicite:12]{index=12}.
+  - **Agent-requested:** provide a `description` (no globs) – Cursor decides if/when to include the rule:contentReference[oaicite:13]{index=13}.
+  - **Manual:** no triggers in frontmatter – rule is only used when explicitly referenced via `@rule-name.mdc`:contentReference[oaicite:14]{index=14}.
+- **Code & Project Structure:** Maintain clear architecture and conventions:
+  - Organize code into logical modules or layers with consistent naming.
+  - Use semantic naming (classes, functions, directories) and comments to clarify intent for both developers and AI.
+  - Keep each rule file concise (under ~500 lines) and split large guidelines into multiple rules:contentReference[oaicite:15]{index=15}.
+- **Diagrams & Documentation:** Include architecture documentation as code:
+  - Use Mermaid or PlantUML (text-based formats) to describe system architecture, enabling version control:contentReference[oaicite:16]{index=16}.
+  - Automate documentation generation in CI/CD so docs stay synchronized with code changes:contentReference[oaicite:17]{index=17}.
+  - Follow semantic conventions in docs: expand acronyms on first use and include links to related standards or RFCs:contentReference[oaicite:18]{index=18}.
+- **Metadata & Tags:** Embed metadata for machine-interpretability:
+  - Add `tags: [...]` in rule frontmatter to categorize rules and improve AI retrieval.
+  - Use consistent YAML frontmatter and semantic headings in all Markdown documentation.
+
+  - Ensure all documentation and metadata are version-controlled and integrated into the CI/CD pipeline for continuous updates.

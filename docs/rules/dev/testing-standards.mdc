@@ -1,0 +1,283 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Testing Standards and Requirements
+
+## 🧪 Testing Requirements
+
+### 🔹 Unit Testing
+
+#### Coverage Requirements
+- 100% coverage of core business logic
+- Minimum 80% coverage for all code
+- Coverage reports generated in CI
+- Coverage thresholds enforced in CI pipeline
+
+#### Implementation Standards
+```typescript
+// Example of a well-structured unit test
+describe('UserService', () => {
+  let userService: UserService;
+  let mockUserRepository: jest.Mocked<UserRepository>;
+
+  beforeEach(() => {
+    mockUserRepository = {
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn()
+    };
+    userService = new UserService(mockUserRepository);
+  });
+
+  it('should create a new user with valid data', async () => {
+    // Arrange
+    const userData = {
+      email: 'test@example.com',
+      name: 'Test User'
+    };
+    mockUserRepository.create.mockResolvedValue({ id: '1', ...userData });
+
+    // Act
+    const result = await userService.createUser(userData);
+
+    // Assert
+    expect(result).toHaveProperty('id');
+    expect(mockUserRepository.create).toHaveBeenCalledWith(userData);
+  });
+
+  it('should handle duplicate email errors', async () => {
+    // Arrange
+    const userData = {
+      email: 'existing@example.com',
+      name: 'Test User'
+    };
+    mockUserRepository.create.mockRejectedValue(new DuplicateEmailError());
+
+    // Act & Assert
+    await expect(userService.createUser(userData))
+      .rejects
+      .toThrow(DuplicateEmailError);
+  });
+});
+```
+
+#### Component Testing
+```typescript
+// Example of a React component test with snapshots
+describe('UserProfile', () => {
+  it('should render correctly', () => {
+    const { container } = render(
+      <UserProfile
+        user={{
+          id: '1',
+          name: 'Test User',
+          email: 'test@example.com'
+        }}
+      />
+    );
+    expect(container).toMatchSnapshot();
+  });
+
+  it('should handle loading state', () => {
+    const { getByTestId } = render(<UserProfile isLoading={true} />);
+    expect(getByTestId('loading-spinner')).toBeInTheDocument();
+  });
+});
+```
+
+### 🔹 Integration Testing
+
+#### API Testing
+```typescript
+// Example of API integration test
+describe('User API', () => {
+  let app: Express;
+  let testDb: TestDatabase;
+
+  beforeAll(async () => {
+    testDb = await TestDatabase.create();
+    app = createApp({ database: testDb });
+  });
+
+  afterAll(async () => {
+    await testDb.destroy();
+  });
+
+  it('should create a new user via API', async () => {
+    const response = await request(app)
+      .post('/api/users')
+      .send({
+        email: 'test@example.com',
+        name: 'Test User'
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body).toHaveProperty('id');
+  });
+});
+```
+
+#### External Service Integration
+```typescript
+// Example of external service integration test
+describe('PaymentService', () => {
+  let paymentService: PaymentService;
+  let mockStripeClient: jest.Mocked<StripeClient>;
+
+  beforeEach(() => {
+    mockStripeClient = {
+      createPaymentIntent: jest.fn(),
+      confirmPayment: jest.fn()
+    };
+    paymentService = new PaymentService(mockStripeClient);
+  });
+
+  it('should process payment successfully', async () => {
+    mockStripeClient.createPaymentIntent.mockResolvedValue({
+      id: 'pi_123',
+      status: 'succeeded'
+    });
+
+    const result = await paymentService.processPayment({
+      amount: 1000,
+      currency: 'usd'
+    });
+
+    expect(result.status).toBe('succeeded');
+  });
+});
+```
+
+### 🔹 End-to-End Testing
+
+#### Core User Flows
+```typescript
+// Example of Cypress E2E test
+describe('User Authentication', () => {
+  beforeEach(() => {
+    cy.visit('/login');
+  });
+
+  it('should login successfully', () => {
+    cy.get('[data-testid="email-input"]').type('test@example.com');
+    cy.get('[data-testid="password-input"]').type('password123');
+    cy.get('[data-testid="login-button"]').click();
+    
+    cy.url().should('include', '/dashboard');
+    cy.get('[data-testid="user-profile"]').should('be.visible');
+  });
+
+  it('should handle invalid credentials', () => {
+    cy.get('[data-testid="email-input"]').type('invalid@example.com');
+    cy.get('[data-testid="password-input"]').type('wrongpassword');
+    cy.get('[data-testid="login-button"]').click();
+    
+    cy.get('[data-testid="error-message"]')
+      .should('be.visible')
+      .and('contain', 'Invalid credentials');
+  });
+});
+```
+
+#### Cross-Browser Testing
+```typescript
+// Example of Playwright cross-browser test
+describe('Responsive Design', () => {
+  const viewports = [
+    { width: 320, height: 568 },  // Mobile
+    { width: 768, height: 1024 }, // Tablet
+    { width: 1920, height: 1080 } // Desktop
+  ];
+
+  viewports.forEach(viewport => {
+    it(`should render correctly on ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+      
+      // Take screenshot for visual regression
+      await page.screenshot({
+        path: `./screenshots/home-${viewport.width}x${viewport.height}.png`
+      });
+    });
+  });
+});
+```
+
+### 🔹 Static & Dynamic Analysis
+
+#### Linting Configuration
+```json
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:jest/recommended",
+    "plugin:react/recommended"
+  ],
+  "rules": {
+    "no-console": "warn",
+    "@typescript-eslint/explicit-function-return-type": "error",
+    "@typescript-eslint/no-explicit-any": "error"
+  }
+}
+```
+
+#### Security Scanning
+```yaml
+# Example GitHub Actions workflow for security scanning
+name: Security Scan
+
+on: [push, pull_request]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Run SAST
+        uses: github/codeql-action/analyze@v2
+        
+      - name: Run dependency scan
+        run: npm audit
+        
+      - name: Run Snyk
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+```
+
+## 📋 Testing Checklist
+
+### Pre-commit
+- [ ] All unit tests passing
+- [ ] Lint checks passing
+- [ ] Type checking passing
+- [ ] No security vulnerabilities
+- [ ] Test coverage meets requirements
+
+### CI Pipeline
+- [ ] All tests running in CI
+- [ ] Coverage reports generated
+- [ ] Security scans completed
+- [ ] E2E tests passing
+- [ ] Performance benchmarks met
+
+### Release Checklist
+- [ ] All test suites passing
+- [ ] Security scan results reviewed
+- [ ] Performance tests completed
+- [ ] Cross-browser testing verified
+- [ ] Accessibility tests passing
+
+## 🔄 Maintenance
+
+This document should be:
+- Reviewed quarterly
+- Updated based on team feedback
+- Aligned with industry best practices
+- Integrated with CI/CD pipeline
+

@@ -1,0 +1,325 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Deployment Stage Checklists
+
+## Pre-Deployment
+```yaml
+pre_deployment:
+  infrastructure:
+    - id: PRE-001
+      description: "Infrastructure validation"
+      validation:
+        - "IaC changes reviewed"
+        - "Resource limits verified"
+        - "Security groups configured"
+        - "Backup strategy in place"
+      responsible: "DevOps"
+      reference: 
+        - "deployment-standards.mdc#infrastructure"
+        - "security-rules.mdc#infrastructure"
+        - "ai/action-execution.mdc#infrastructure-validation"
+      automation:
+        - "IaC validation"
+        - "Resource monitoring"
+        - "Security group verification"
+        - "Backup verification"
+      
+    - id: PRE-002
+      description: "Environment setup"
+      validation:
+        - "All environments configured"
+        - "Secrets management in place"
+        - "Monitoring tools deployed"
+        - "Logging configured"
+      responsible: "DevOps"
+      reference: 
+        - "deployment-standards.mdc#environments"
+        - "security-rules.mdc#secrets"
+        - "ai/action-execution.mdc#environment-setup"
+      automation:
+        - "Environment provisioning"
+        - "Secrets rotation"
+        - "Monitoring setup"
+        - "Logging configuration"
+
+  security:
+    - id: SEC-001
+      description: "Security scan"
+      validation:
+        - "No critical vulnerabilities"
+        - "Dependencies updated"
+        - "Security patches applied"
+        - "Compliance checks passed"
+      responsible: "Security Team"
+      reference: 
+        - "security-rules.mdc#scanning"
+        - "deployment-standards.mdc#security"
+        - "ai/action-execution.mdc#security-validation"
+      automation:
+        - "Vulnerability scanning"
+        - "Dependency updates"
+        - "Patch management"
+        - "Compliance automation"
+      
+    - id: SEC-002
+      description: "Compliance check"
+      validation:
+        - "All compliance requirements met"
+        - "Audit trails configured"
+        - "Data protection verified"
+        - "Access controls reviewed"
+      responsible: "Security Team"
+      reference: 
+        - "security-rules.mdc#compliance"
+        - "deployment-standards.mdc#compliance"
+      automation:
+        - "Compliance checking"
+        - "Audit trail verification"
+        - "Data protection validation"
+        - "Access control review"
+```
+
+## Staging Deployment
+```yaml
+staging:
+  deployment:
+    - id: STAGE-001
+      description: "Staging deployment"
+      validation:
+        - "Deployment successful"
+        - "Health checks passing"
+        - "Metrics collection working"
+        - "Logs accessible"
+      responsible: "DevOps"
+      reference: 
+        - "deployment-standards.mdc#staging"
+        - "testing-standards.mdc#staging-tests"
+        - "ai/action-execution.mdc#staging-deployment"
+      automation:
+        - "Deployment automation"
+        - "Health check monitoring"
+        - "Metrics collection"
+        - "Log aggregation"
+      
+    - id: STAGE-002
+      description: "Feature flags"
+      validation:
+        - "Flags properly configured"
+        - "Default states set"
+        - "Override mechanisms tested"
+        - "Documentation updated"
+      responsible: "DevOps"
+      reference: 
+        - "deployment-standards.mdc#feature-flags"
+        - "development-checklist.mdc#feature-management"
+      automation:
+        - "Flag configuration"
+        - "State management"
+        - "Override testing"
+        - "Documentation updates"
+
+  verification:
+    - id: VER-001
+      description: "Smoke tests"
+      validation:
+        - "All critical paths working"
+        - "Performance within limits"
+        - "Error handling verified"
+        - "Monitoring alerts configured"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#smoke-tests"
+        - "deployment-standards.mdc#verification"
+      automation:
+        - "Smoke test automation"
+        - "Performance monitoring"
+        - "Error simulation"
+        - "Alert configuration"
+      
+    - id: VER-002
+      description: "Integration verification"
+      validation:
+        - "All integrations working"
+        - "Data flows verified"
+        - "API endpoints tested"
+        - "Third-party services connected"
+      responsible: "QA Engineer"
+      reference: 
+        - "testing-standards.mdc#integration"
+        - "deployment-standards.mdc#integration"
+      automation:
+        - "Integration testing"
+        - "Flow verification"
+        - "API testing"
+        - "Service connectivity"
+```
+
+## Production Deployment
+```yaml
+production:
+  deployment:
+    - id: PROD-001
+      description: "Production deployment"
+      validation:
+        - "Deployment successful"
+        - "Zero-downtime achieved"
+        - "Data migration complete"
+        - "Cache warmed up"
+      responsible: "DevOps"
+      reference: 
+        - "deployment-standards.mdc#production"
+        - "security-rules.mdc#production"
+        - "ai/action-execution.mdc#production-deployment"
+      automation:
+        - "Deployment automation"
+        - "Downtime monitoring"
+        - "Migration automation"
+        - "Cache warming"
+      
+    - id: PROD-002
+      description: "Rollback plan"
+      validation:
+        - "Plan tested and ready"
+        - "Data backup verified"
+        - "Rollback scripts tested"
+        - "Team trained on procedure"
+      responsible: "DevOps"
+      reference: 
+        - "deployment-standards.mdc#rollback"
+        - "security-rules.mdc#disaster-recovery"
+      automation:
+        - "Rollback automation"
+        - "Backup verification"
+        - "Script testing"
+        - "Procedure documentation"
+
+  monitoring:
+    - id: MON-001
+      description: "Health checks"
+      validation:
+        - "All systems healthy"
+        - "Metrics within thresholds"
+        - "Alerts configured"
+        - "Dashboards updated"
+      responsible: "DevOps"
+      reference: 
+        - "deployment-standards.mdc#monitoring"
+        - "security-rules.mdc#monitoring"
+      automation:
+        - "Health check automation"
+        - "Metric monitoring"
+        - "Alert configuration"
+        - "Dashboard updates"
+      
+    - id: MON-002
+      description: "Performance monitoring"
+      validation:
+        - "Performance metrics normal"
+        - "Resource usage within limits"
+        - "Bottlenecks identified"
+        - "Scaling triggers set"
+      responsible: "DevOps"
+      reference: 
+        - "deployment-standards.mdc#performance"
+        - "testing-standards.mdc#performance"
+      automation:
+        - "Performance monitoring"
+        - "Resource tracking"
+        - "Bottleneck detection"
+        - "Auto-scaling"
+```
+
+## Post-Deployment
+```yaml
+post_deployment:
+  verification:
+    - id: POST-001
+      description: "User acceptance"
+      validation:
+        - "Key stakeholders approved"
+        - "User feedback collected"
+        - "Issues documented"
+        - "Improvements identified"
+      responsible: "Product Owner"
+      reference: 
+        - "deployment-standards.mdc#verification"
+        - "ai/next-actions.mdc#feedback-analysis"
+      automation:
+        - "Approval tracking"
+        - "Feedback collection"
+        - "Issue tracking"
+        - "Improvement logging"
+      
+    - id: POST-002
+      description: "Documentation update"
+      validation:
+        - "All docs updated"
+        - "API documentation current"
+        - "Runbooks reviewed"
+        - "Knowledge base updated"
+      responsible: "Technical Writer"
+      reference: 
+        - "deployment-standards.mdc#documentation"
+        - "development-checklist.mdc#documentation"
+      automation:
+        - "Doc update tracking"
+        - "API doc generation"
+        - "Runbook verification"
+        - "Knowledge base updates"
+
+  monitoring:
+    - id: MON-003
+      description: "Error tracking"
+      validation:
+        - "No critical errors"
+        - "Error rates normal"
+        - "Alerts configured"
+        - "Response procedures documented"
+      responsible: "DevOps"
+      reference: 
+        - "deployment-standards.mdc#error-tracking"
+        - "security-rules.mdc#incident-response"
+        - "ai/action-execution.mdc#error-handling"
+      automation:
+        - "Error monitoring"
+        - "Rate tracking"
+        - "Alert configuration"
+        - "Procedure documentation"
+      
+    - id: MON-004
+      description: "User feedback"
+      validation:
+        - "Feedback collected"
+        - "Issues categorized"
+        - "Improvements planned"
+        - "Metrics analyzed"
+      responsible: "Product Owner"
+      reference: 
+        - "deployment-standards.mdc#feedback"
+        - "ai/next-actions.mdc#feedback-analysis"
+      automation:
+        - "Feedback collection"
+        - "Issue categorization"
+        - "Improvement tracking"
+        - "Metric analysis"
+```
+
+## 🔄 Maintenance
+
+This checklist should be:
+- Reviewed monthly
+- Updated based on team feedback
+- Integrated with CI/CD pipeline
+- Automated where possible
+
+## 📚 Related Rules
+- [Deployment Standards](mdc:dev/deployment-standards.mdc)
+- [Testing Standards](mdc:dev/testing-standards.mdc)
+- [Security Rules](mdc:security/security-rules.mdc)
+- [Development Checklist](mdc:dev/development-checklist.mdc)
+- [Conventions](mdc:dev/conventions.mdc)
+- [Next Actions](mdc:ai/next-actions.mdc)
+- [Action Execution](mdc:ai/action-execution.mdc)

@@ -1,0 +1,195 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Emphasize project context and prevent AI hallucinations
+alwaysApply: true
+tags: [context, hallucination, mcp, symbols]
+---
+- Emphasize that *context* (user intent + existing code state) is the foundation of effective AI coding:contentReference[oaicite:4]{index=4}.
+- Provide relevant project context explicitly to reduce hallucinations (lack of context leads to unpredictable results:contentReference[oaicite:5]{index=5}).
+- Use `@`-symbols to include code context precisely:
+  - `@file <path>` to add a specific file into the context.
+  - `@folder <path>/` to include all files in a folder.
+  - `@code <symbol>` to include a specific function, class, or variable.
+  These surgical references ensure the agent focuses on the right code:contentReference[oaicite:6]{index=6}.
+- Integrate the Model Context Protocol (MCP) to pull in external resources (e.g., documentation, issue trackers) for rich text-based context:contentReference[oaicite:7]{index=7}.
+
+- Keep key **textual documentation** (design docs, READMEs, API specs) in the repo so Cursor can ingest it as context when relevant.
+
+# Project Context Rules
+
+## Overview
+This document defines the project's domain context, business rules, and architectural boundaries to ensure consistent understanding across the team.
+
+## Tags
+- domain
+- context
+- architecture
+- business-rules
+
+## Rule Type: Mandatory
+
+## Domain Model
+
+### 1. Core Entities
+```typescript
+// User Domain
+interface IUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  preferences: UserPreferences;
+}
+
+// Product Domain
+interface IProduct {
+  id: string;
+  name: string;
+  price: number;
+  category: ProductCategory;
+}
+
+// Order Domain
+interface IOrder {
+  id: string;
+  userId: string;
+  products: OrderItem[];
+  status: OrderStatus;
+}
+```
+
+### 2. Domain Relationships
+- Users can have multiple Orders
+- Orders contain multiple Products
+- Products belong to Categories
+- Users have Preferences
+
+## Business Rules
+
+### 1. User Management
+- Email addresses must be unique
+- Passwords must meet security requirements
+- User roles determine access levels
+- User preferences are optional
+
+### 2. Product Management
+- Products must have unique names
+- Prices must be positive numbers
+- Products must belong to a category
+- Product inventory must be tracked
+
+### 3. Order Processing
+- Orders must have at least one product
+- Orders must be associated with a user
+- Order status follows a defined workflow
+- Orders cannot be modified after completion
+
+## Architectural Boundaries
+
+### 1. Service Boundaries
+```
+services/
+├── user-service/      # User management
+├── product-service/   # Product catalog
+├── order-service/     # Order processing
+└── auth-service/      # Authentication
+```
+
+### 2. Data Access
+- Each service owns its data
+- Cross-service data access through APIs
+- No direct database access between services
+- Caching at service boundaries
+
+### 3. Integration Points
+- REST APIs for service communication
+- Event-driven updates for real-time features
+- Message queues for async operations
+- WebSocket for live updates
+
+## Implementation Guidelines
+
+### 1. Service Implementation
+```typescript
+// Service interface
+interface IUserService {
+  createUser(user: IUser): Promise<IUser>;
+  getUser(id: string): Promise<IUser>;
+  updateUser(id: string, user: Partial<IUser>): Promise<IUser>;
+  deleteUser(id: string): Promise<void>;
+}
+
+// Service implementation
+class UserService implements IUserService {
+  // Implementation
+}
+```
+
+### 2. API Implementation
+```typescript
+// API endpoint
+@Controller('users')
+class UserController {
+  @Post()
+  async createUser(@Body() user: IUser): Promise<IUser> {
+    // Implementation
+  }
+}
+```
+
+### 3. Event Handling
+```typescript
+// Event handler
+@EventHandler('user.created')
+async function handleUserCreated(event: UserCreatedEvent): Promise<void> {
+  // Implementation
+}
+```
+
+## Examples
+
+### ✅ Good Practice
+```typescript
+// Proper domain model usage
+class OrderService {
+  async createOrder(userId: string, products: OrderItem[]): Promise<IOrder> {
+    // Validate user exists
+    const user = await this.userService.getUser(userId);
+    
+    // Validate products
+    await this.validateProducts(products);
+    
+    // Create order
+    return this.orderRepository.create({
+      userId,
+      products,
+      status: OrderStatus.PENDING
+    });
+  }
+}
+```
+
+### ❌ Bad Practice
+```typescript
+// Improper domain model usage
+class OrderService {
+  async createOrder(userId: string, products: any[]): Promise<any> {
+    // Direct database access
+    const order = await db.orders.create({
+      userId,
+      products,
+      status: 'pending'
+    });
+    
+    return order;
+  }
+}
+```
+
+## Related Rules
+- [Architecture Standards](architecture.mdc)
+- [Security Rules](compliance/security-rules.mdc)
+- [Code Conventions](dev/conventions.mdc)

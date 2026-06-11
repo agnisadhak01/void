@@ -1,0 +1,73 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Checklist Management System
+
+## Overview
+
+This system provides structured checklists for each stage of software development, organized into modular files for better maintainability and clarity.
+
+## Checklist Structure
+
+### Development Stage
+- File: `dev/checklists/development-stage.mdc`
+- Covers: Requirements, Environment Setup, Coding Standards, Implementation
+- Reference: [Development Stage Checklists](mdc:dev/checklists/development-stage.mdc)
+
+### Testing Stage
+- File: `dev/checklists/testing-stage.mdc`
+- Covers: Unit Testing, Integration Testing, E2E Testing, Test Automation
+- Reference: [Testing Stage Checklists](mdc:dev/checklists/testing-stage.mdc)
+
+### Deployment Stage
+- File: `dev/checklists/deployment-stage.mdc`
+- Covers: Pre-Deployment, Staging, Production, Post-Deployment
+- Reference: [Deployment Stage Checklists](mdc:dev/checklists/deployment-stage.mdc)
+
+## Checklist Format
+
+Each checklist item follows this structure:
+```yaml
+- id: "UNIQUE-ID"
+  description: "Clear description of the task"
+  validation: "How to verify completion"
+  responsible: "Role responsible"
+  reference: "Related rule file (optional)"
+```
+
+## Implementation Guidelines
+
+### For Developers
+1. Follow the development stage checklist
+2. Update checklists as needed
+3. Reference related rules
+4. Mark items as completed
+
+### For QA Engineers
+1. Follow the testing stage checklist
+2. Document test results
+3. Update test cases
+4. Verify automation
+
+### For DevOps
+1. Follow the deployment stage checklist
+2. Monitor deployments
+3. Update infrastructure
+4. Maintain CI/CD
+
+## 🔄 Maintenance
+
+This system should be:
+- Reviewed monthly
+- Updated based on team feedback
+- Integrated with project management tools
+- Automated where possible
+
+## 📚 Related Rules
+- [Development Checklist](mdc:dev/development-checklist.mdc)
+- [Testing Standards](mdc:dev/testing-standards.mdc)
+- [Deployment Standards](mdc:dev/deployment-standards.mdc)
+- [Conventions](mdc:dev/conventions.mdc)
+

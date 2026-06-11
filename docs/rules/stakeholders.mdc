@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Define stakeholders, project value, goals, use cases, and functional requirements
+alwaysApply: true
+tags: [stakeholders, requirements, use-cases, gherkin]
+---
+- Identify key **stakeholders** and beneficiaries, describing each role and their needs.
+- Clarify the project’s core **value proposition** and high-level goals.
+- List major **use cases** or user stories (e.g., "As a [role], I want [capability] so that [benefit]").
+- Use **Gherkin syntax** (`Scenario:`, `Given/When/Then`) for functional requirements to ensure clarity and stakeholder understanding:contentReference[oaicite:8]{index=8}:contentReference[oaicite:9]{index=9}. For example:
+    Scenario: User logs in successfully  
+      Given a registered user is on the login page  
+      When they submit valid credentials  
+      Then they are redirected to their dashboard  
+
+- Write Gherkin scenarios in plain language so both technical and non-technical stakeholders can follow the behavior specification:contentReference[oaicite:10]{index=10}.

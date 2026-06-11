@@ -1,0 +1,286 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Development Stage Checklists
+
+## Requirements & Planning
+```yaml
+requirements:
+  functional:
+    - id: REQ-001
+      description: "Functional requirements analysis"
+      validation:
+        - "All user stories documented in JIRA/Asana"
+        - "Acceptance criteria defined for each story"
+        - "Story points estimated"
+        - "Dependencies identified and mapped"
+        - "Technical constraints documented"
+      responsible: "Product Owner"
+      reference: 
+        - "stakeholders.mdc#requirements"
+        - "ai/next-actions.mdc#requirement-analysis"
+        - "dev/checklists/testing-stage.mdc#test-planning"
+      automation:
+        tools:
+          - "JIRA API for story management"
+          - "Confluence for documentation"
+          - "Miro for dependency mapping"
+        commands:
+          - "jira-cli create-story"
+          - "confluence-cli update-docs"
+          - "miro-api create-dependency-map"
+        integration:
+          - "Sync with testing checklist REQ-001"
+          - "Link to deployment checklist PRE-001"
+          - "Connect with action execution REQ-001"
+      
+    - id: REQ-002
+      description: "Non-functional requirements"
+      validation:
+        - "Performance requirements defined"
+        - "Security requirements documented"
+        - "Scalability needs identified"
+        - "Compliance requirements listed"
+        - "Monitoring requirements specified"
+      responsible: "Technical Lead"
+      reference: 
+        - "security-rules.mdc#requirements"
+        - "deployment-standards.mdc#requirements"
+        - "dev/checklists/deployment-stage.mdc#infrastructure"
+      automation:
+        tools:
+          - "SonarQube for quality gates"
+          - "OWASP ZAP for security scanning"
+          - "Prometheus for performance metrics"
+        commands:
+          - "sonar-scanner analyze"
+          - "zap-cli baseline-scan"
+          - "prometheus-cli setup-metrics"
+        integration:
+          - "Sync with security checklist SEC-001"
+          - "Link to deployment checklist PRE-001"
+          - "Connect with action execution REQ-002"
+
+  planning:
+    - id: PLAN-001
+      description: "Project timeline"
+      validation:
+        - "Sprint planning completed"
+        - "Milestones defined"
+        - "Resource allocation confirmed"
+        - "Risk assessment completed"
+        - "Contingency plans documented"
+      responsible: "Project Manager"
+      reference: 
+        - "development-checklist.mdc#planning"
+        - "ai/next-actions.mdc#planning"
+        - "dev/checklists/testing-stage.mdc#planning"
+      automation:
+        tools:
+          - "JIRA for sprint planning"
+          - "MS Project for timeline"
+          - "Risk management software"
+        commands:
+          - "jira-cli create-sprint"
+          - "msproject-cli update-timeline"
+          - "risk-cli assess-risks"
+        integration:
+          - "Sync with testing checklist PLAN-001"
+          - "Link to deployment checklist PLAN-001"
+          - "Connect with action execution PLAN-001"
+```
+
+## Environment Setup
+```yaml
+environment:
+  development:
+    - id: ENV-001
+      description: "Development environment setup"
+      validation:
+        - "Local development environment configured"
+        - "Required tools installed"
+        - "Access to development resources granted"
+        - "Environment variables set"
+        - "Local database configured"
+      responsible: "Developer"
+      reference: 
+        - "development-checklist.mdc#environment"
+        - "deployment-standards.mdc#environments"
+        - "dev/checklists/testing-stage.mdc#environment"
+      automation:
+        tools:
+          - "Docker for containerization"
+          - "Vagrant for VM management"
+          - "Ansible for configuration"
+        commands:
+          - "docker-compose up -d"
+          - "vagrant up"
+          - "ansible-playbook setup-dev.yml"
+        integration:
+          - "Sync with testing checklist ENV-001"
+          - "Link to deployment checklist ENV-001"
+          - "Connect with action execution ENV-001"
+      
+    - id: ENV-002
+      description: "Version control setup"
+      validation:
+        - "Git repository initialized"
+        - "Branch strategy defined"
+        - "Access controls configured"
+        - "CI/CD hooks set up"
+        - "Code review process established"
+      responsible: "DevOps"
+      reference: 
+        - "development-checklist.mdc#version-control"
+        - "deployment-standards.mdc#version-control"
+        - "dev/checklists/deployment-stage.mdc#version-control"
+      automation:
+        tools:
+          - "Git for version control"
+          - "GitHub/GitLab for hosting"
+          - "Jenkins/GitHub Actions for CI"
+        commands:
+          - "git init"
+          - "git-flow init"
+          - "jenkins-cli setup-pipeline"
+        integration:
+          - "Sync with testing checklist ENV-002"
+          - "Link to deployment checklist ENV-002"
+          - "Connect with action execution ENV-002"
+```
+
+## Coding Standards
+```yaml
+coding:
+  standards:
+    - id: CODE-001
+      description: "Code style compliance"
+      validation:
+        - "Linting rules configured"
+        - "Code formatting standards set"
+        - "Naming conventions documented"
+        - "Documentation requirements defined"
+        - "Code review checklist created"
+      responsible: "Technical Lead"
+      reference: 
+        - "code-standards.mdc#style"
+        - "conventions.mdc#naming"
+        - "dev/checklists/testing-stage.mdc#code-review"
+      automation:
+        tools:
+          - "ESLint for JavaScript"
+          - "Prettier for formatting"
+          - "SonarQube for quality"
+        commands:
+          - "eslint --fix"
+          - "prettier --write"
+          - "sonar-scanner"
+        integration:
+          - "Sync with testing checklist CODE-001"
+          - "Link to deployment checklist CODE-001"
+          - "Connect with action execution CODE-001"
+      
+    - id: CODE-002
+      description: "Code review process"
+      validation:
+        - "Review guidelines documented"
+        - "Review checklist created"
+        - "Review automation configured"
+        - "Review metrics defined"
+        - "Review feedback process established"
+      responsible: "Developer"
+      reference: 
+        - "code-standards.mdc#review"
+        - "development-checklist.mdc#review"
+        - "dev/checklists/testing-stage.mdc#review"
+      automation:
+        tools:
+          - "GitHub/GitLab for reviews"
+          - "ReviewBoard for code review"
+          - "SonarQube for analysis"
+        commands:
+          - "github-cli create-review"
+          - "reviewboard-cli post-review"
+          - "sonar-scanner analyze"
+        integration:
+          - "Sync with testing checklist CODE-002"
+          - "Link to deployment checklist CODE-002"
+          - "Connect with action execution CODE-002"
+```
+
+## Implementation
+```yaml
+implementation:
+  structure:
+    - id: IMP-001
+      description: "Project structure"
+      validation:
+        - "Directory structure created"
+        - "Module organization defined"
+        - "Dependency management configured"
+        - "Build system set up"
+        - "Configuration management established"
+      responsible: "Technical Lead"
+      reference: 
+        - "architecture.mdc#structure"
+        - "development-checklist.mdc#structure"
+        - "dev/checklists/testing-stage.mdc#structure"
+      automation:
+        tools:
+          - "Yeoman for scaffolding"
+          - "npm/yarn for dependencies"
+          - "Webpack/Rollup for building"
+        commands:
+          - "yo project-structure"
+          - "npm install"
+          - "webpack build"
+        integration:
+          - "Sync with testing checklist IMP-001"
+          - "Link to deployment checklist IMP-001"
+          - "Connect with action execution IMP-001"
+      
+    - id: IMP-002
+      description: "Feature implementation"
+      validation:
+        - "Feature requirements met"
+        - "Code quality standards met"
+        - "Tests written and passing"
+        - "Documentation updated"
+        - "Performance requirements met"
+      responsible: "Developer"
+      reference: 
+        - "development-checklist.mdc#implementation"
+        - "testing-standards.mdc#implementation"
+        - "dev/checklists/testing-stage.mdc#implementation"
+      automation:
+        tools:
+          - "Jest for testing"
+          - "JSDoc for documentation"
+          - "Lighthouse for performance"
+        commands:
+          - "jest test"
+          - "jsdoc generate"
+          - "lighthouse audit"
+        integration:
+          - "Sync with testing checklist IMP-002"
+          - "Link to deployment checklist IMP-002"
+          - "Connect with action execution IMP-002"
+```
+
+## 🔄 Maintenance
+
+This checklist should be:
+- Reviewed monthly
+- Updated based on team feedback
+- Integrated with CI/CD pipeline
+- Automated where possible
+
+## 📚 Related Rules
+- [Development Checklist](mdc:dev/development-checklist.mdc)
+- [Conventions](mdc:dev/conventions.mdc)
+- [Testing Standards](mdc:dev/testing-standards.mdc)
+- [Deployment Standards](mdc:dev/deployment-standards.mdc)
+- [Next Actions](mdc:ai/next-actions.mdc)
+- [Action Execution](mdc:ai/action-execution.mdc)

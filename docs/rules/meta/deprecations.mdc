@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# ⛔ Deprecated Rules Tracker
+
+## Deprecated Entries
+- `init.mdc` → replaced by `project-bootstrap.mdc` (planned)
+- `ai/next-actions.mdc` → to be merged into `ai/next-steps.mdc`
+
+> Maintain backward compatibility warnings in the index.

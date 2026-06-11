@@ -1,0 +1,226 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# DeepMind Rules Adaptation Guide
+
+## 🎯 Quick Start Implementation
+
+### Option 1: Full Implementation
+```bash
+# For new projects - copy entire ruleset
+mkdir -p your-project/.cursor/rules
+cp -r .cursor/rules/* your-project/.cursor/rules/
+
+# Customize for your project
+cd your-project/.cursor/rules
+# Edit stakeholders.mdc, architecture.mdc, etc.
+```
+
+### Option 2: Selective Implementation
+```bash
+# For existing projects - start with core rules
+mkdir -p your-project/.cursor/rules
+cp .cursor/rules/rules.deepmind.init.mdc your-project/.cursor/rules/
+cp .cursor/rules/index-rules.mdc your-project/.cursor/rules/
+# Add other rules as needed
+```
+
+## 🔧 Technology Stack Adaptations
+
+### React/TypeScript Projects
+```yaml
+# Use as-is, minimal changes needed
+adaptations_needed:
+  - Update package.json with your dependencies
+  - Customize stakeholders.mdc
+  - Update architecture.mdc for your component structure
+```
+
+### Python Projects
+```yaml
+# dev/conventions.mdc adaptations
+linting:
+  primary: "ruff"  # or flake8, pylint
+  formatting: "black"
+  type_checking: "mypy"
+  
+testing:
+  framework: "pytest"
+  coverage: "coverage.py"
+  threshold: 80
+
+naming_conventions:
+  files: "snake_case.py"
+  classes: "PascalCase"
+  functions: "snake_case"
+  constants: "UPPER_SNAKE_CASE"
+```
+
+### Java Projects
+```yaml
+# dev/conventions.mdc adaptations
+linting:
+  primary: "checkstyle"
+  formatting: "google-java-format"
+  static_analysis: "spotbugs"
+  
+testing:
+  framework: "JUnit 5"
+  coverage: "JaCoCo"
+  threshold: 80
+
+naming_conventions:
+  files: "PascalCase.java"
+  classes: "PascalCase"
+  methods: "camelCase"
+  constants: "UPPER_SNAKE_CASE"
+```
+
+### Node.js Backend Projects
+```yaml
+# dev/conventions.mdc - minimal changes
+# dev/deployment-standards.mdc adaptations
+deployment:
+  containerization: "Docker"
+  orchestration: "Kubernetes"
+  monitoring: "Prometheus + Grafana"
+  logging: "Winston + ELK Stack"
+```
+
+## 📱 Project Type Specific Rules
+
+### Mobile Applications
+
+#### Additional Rules to Create
+```markdown
+# .cursor/rules/mobile/platform-specific.mdc
+---
+description: "Mobile platform specific development rules"
+globs: ["**/*.swift", "**/*.kt", "**/*.dart"]
+tags: ["mobile", "ios", "android", "flutter"]
+---
+
+# Mobile Platform Rules
+
+## iOS Development
+- Use SwiftUI for new views
+- Follow Apple Human Interface Guidelines
+- Implement proper accessibility support
+
+## Android Development  
+- Use Jetpack Compose for new UIs
+- Follow Material Design guidelines
+- Implement proper accessibility support
+```
+
+### Data Science Projects
+
+#### Additional Rules to Create
+```markdown
+# .cursor/rules/data/notebook-standards.mdc
+---
+description: "Jupyter notebook and data science project standards"
+globs: ["**/*.ipynb", "**/*.py"]
+tags: ["data-science", "jupyter", "analysis"]
+---
+
+# Data Science Standards
+
+## Notebook Organization
+- Clear markdown headers for sections
+- Documented assumptions and data sources
+- Reproducible random seeds
+- Clear variable naming
+
+## Code Quality
+- Separate data loading, processing, and analysis
+- Use type hints for functions
+- Document data transformations
+- Version control notebooks as .py files
+```
+
+## 🔄 Customization Examples
+
+### Stakeholder Adaptation Template
+```yaml
+# Edit stakeholders.mdc for your project
+project_name: "Your Project Name"
+project_sponsor: "Your Sponsor Name"
+business_goal: "Your specific business objective"
+
+stakeholders:
+  - role: "Product Owner"
+    name: "Your PO Name"
+    interest_level: "high"
+    influence_level: "high"
+    communication_preference: "Weekly demos + Slack updates"
+    
+  - role: "Engineering Lead" 
+    name: "Your Tech Lead Name"
+    interest_level: "high"
+    influence_level: "high"
+    communication_preference: "Daily standups + PR reviews"
+```
+
+### Architecture Adaptation Template
+```yaml
+# Edit architecture.mdc for your system
+system_overview: |
+  Your system description here
+  
+components:
+  - name: "Frontend"
+    technology: "React/Vue/Angular"
+    responsibilities: ["User interface", "State management"]
+    
+  - name: "Backend API"
+    technology: "Node.js/Python/Java"
+    responsibilities: ["Business logic", "Data access"]
+    
+  - name: "Database"
+    technology: "PostgreSQL/MongoDB/etc"
+    responsibilities: ["Data persistence", "Query optimization"]
+```
+
+## ✅ Implementation Verification
+
+### Checklist for Successful Implementation
+- [ ] All rule files have proper frontmatter
+- [ ] Technology-specific configurations updated
+- [ ] Team trained on rule usage
+- [ ] CI/CD integrated with rule enforcement
+- [ ] Project-specific stakeholders documented
+- [ ] Architecture matches your system
+- [ ] Testing standards align with your stack
+- [ ] Deployment pipeline configured
+
+### Testing Your Implementation
+```bash
+# Verify Cursor can read your rules
+cursor --check-rules
+
+# Test rule application
+cursor generate-component MyComponent
+cursor refactor-function oldFunction
+
+# Verify CI integration
+git commit -m "test: verify rule enforcement"
+```
+
+## 🎯 Success Metrics
+
+Track these metrics to ensure successful rule implementation:
+- Reduced code review time
+- Improved code consistency scores
+- Faster onboarding for new team members
+- Reduced bug rates in production
+- Improved AI assistant accuracy
+
+## 📚 Related Resources
+
+- [Original DeepMind Rules](mdc:rules.deepmind.init.mdc)
+- [Project Architecture Guide](mdc:architecture.mdc)
+- [Development Standards](mdc:dev/development-checklist.mdc)
+- [Testing Guidelines](mdc:dev/testing-standards.mdc)

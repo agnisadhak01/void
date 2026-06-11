@@ -1,0 +1,219 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Onboarding Guide
+
+## Overview
+This document provides comprehensive guidance for new team members and AI assistants to understand and work with the project effectively.
+
+## Tags
+- onboarding
+- getting-started
+- development
+- guidelines
+
+## Rule Type: Mandatory
+
+## Project Setup
+
+### 1. Prerequisites
+- Node.js (v16 or higher)
+- Git
+- IDE (VS Code recommended)
+- Docker (for local development)
+- Required browser extensions
+
+### 2. Initial Setup
+```bash
+# Clone repository
+git clone [repository-url]
+
+# Install dependencies
+npm install
+
+# Set up environment
+cp .env.example .env
+
+# Start development server
+npm run dev
+```
+
+### 3. Development Tools
+- ESLint for code linting
+- Prettier for code formatting
+- Jest for testing
+- Cypress for E2E testing
+- Docker for containerization
+
+## Project Structure
+
+### 1. Directory Layout
+```
+project/
+├── src/                    # Source code
+│   ├── components/         # React components
+│   ├── hooks/             # Custom React hooks
+│   ├── utils/             # Utility functions
+│   ├── services/          # API services
+│   ├── types/             # TypeScript types
+│   └── styles/            # Global styles
+├── tests/                 # Test files
+├── docs/                  # Documentation
+├── scripts/               # Build and utility scripts
+└── config/                # Configuration files
+```
+
+### 2. Key Files
+- `package.json` - Project dependencies
+- `tsconfig.json` - TypeScript configuration
+- `.eslintrc.js` - ESLint rules
+- `.prettierrc` - Code formatting rules
+- `jest.config.js` - Testing configuration
+
+## Development Workflow
+
+### 1. Branch Strategy
+- `main` - Production code
+- `develop` - Development branch
+- `feature/*` - Feature branches
+- `bugfix/*` - Bug fix branches
+- `release/*` - Release branches
+
+### 2. Commit Guidelines
+```
+type(scope): description
+
+[optional body]
+
+[optional footer]
+```
+
+Types:
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation
+- style: Formatting
+- refactor: Code restructuring
+- test: Testing
+- chore: Maintenance
+
+### 3. Pull Request Process
+1. Create feature branch
+2. Implement changes
+3. Write tests
+4. Update documentation
+5. Create pull request
+6. Address review comments
+7. Merge to develop
+
+## Testing
+
+### 1. Running Tests
+```bash
+# Unit tests
+npm test
+
+# E2E tests
+npm run test:e2e
+
+# Coverage report
+npm run test:coverage
+```
+
+### 2. Test Structure
+- Unit tests in `__tests__` directories
+- E2E tests in `cypress` directory
+- Integration tests in `tests/integration`
+
+## Documentation
+
+### 1. Code Documentation
+- JSDoc for functions
+- README for components
+- API documentation
+- Architecture diagrams
+
+### 2. Project Documentation
+- Setup instructions
+- Development guidelines
+- Deployment process
+- Troubleshooting guide
+
+## Common Tasks
+
+### 1. Adding a New Component
+```typescript
+// 1. Create component file
+// src/components/NewComponent.tsx
+import React from 'react';
+import styles from './NewComponent.module.css';
+
+interface INewComponentProps {
+  // Props definition
+}
+
+export const NewComponent: React.FC<INewComponentProps> = (props) => {
+  // Implementation
+};
+
+// 2. Create style file
+// src/components/NewComponent.module.css
+.container {
+  // Styles
+}
+
+// 3. Create test file
+// src/components/__tests__/NewComponent.spec.tsx
+import { render, screen } from '@testing-library/react';
+import { NewComponent } from '../NewComponent';
+
+describe('NewComponent', () => {
+  it('should render correctly', () => {
+    // Test implementation
+  });
+});
+```
+
+### 2. Adding a New API Endpoint
+```typescript
+// 1. Create service
+// src/services/NewService.ts
+export class NewService {
+  // Implementation
+}
+
+// 2. Create controller
+// src/controllers/NewController.ts
+@Controller('new')
+export class NewController {
+  // Implementation
+}
+
+// 3. Add tests
+// src/services/__tests__/NewService.spec.ts
+describe('NewService', () => {
+  // Test implementation
+});
+```
+
+## Troubleshooting
+
+### 1. Common Issues
+- Build failures
+- Test failures
+- Environment setup
+- Dependency issues
+
+### 2. Debugging
+- Using browser dev tools
+- Using VS Code debugger
+- Reading logs
+- Using test debugger
+
+## Related Rules
+- [Code Conventions](conventions.mdc)
+- [Testing Standards](testing-standards.mdc)
+
+- [AI Behavior Guidelines](../ai/ai-behavior.mdc)

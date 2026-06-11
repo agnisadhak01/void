@@ -1,0 +1,359 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Universal Project Bootstrap
+
+## 🚀 Instant Project Assessment & Action
+
+This guide provides immediate, actionable steps for any project regardless of its current state. It automatically adapts to your situation and gives you a clear path forward.
+
+## 🔍 Instant Project Assessment
+
+### Quick Assessment Questions
+```yaml
+immediate_assessment:
+  project_existence:
+    question: "Is this a completely new project or existing codebase?"
+    new_project: "→ Go to New Project Bootstrap"
+    existing_project: "→ Go to Existing Project Enhancement"
+    
+  technology_identification:
+    question: "What files do you see in the project root?"
+    patterns:
+      - "package.json" → "JavaScript/Node.js project"
+      - "requirements.txt, *.py" → "Python project"
+      - "pom.xml, *.java" → "Java project"
+      - "Cargo.toml, *.rs" → "Rust project"
+      - "go.mod, *.go" → "Go project"
+      - "*.csproj, *.sln" → "C# project"
+      - "composer.json, *.php" → "PHP project"
+      - "Gemfile, *.rb" → "Ruby project"
+      - "Mix of multiple" → "Multi-language project"
+      - "None of the above" → "Custom/Other project"
+      
+  current_state:
+    question: "What development infrastructure exists?"
+    git_exists: "Is there a .git folder?"
+    docs_exist: "Is there a README.md file?"
+    tests_exist: "Are there any test files?"
+    ci_exists: "Is there any CI/CD configuration?"
+```
+
+## 🆕 New Project Bootstrap (0-1 Hour)
+
+### Immediate Actions (First 15 Minutes)
+```yaml
+new_project_immediate:
+  step_1_structure:
+    action: "Create basic project structure"
+    commands:
+      - "mkdir -p src docs tests scripts .github/workflows"
+      - "touch README.md .gitignore"
+      - "git init"
+    validation: "Folders created, git initialized"
+    
+  step_2_readme:
+    action: "Create essential README.md"
+    template: |
+      # Project Name
+      
+      ## What this project does
+      [Brief description]
+      
+      ## Quick Start
+      ```bash
+      # Installation steps
+      ```
+      
+      ## Development
+      ```bash
+      # Development setup
+      ```
+      
+      ## Contributing
+      [Basic contribution guidelines]
+    validation: "README.md contains essential information"
+    
+  step_3_gitignore:
+    action: "Set up appropriate .gitignore"
+    templates:
+      javascript: "node_modules/, dist/, .env"
+      python: "__pycache__/, *.pyc, .env, venv/"
+      java: "target/, *.class, .env"
+      general: ".env, .DS_Store, *.log, tmp/"
+    validation: "Common files and folders ignored"
+```
+
+### Short-term Setup (Next 45 Minutes)
+```yaml
+new_project_short_term:
+  step_4_dependencies:
+    action: "Initialize dependency management"
+    by_stack:
+      javascript: "npm init -y"
+      python: "touch requirements.txt && python -m venv venv"
+      java: "Create pom.xml or build.gradle"
+      go: "go mod init project-name"
+    validation: "Dependency management configured"
+    
+  step_5_basic_ci:
+    action: "Set up basic CI/CD"
+    template: |
+      # .github/workflows/ci.yml
+      name: CI
+      on: [push, pull_request]
+      jobs:
+        test:
+          runs-on: ubuntu-latest
+          steps:
+            - uses: actions/checkout@v2
+            - name: Setup
+              # Setup commands for your stack
+            - name: Test
+              run: # Test commands
+    validation: "CI configuration created"
+    
+  step_6_development_setup:
+    action: "Configure development environment"
+    includes:
+      - "Linting configuration"
+      - "Code formatting setup"
+      - "Development scripts"
+      - "Environment variable template"
+    validation: "Development environment standardized"
+```
+
+## 🔧 Existing Project Enhancement
+
+### Immediate Assessment (First 10 Minutes)
+```yaml
+existing_project_assessment:
+  health_check:
+    git_status: "git status && git log --oneline -10"
+    file_structure: "find . -type f -name '*.md' -o -name '*.json' -o -name '*.yml' | head -20"
+    dependency_check: "Check for package.json, requirements.txt, pom.xml, etc."
+    test_discovery: "find . -name '*test*' -o -name '*spec*' | head -10"
+    
+  gap_identification:
+    missing_docs: "No README.md or poor documentation"
+    missing_tests: "No test files or low coverage"
+    no_ci: "No CI/CD configuration"
+    poor_structure: "Unclear project organization"
+    outdated_deps: "Old dependencies or security issues"
+    no_standards: "No linting or formatting rules"
+```
+
+### Priority Improvements (Next 30-60 Minutes)
+```yaml
+existing_project_improvements:
+  critical_gaps:
+    no_documentation:
+      priority: "Critical"
+      time: "15 minutes"
+      action: "Create comprehensive README.md"
+      template: "Use README template with project-specific info"
+      
+    no_version_control:
+      priority: "Critical"
+      time: "5 minutes"
+      action: "Initialize git and make first commit"
+      commands: ["git init", "git add .", "git commit -m 'Initial commit'"]
+      
+    security_vulnerabilities:
+      priority: "Critical"
+      time: "10 minutes"
+      action: "Run security audit and fix critical issues"
+      by_stack:
+        javascript: "npm audit fix"
+        python: "pip-audit"
+        java: "OWASP dependency check"
+        
+  high_impact_improvements:
+    missing_tests:
+      priority: "High"
+      time: "30 minutes"
+      action: "Add basic test structure and sample tests"
+      deliverable: "Test framework configured with example tests"
+      
+    no_ci_cd:
+      priority: "High"
+      time: "20 minutes"
+      action: "Set up basic CI pipeline"
+      deliverable: "Automated testing on every commit"
+      
+    inconsistent_code_style:
+      priority: "High"
+      time: "15 minutes"
+      action: "Configure linting and formatting"
+      deliverable: "Code style automatically enforced"
+      
+  medium_impact_improvements:
+    poor_project_structure:
+      priority: "Medium"
+      time: "45 minutes"
+      action: "Reorganize project structure"
+      approach: "Gradual refactoring with clear migration plan"
+      
+    outdated_dependencies:
+      priority: "Medium"
+      time: "30 minutes"
+      action: "Update dependencies safely"
+      approach: "Update non-breaking changes first, then major versions"
+      
+    missing_deployment:
+      priority: "Medium"
+      time: "60 minutes"
+      action: "Set up basic deployment pipeline"
+      approach: "Start with staging environment"
+```
+
+## 🎯 Universal Quick Wins (Any Project)
+
+### 15-Minute Improvements
+```yaml
+quick_wins:
+  documentation_boost:
+    action: "Enhance project documentation"
+    steps:
+      - "Add clear project description to README"
+      - "Document installation and setup steps"
+      - "Add usage examples"
+      - "Include contributing guidelines"
+    impact: "Immediate onboarding improvement"
+    
+  code_quality_basics:
+    action: "Implement basic code quality measures"
+    steps:
+      - "Add linting configuration"
+      - "Set up code formatting"
+      - "Configure pre-commit hooks"
+      - "Add basic test structure"
+    impact: "Consistent code quality"
+    
+  development_workflow:
+    action: "Standardize development workflow"
+    steps:
+      - "Create development environment setup script"
+      - "Add environment variable template"
+      - "Document common development tasks"
+      - "Set up basic debugging configuration"
+    impact: "Faster development setup"
+```
+
+### 30-Minute Transformations
+```yaml
+transformations:
+  automated_quality_gates:
+    action: "Set up automated quality checking"
+    components:
+      - "CI pipeline with automated testing"
+      - "Code coverage reporting"
+      - "Security vulnerability scanning"
+      - "Dependency update automation"
+    impact: "Catch issues before they reach production"
+    
+  deployment_readiness:
+    action: "Prepare project for deployment"
+    components:
+      - "Health check endpoints"
+      - "Environment configuration"
+      - "Deployment scripts"
+      - "Basic monitoring setup"
+    impact: "Production-ready deployment"
+    
+  team_collaboration:
+    action: "Enable effective team collaboration"
+    components:
+      - "Clear contribution guidelines"
+      - "Code review templates"
+      - "Issue and PR templates"
+      - "Team communication standards"
+    impact: "Smoother team collaboration"
+```
+
+## 🔄 Adaptive Implementation Strategy
+
+### Context-Aware Approach
+```yaml
+adaptive_strategy:
+  solo_developer:
+    focus: "Automation and documentation for future collaboration"
+    priorities: ["Documentation", "Automated testing", "Deployment automation"]
+    timeline: "Implement gradually alongside feature development"
+    
+  small_team:
+    focus: "Communication and shared standards"
+    priorities: ["Team standards", "Code review process", "Shared tooling"]
+    timeline: "Establish standards first, then enhance incrementally"
+    
+  large_team:
+    focus: "Process and governance"
+    priorities: ["Formal processes", "Quality gates", "Architecture documentation"]
+    timeline: "Plan rollout carefully with team input"
+    
+  legacy_project:
+    focus: "Stability and gradual improvement"
+    priorities: ["Documentation recovery", "Test addition", "Risk reduction"]
+    timeline: "Very incremental with extensive testing"
+```
+
+### Success Validation
+```yaml
+success_metrics:
+  immediate_indicators:
+    - "New contributor can set up development environment in < 30 minutes"
+    - "All code changes go through basic quality checks"
+    - "Essential documentation exists and is accurate"
+    - "Project can be deployed reliably"
+    
+  ongoing_indicators:
+    - "Development velocity increases over time"
+    - "Bug reports decrease"
+    - "Team satisfaction with development process improves"
+    - "Onboarding time for new team members decreases"
+    
+  long_term_indicators:
+    - "Technical debt decreases over time"
+    - "Deployment frequency increases with maintained stability"
+    - "Code review cycle time decreases"
+    - "Project can evolve and scale effectively"
+```
+
+## 🚀 Immediate Action Plan Generator
+
+### Smart Action Recommendations
+```yaml
+action_generator:
+  input_assessment:
+    - Current project state
+    - Available time
+    - Team size and experience
+    - Business priorities
+    - Technical constraints
+    
+  output_prioritization:
+    next_15_minutes: "Most critical issue that can be addressed quickly"
+    next_hour: "High-impact improvement that builds on initial work"
+    next_day: "Comprehensive enhancement that establishes good practices"
+    next_week: "Strategic improvements that enable long-term success"
+    
+  adaptive_recommendations:
+    - Consider current project context
+    - Balance effort vs. impact
+    - Account for team capabilities
+    - Align with business goals
+    - Provide clear success criteria
+```
+
+## 📚 Related Bootstrap Resources
+
+- [Universal Adaptive Rules](mdc:rules.deepmind.init.mdc)
+- [Project Intelligence System](mdc:ai/project-intelligence.mdc)
+- [Development Standards](mdc:dev/development-checklist.mdc)
+- [Adaptive Architecture](mdc:architecture.mdc)
+
+---
+
+*This bootstrap guide provides immediate value regardless of your project's current state, with clear actions that lead to long-term success.*
