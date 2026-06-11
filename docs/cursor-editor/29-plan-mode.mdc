@@ -1,0 +1,398 @@
+---
+title: Cursor Editor — Plan Mode
+description: Deep dive into Cursor's three interaction modes — Ask, Agent, and Plan — when to use each, mode switching, and mode-specific behavior.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, plan-mode, ask-mode, agent-mode, interaction-modes, autonomy-levels]
+---
+
+# Cursor Editor — Plan Mode vs Ask Mode vs Agent Mode
+
+## Overview
+
+Cursor provides three distinct interaction modes, each with different capabilities, autonomy levels, and tool access. Understanding when to use each mode is critical for effective collaboration with the AI agent.
+
+```mermaid
+flowchart LR
+    A[Cursor Mode Selection] --> B{What do you need?}
+    
+    B -->|Information / Explanation| C[Ask Mode]
+    B -->|Planning / Analysis| D[Plan Mode]
+    B -->|Code Changes / Execution| E[Agent Mode]
+    
+    C --> F[Read-only tools]
+    D --> G[Analysis tools, no file edits]
+    E --> H[Full tool access]
+    
+    F --> I[No changes made]
+    G --> J[Options presented to user]
+    H --> K[Changes applied directly]
+```
+
+---
+
+## Three Modes Defined
+
+### 1. Ask Mode (Read-Only Exploration)
+
+Ask Mode is for pure research, explanation, and code exploration without any modifications.
+
+| Aspect | Details |
+|--------|---------|
+| **File modifications** | Never permitted |
+| **Tool access** | Read, Grep, Glob, SemanticSearch, WebSearch, FetchMcpResource, ReadLints |
+| **Autonomy** | Answers questions but cannot execute changes |
+| **Best for** | Research, understanding code, explaining concepts |
+
+**Ask Mode Example**:
+
+```
+User: "How does the authentication flow work in this codebase?"
+
+Agent (Ask Mode):
+1. SemanticSearch "authentication flow"
+2. Grep "authMiddleware"
+3. Read src/auth/middleware.ts
+4. Read src/auth/login.ts
+5. Presents explanation:
+   "The auth flow uses JWT tokens:
+   - Login validates credentials and returns JWT
+   - Middleware verifies token on each request
+   - Refresh token rotates expired JWTs"
+```
+
+### 2. Agent Mode (Full Execution)
+
+Agent Mode has full read/write access to tools and can execute changes directly.
+
+| Aspect | Details |
+|--------|---------|
+| **File modifications** | Allowed with user confirmation |
+| **Tool access** | All tools: Read, Write, StrReplace, Delete, Shell, Task, etc. |
+| **Autonomy** | Executes tool chains, spawns subagents |
+| **Best for** | Code modification, multi-step tasks, bug fixes, feature implementation |
+
+**Agent Mode Example**:
+
+```
+User: "Add email validation to the registration endpoint"
+
+Agent (Agent Mode):
+1. Read src/auth/register.ts
+2. StrReplace register.ts — add zod validation
+3. Shell npm run test — verify tests pass
+4. Reports: "Added email validation using zod. Tests pass."
+```
+
+### 3. Plan Mode (Collaborative Planning)
+
+Plan Mode is for collaborative analysis, presenting options, and recommending approaches — the agent analyzes but asks before acting.
+
+| Aspect | Details |
+|--------|---------|
+| **File modifications** | Never directly modifies files |
+| **Tool access** | Read, Grep, SemanticSearch, analysis-focused tools |
+| **Autonomy** | Presents options, recommends approaches, asks user to decide |
+| **Best for** | Architecture decisions, feature planning, code review strategy |
+
+**Plan Mode Example**:
+
+```
+User: "How should we add rate limiting to the API?"
+
+Agent (Plan Mode):
+1. Read src/api/server.ts
+2. Grep "middleware"
+3. SemanticSearch "rate limiting"
+4. Presents options:
+   "Option A: Use express-rate-limit (simple, proven)
+    - Pros: 2-line config, battle-tested
+    - Cons: Limited customization
+    
+    Option B: Custom middleware (flexible)
+    - Pros: Full control, no dependency
+    - Cons: More code to maintain
+    
+    Option C: Redis-backed rate limiting (scalable)
+    - Pros: Works across instances, custom storage
+    - Cons: Requires Redis setup
+    
+    Recommended: Option A for most cases.
+    Shall I implement it?"
+```
+
+---
+
+## Mode Comparison Matrix
+
+| Feature | Ask Mode | Agent Mode | Plan Mode |
+|---------|----------|-----------|-----------|
+| **File reads** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Code search** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Shell execution** | ❌ No | ✅ Yes | ❌ No |
+| **File writes** | ❌ No | ✅ Yes | ❌ No |
+| **Delete files** | ❌ No | ✅ Yes | ❌ No |
+| **Spawn subagents** | ❌ No | ✅ Yes | ❌ No |
+| **Web search** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Presents options** | ⚠️ Limited | ❌ No (acts directly) | ✅ Yes |
+| **Asks before acting** | N/A | Sometimes | ✅ Always |
+| **Best for** | Research | Implementation | Strategy |
+
+---
+
+## When to Use Each Mode
+
+### Decision Matrix
+
+| Situation | Recommended Mode | Why |
+|-----------|-----------------|-----|
+| "How does this function work?" | Ask | Just need explanation |
+| "What does this error mean?" | Ask | Debugging information |
+| "Refactor this module" | Agent | Needs code changes |
+| "Fix this bug" | Agent | Needs code changes |
+| "Add a new feature" | Plan → Agent | Analyze first, then implement |
+| "Should I use Redux or Zustand?" | Plan | Needs analysis and options |
+| "Review this PR" | Plan | Analysis + recommendations |
+| "Compare three approaches" | Plan | Presents options |
+| "Migrate to TypeScript 5" | Plan → Agent | Analyze first, execute after |
+| "What's the complexity of this function?" | Ask | Understanding only |
+| "Write unit tests for this" | Agent | Needs file creation |
+| "Optimize this query" | Plan → Agent | Analyze, then implement |
+
+### Mode Selection Flow
+
+```mermaid
+flowchart TD
+    A[New task] --> B{Do you want changes made?}
+    B -->|No, just info| C[Ask Mode]
+    B -->|Yes| D{Do you want analysis first?}
+    D -->|Yes, present options| E[Plan Mode]
+    D -->|No, just do it| F[Agent Mode]
+    
+    E --> G{Agent recommends approach?}
+    G -->|User approves| H[Switch to Agent Mode]
+    G -->|User decides| I[Agent implements chosen approach]
+    
+    C --> J[Agent explains]
+    F --> K[Agent acts]
+    H --> K
+    I --> K
+```
+
+---
+
+## Mode Switching
+
+### How to Switch Between Modes
+
+**Via UI Toggle**:
+- The mode selector in the Composer panel dropdown
+- Click the mode name (Ask / Plan / Agent) to switch
+
+**Via Keyboard Shortcut**:
+```
+Ctrl+Shift+P (Cmd+Shift+P on macOS) → "Cursor: Switch to [Mode] Mode"
+```
+
+**Via Slash Command**:
+```
+/ask      → Switch to Ask mode
+/plan     → Switch to Plan mode
+/agent    → Switch to Agent mode (default)
+```
+
+**Via Settings**:
+```json
+{
+  "cursor.agent.defaultMode": "agent" // "ask", "agent", "plan"
+}
+```
+
+### Mode Persistence
+
+| Scope | How It Works |
+|-------|-------------|
+| **Session-level** | Mode persists within a Composer session |
+| **New session** | Resets to `cursor.agent.defaultMode` |
+| **Workspace-level** | Can be set in `.vscode/settings.json` |
+| **User-level** | Set in user settings, applies to all workspaces |
+
+---
+
+## Mode-Specific Tool Access
+
+### Tools Available Per Mode
+
+| Tool | Ask | Plan | Agent | Notes |
+|------|-----|------|-------|-------|
+| `Read` | ✅ | ✅ | ✅ | All modes |
+| `Write` | ❌ | ❌ | ✅ | Write/create files |
+| `StrReplace` | ❌ | ❌ | ✅ | In-place edit |
+| `EditNotebook` | ❌ | ❌ | ✅ | Edit Jupyter cells |
+| `Delete` | ❌ | ❌ | ✅ | Delete file |
+| `Grep` | ✅ | ✅ | ✅ | All modes |
+| `Glob` | ✅ | ✅ | ✅ | All modes |
+| `SemanticSearch` | ✅ | ✅ | ✅ | All modes |
+| `WebSearch` | ✅ | ✅ | ✅ | All modes |
+| `WebFetch` | ✅ | ✅ | ✅ | All modes |
+| `Shell` | ❌ | ❌ | ✅ | Execute commands |
+| `Task` | ❌ | ❌ | ✅ | Spawn subagent |
+| `CallMcpTool` | ❌ | ❌ | ✅ | MCP tools |
+| `TodoWrite` | ❌ | ❌ | ✅ | Manage tasks |
+| `ReadLints` | ✅ | ✅ | ✅ | All modes |
+| `StrReplace` (dry-run) | ❌ | ✅ | ✅ | Plan can propose |
+| `Write` (dry-run) | ❌ | ✅ | ✅ | Plan can propose |
+
+### Plan Mode Projections
+
+Plan Mode can "propose" changes without executing them:
+
+```
+Agent (Plan Mode):
+"Here's my plan for adding rate limiting:
+
+1. Modify src/api/server.ts:
+   - Add express-rate-limit import
+   - Create rateLimit config object
+   - Apply middleware to /api routes
+   
+2. Create tests/test-rate-limit.ts:
+   - Test 1: Request within limit
+   - Test 2: Request exceeding limit
+   - Test 3: Custom error response
+   
+[Proposed changes are shown but NOT applied]
+"
+```
+
+The user can then:
+- Switch to Agent Mode to apply
+- Request modifications to the plan
+- Reject the plan entirely
+
+---
+
+## Mode-Specific Autonomy
+
+### What Decisions Are Autonomous Per Mode
+
+| Decision | Ask Mode | Plan Mode | Agent Mode |
+|----------|----------|-----------|-----------|
+| **Read files** | ✅ Always | ✅ Always | ✅ Always |
+| **Search code** | ✅ Always | ✅ Always | ✅ Always |
+| **Explain code** | ✅ Always | ✅ Always | ✅ Always |
+| **Present options** | ⚠️ Limited | ✅ Always | ❌ N/A |
+| **Recommend approach** | ❌ No | ✅ Always | ⚠️ Sometimes |
+| **Ask before changes** | N/A | ✅ Always | ⚠️ For risky ops |
+| **Execute changes** | ❌ No | ❌ No | ✅ With approval |
+| **Spawn subagents** | ❌ No | ❌ No | ✅ Always |
+| **Run shell commands** | ❌ No | ❌ No | ✅ With approval |
+
+### Approval Levels in Agent Mode
+
+| Action Type | Approval Required |
+|------------|------------------|
+| **Read files** | None (always allowed) |
+| **Grep/Search** | None (always allowed) |
+| **Single file edit** | Output visible to user |
+| **Multiple file edits** | Agent shows diff for review |
+| **Shell commands** | May ask for confirmation |
+| **Delete files** | Always asks |
+| **Security-sensitive** | Always asks |
+| **Infrastructure changes** | Always asks |
+
+---
+
+## Relationship to Subagent Launch
+
+### Mode-Aware Subagent Spawning
+
+When the main agent spawns a subagent, the subagent inherits the parent's mode constraints:
+
+| Parent Mode | Subagent Mode | Subagent Capabilities |
+|------------|---------------|----------------------|
+| **Ask** | Read-only subagent | explore subagent only |
+| **Plan** | Analysis subagent | explore, ci-investigator |
+| **Agent** | Full subagent | All subagent types |
+
+### Example: Ask Mode with explore Subagent
+
+```
+User (Ask Mode): "Explore the database layer"
+Agent (Ask Mode): Spawns explore subagent
+Subagent: Finds all DB-related files, reports findings
+Agent: Presents findings to user (no file changes)
+```
+
+---
+
+## Best Practices
+
+### Ask Mode Best Practices
+
+1. **Use for deep understanding**: "How does X work?" before modifying X
+2. **Use for error explanation**: "What does this error mean?"
+3. **Use for code review reading**: "Explain this function's purpose"
+4. **Use for architecture overview**: "Describe the system architecture"
+5. **Ask before Agent**: "Understand the code, then I'll tell you to modify"
+
+### Plan Mode Best Practices
+
+1. **Use for complex decisions**: "Should we use X or Y pattern?"
+2. **Use for multi-step refactors**: "Plan the migration, then implement"
+3. **Use for code reviews**: "Review this module and suggest improvements"
+4. **Use for performance optimization**: "Analyze and propose optimization strategy"
+5. **Use for architecture reviews**: "Review the current design and propose changes"
+
+### Agent Mode Best Practices
+
+1. **Be specific with instructions**: Clear scope, constraints, success criteria
+2. **Verify changes**: Review Output channel for agent actions
+3. **Use for focused tasks**: "Add validation to this endpoint"
+4. **Use for bug fixes**: "Fix the null pointer error in line 42"
+5. **Use for test generation**: "Write unit tests for this function"
+
+### Mode Transition Patterns
+
+```
+Pattern 1: Ask → Agent (Understand then execute)
+1. Ask Mode: "How does the auth flow work?"
+2. Understand the code
+3. Switch to Agent Mode: "Now add rate limiting"
+
+Pattern 2: Plan → Agent (Analyze then implement)
+1. Plan Mode: "How should we add logging?"
+2. Agent presents options
+3. User approves option A
+4. Switch to Agent Mode: "Implement option A"
+
+Pattern 3: Agent → Ask (Execute then verify)
+1. Agent Mode: "Add this feature"
+2. Changes applied
+3. Switch to Ask Mode: "Review the changes"
+```
+
+---
+
+## Troubleshooting Mode Issues
+
+### Common Problems
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Agent making changes in Plan Mode | Mode not actually Plan | Verify mode selector shows "Plan" |
+| Agent not executing in Agent Mode | Auto-approve disabled | Check `cursor.agent.autoApprove` |
+| Ask Mode returning limited results | Read-only constraints | Agent can only explain, not modify |
+| Plan Mode presenting wrong options | Missing context | Add @-references for relevant code |
+| Mode not persisting | Session reset | Set `cursor.agent.defaultMode` in settings |
+
+---
+
+## Related Documents
+
+- [Agent Settings](mdc:19-agent-settings.mdc) — Mode configuration via settings
+- [Overview](mdc:01-overview.mdc) — Brief mode coverage
+- [Command Reference](mdc:11-command-reference.mdc) — Tool access by mode
+- [Agent Reasoning](mdc:27-agent-reasoning.mdc) — Mode influence on agent reasoning
+- [Composer and Shortcuts](mdc:13-composer-and-shortcuts.mdc) — Mode in Composer
+- [Custom Subagents](mdc:14-custom-subagents.mdc) — Subagent mode inheritance

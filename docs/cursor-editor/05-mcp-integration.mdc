@@ -1,0 +1,377 @@
+---
+description: "Model Context Protocol (MCP) integration guide: server configuration, tool invocation, resource access, authentication, and security"
+tags: [mcp, integration, tools, resources, servers, authentication]
+---
+
+# Cursor Editor — MCP Integration
+
+## Overview
+
+The Model Context Protocol (MCP) provides a standardized way for Cursor to connect to external systems, tools, and data sources. MCP servers expose **tools** (actions the agent can perform) and **resources** (data the agent can read), creating a universal bridge between Cursor and the outside world.
+
+```mermaid
+graph TB
+    subgraph "Cursor Agent"
+        A[Main Agent]
+        A -->|CallMcpTool| B[CallMcpTool]
+        A -->|FetchMcpResource| C[FetchMcpResource]
+        A -->|ListMcpResources| D[ListMcpResources]
+    end
+    
+    subgraph "MCP Server: presc-source"
+        E1[Tools]
+        E2[Resources]
+    end
+    
+    subgraph "MCP Server: presc-target"
+        F1[Tools]
+        F2[Resources]
+    end
+    
+    subgraph "MCP Server: n8n-mcp-default"
+        G1[Workflow Tools]
+        G2[Workflow Resources]
+    end
+    
+    subgraph "MCP Server: visualization"
+        H1[Chart Tools]
+        H2[Data Resources]
+    end
+    
+    B --> E1
+    B --> F1
+    B --> G1
+    B --> H1
+    C --> E2
+    C --> F2
+    C --> G2
+    C --> H2
+```
+
+---
+
+## MCP Architecture
+
+### Server Discovery
+
+MCP servers are configured in the project's `mcps/` directory:
+
+```
+mcps/
+├── user-presc-source/          # Source Presc MCP server
+│   ├── tools/                  # Tool definitions
+│   └── resources/              # Resource definitions
+├── user-presc-target/          # Target Presc MCP server
+├── user-analyzax-self-hosted-supabase/  # Supabase integration
+├── user-presc-target-adv/      # Advanced Target Presc
+├── user-n8n-mcp-advanced-main/ # n8n workflow automation
+├── user-n8n-mcp-default/       # n8n default
+└── user-notebooks/             # Notebook integration
+└── user-visualization/          # Visualization server
+```
+
+Each server folder contains:
+- **`tools/`** — JSON descriptor files for each available tool
+- **`resources/`** — JSON descriptor files for each available resource
+- **`serverUseInstructions.md`** (optional) — Server-specific guidance
+
+### Tool Descriptor Format
+
+Tools are defined as JSON files in the server's `tools/` directory:
+
+```json
+{
+  "name": "tool-name",
+  "description": "What this tool does",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "param1": { "type": "string", "description": "Parameter 1" },
+      "param2": { "type": "number", "description": "Parameter 2" }
+    },
+    "required": ["param1"]
+  }
+}
+```
+
+### Resource Descriptor Format
+
+Resources are defined as JSON files in the server's `resources/` directory:
+
+```json
+{
+  "uri": "mcp://server-name/resource-name",
+  "name": "Resource Name",
+  "description": "What this resource provides",
+  "mimeType": "application/json"
+}
+```
+
+---
+
+## Available MCP Tools
+
+### Tool Invocation: `CallMcpTool`
+
+Calls a tool on an MCP server by server identifier and tool name:
+
+```
+CallMcpTool(
+  server: "server-identifier",
+  toolName: "tool-name",
+  arguments: { "param": "value" }
+)
+```
+
+**Parameters**:
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `server` | string | Yes | MCP server identifier |
+| `toolName` | string | Yes | Tool name to invoke |
+| `arguments` | object | Yes | Tool-specific parameters |
+| `requestSmartModeApproval` | boolean | No | Request approval if blocked by auto-review |
+| `smartModeBlockReason` | string | No | Block reason from auto-review |
+
+**Usage Guidelines**:
+1. **Always read the tool schema first** — Browse `mcps/<server>/tools/tool-name.json` before calling
+2. **Validate required parameters** — Check `inputSchema.required` in the tool descriptor
+3. **Handle errors gracefully** — MCP tools may fail due to authentication, network, or permission issues
+4. **Use for external integrations** — MCP tools are for connecting to systems outside Cursor
+
+### Resource Access
+
+#### `ListMcpResources`
+
+Lists all available resources from an MCP server:
+
+```
+ListMcpResources(server: "server-name")
+```
+
+#### `FetchMcpResource`
+
+Fetches the content of a specific MCP resource:
+
+```
+FetchMcpResource(
+  server: "server-name",
+  uri: "mcp://server-name/resource-name",
+  downloadPath: "optional/local/path"  // Optional: save to disk
+)
+```
+
+**Parameters**:
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `server` | string | Yes | MCP server identifier |
+| `uri` | string | Yes | Resource URI to fetch |
+| `downloadPath` | string | No | Optional path to save resource to disk |
+| `requestSmartModeApproval` | boolean | No | Request approval if blocked |
+| `smartModeBlockReason` | string | No | Block reason from auto-review |
+
+---
+
+## Available MCP Servers
+
+### presc-source
+
+Source MCP server for presc operations. Contains tools for reading and processing source data.
+
+### presc-target
+
+Target MCP server for presc operations. Contains tools for writing and managing target data.
+
+### analyzax-self-hosted-supabase
+
+Self-hosted Supabase integration. Provides database access, schema management, and data operations.
+
+**Use Instructions**:
+- Use `list_tables` to understand existing schema before changes
+- Use `get_logs` and `get_advisors` for debugging
+- Use `get_project_url` and `get_publishable_api_key` for client-side integration
+- Install Supabase agent skill: `npx skills add supabase/agent-skills`
+- Use local `supabase` CLI for development workflows
+
+### presc-target-adv
+
+Advanced target presc operations with extended capabilities.
+
+### n8n-mcp-default / n8n-mcp-advanced-main
+
+n8n workflow automation MCP servers. Provides tools for building, managing, and executing n8n workflows programmatically.
+
+**Workflow Build Process**:
+1. Read SDK reference before writing workflow code
+2. Get suggested nodes using `get_suggested_nodes`
+3. Discover nodes using `search_nodes`
+4. Get type definitions using `get_node_types`
+5. Write workflow code using SDK patterns
+6. Spot-check with `validate_node_config`
+7. Validate full workflow with `validate_workflow`
+8. Create with `create_workflow_from_code`
+9. Update with `update_workflow` (atomic batch operations)
+10. Archive with `archive_workflow`
+
+### notebooks
+
+Jupyter notebook integration. Tools for creating, editing, and executing notebooks.
+
+### visualization
+
+Data visualization tools. Charts, graphs, and visual data representations.
+
+---
+
+## Server Configuration
+
+### Discovery Pattern
+
+```
+mcps/<server-name>/
+├── tools/
+│   ├── tool-a.json
+│   └── tool-b.json
+├── resources/
+│   ├── resource-x.json
+│   └── resource-y.json
+└── serverUseInstructions.md  (optional)
+```
+
+### Server Use Instructions
+
+Some MCP servers include additional guidance in `serverUseInstructions.md`:
+
+```yaml
+# Example: Supabase server instructions
+supabase:
+  schema_changes:
+    - "Always use list_tables before schema modifications"
+  debugging:
+    - "Use get_logs and get_advisors before making changes"
+  client_integration:
+    - "Use get_project_url for client configuration"
+    - "Use get_publishable_api_key for API access"
+```
+
+---
+
+## Authentication
+
+### When Authentication is Required
+
+MCP servers may require authentication in these scenarios:
+- Database connections (Supabase, PostgreSQL, etc.)
+- API integrations requiring tokens
+- Cloud provider access (AWS, GCP, Azure)
+- Authentication-required tools
+
+### Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant C as Cursor
+    participant M as MCP Server
+    participant A as Auth
+
+    C->>M: Attempt tool call
+    M->>C: Returns auth/authorization error
+    C->>A: Call mcp_auth for server
+    A->>M: Authenticate
+    M->>A: Return credentials/token
+    A->>C: Confirm auth success
+    C->>M: Retry tool call with auth
+    M->>C: Return tool result
+```
+
+**Procedure**:
+1. Attempt the MCP tool call normally
+2. If authentication/authorization error is returned, call `mcp_auth` for that server
+3. Inspect the server configuration and retry the original request
+4. **Authenticate one server at a time** — do not authenticate in parallel
+5. **Do not call `mcp_auth` just because it's listed** — only if the tool call fails
+
+### Auth Best Practices
+
+- Only authenticate servers relevant to the current task
+- Inspect server configs before authenticating to understand what access is granted
+- If authentication doesn't fix the failure, don't retry — the issue may be permissions or network
+- Never expose MCP credentials in chat or logs
+
+---
+
+## Security Considerations
+
+### Principle of Least Privilege
+
+- Configure MCP servers with minimum required permissions
+- Use service accounts with scoped access where possible
+- Rotate credentials regularly
+- Monitor MCP tool usage for anomalies
+
+### Data Protection
+
+- MCP tools may have access to sensitive data (databases, APIs, filesystems)
+- Never expose MCP credentials in conversation history
+- Validate tool inputs before passing to MCP servers
+- Be aware of data exfiltration risks when connecting to external services
+
+### Server Trust
+
+- Only configure MCP servers from trusted sources
+- Review server tool definitions before enabling
+- Understand what each tool does and its permissions
+- Audit MCP server configurations periodically
+
+### Smart Mode Approval
+
+When auto-review blocks an MCP call:
+- `requestSmartModeApproval`: Set to `true` only after auto-review blocks
+- `smartModeBlockReason`: Provide the exact block reason returned by auto-review
+- The user must approve through the native approval card
+
+---
+
+## Tool Selection Guidelines
+
+| Scenario | Use | Why |
+|---|---|---|
+| File operations | Read, Write, StrReplace, Delete | Direct, fast, no external dependency |
+| Search | Grep (ripgrep), Glob | Built-in, fast, optimized |
+| External data access | MCP tools | Standardized interface to external systems |
+| Web content | WebFetch, WebSearch | Purpose-built for HTTP fetches |
+| Shell commands | Shell | Native terminal integration |
+| Code analysis | SemanticSearch | Meaning-based, not exact-match |
+
+**Rule**: Use built-in tools (Read, Write, Grep, Shell) for internal operations. Use MCP tools only when connecting to external systems that are not accessible through built-in tools.
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|---|---|---|
+| Tool call returns auth error | MCP server requires authentication | Call `mcp_auth` for the specific server |
+| "Server not found" | Incorrect server identifier | Verify server name in `mcps/` directory |
+| Tool returns empty result | Invalid parameters or no matching data | Check tool schema, verify required params |
+| Resource fetch fails (404) | Resource URI is incorrect | Verify URI in resource descriptor |
+| MCP server tool fails after auth | Server lacks required permissions | Review server configuration, check access scopes |
+
+### Debugging Steps
+
+1. **List available tools**: Browse `mcps/<server>/tools/` directory
+2. **Read tool schema**: Open `mcps/<server>/tools/<tool>.json`
+3. **List resources**: Use `ListMcpResources` for the server
+4. **Check server instructions**: Read `mcps/<server>/serverUseInstructions.md`
+5. **Authenticate if needed**: Call `mcp_auth` for the specific server
+6. **Retry the call**: Use corrected parameters or authentication
+
+---
+
+## Related Documents
+
+- [Architecture Overview](01-overview.mdc) — MCP fits into the integration layer
+- [Command Reference](11-command-reference.mdc) — MCP tool invocation methods
+- [Context Management](10-context-management.mdc) — MCP as a context source
+- [Settings & Configuration](08-settings-configuration.mdc) — MCP server configuration in settings

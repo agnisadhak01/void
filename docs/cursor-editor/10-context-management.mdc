@@ -1,0 +1,238 @@
+---
+description: "Cursor context management guide: @-symbol references, progressive disclosure, MCP context, and best practices"
+tags: [context, references, hallucination-prevention, mcp, progressive-disclosure]
+---
+
+# Cursor Editor — Context Management
+
+## Overview
+
+Effective context management is the foundation of accurate AI-assisted development. Cursor provides multiple mechanisms for injecting project context into the agent's understanding, with `@`-symbol references being the primary interface.
+
+---
+
+## @-Symbol Reference System
+
+Cursor uses `@`-symbols to include precise code context. Surgical references ensure the agent focuses on the right code.
+
+### Reference Types
+
+| Syntax | Type | Scope | Use Case |
+|---|---|---|---|
+| `@file <path>` | File context | Complete file | When entire file is relevant |
+| `@folder <path>/` | Folder context | All files in directory | When majority of files are relevant |
+| `@code <symbol>` | Surgical context | Specific symbol | Function, class, variable, constant |
+| `@rule-name.mdc` | Rule context | Specific rule file | Load project guidance rules |
+
+### Reference Examples
+
+```markdown
+@src/components/UserProfile.tsx                    # Single file
+@frontend/                                          # All files in frontend/
+@LRUCachedFunction                                  # Specific function
+@UserInterface                                      # Specific class/interface
+@MAX_RETRY_COUNT                                    # Specific constant
+@init.mdc                                           # Specific rule
+```
+
+---
+
+## Context Efficiency Principle
+
+**Specificity over breadth** -- Provide just enough context to prevent hallucinations without overwhelming the agent.
+
+### Hierarchy of Context Precision
+
+| Precision | Syntax | Token Cost | Recommendation |
+|---|---|---|---|
+| **Surgical** | `@code <symbol>` | Lowest | **Preferred** -- minimal tokens, maximum relevance |
+| **File** | `@file <path>` | Medium | Use for small, focused files |
+| **Folder** | `@folder <path>/` | High | Use only when most files in folder are relevant |
+| **Broad** | `@folder/**/*.ext` | Highest | Avoid unless necessary |
+
+### Decision Matrix
+
+| Task | Recommended Reference | Why |
+|---|---|---|
+| "How does this function work?" | `@code functionName` | Only the function matters |
+| "Review this file" | `@file filename.ext` | Whole file is relevant |
+| "Refactor this module" | `@folder module/` | Many files interact |
+| "Add feature across project" | Multiple `@file` references | Only specific files matter |
+
+---
+
+## Progressive Disclosure
+
+Start with high-level context, add detail as needed. This prevents cognitive overload and token waste.
+
+### Progressive Disclosure Pattern
+
+```
+Level 1: High-level overview
+  → @file architecture.mdc  (system design)
+  → "Here's the overall system..."
+
+Level 2: Component-level detail
+  → @code AuthService.authenticate()  (specific function)
+  → "Let me look at the auth logic..."
+
+Level 3: Line-level precision
+  → @code AuthService.validateToken() line 42  (specific line)
+  → "The issue is on this specific line..."
+```
+
+### Implementation
+
+1. **Start broad** -- Include architecture docs, README, key interfaces
+2. **Narrow down** -- Add specific functions/classes relevant to the task
+3. **Pinpoint** -- Include exact lines when debugging or fixing specific issues
+
+---
+
+## Model Context Protocol (MCP) Context
+
+MCP extends context beyond the local codebase by pulling in external resources:
+
+### External Context Sources
+
+| Source | What It Provides | Example |
+|---|---|---|
+| **Documentation** | API docs, specs, guides | Reading online docs via MCP |
+| **Issue trackers** | JIRA, Linear, GitHub issues | Fetching bug reports |
+| **Databases** | Schema, metadata, records | Querying production DBs |
+| **Monitoring** | Logs, metrics, traces | Checking system health |
+| **Configuration** | Environment configs, secrets | Reading deployment settings |
+
+### MCP Context Integration
+
+```
+Agent → MCP Server → External Resource → Context Injection
+```
+
+MCP resources are fetched via `ListMcpResources` and `FetchMcpResource` tools, providing structured external context that augments the codebase context.
+
+---
+
+## Key Textual Documentation
+
+Maintain key textual documentation in the repo so Cursor can ingest it as context:
+
+### Essential Documentation Files
+
+| File | Purpose | When Referenced |
+|---|---|---|
+| `README.md` | Project overview | Onboarding, architecture questions |
+| `docs/api.md` | API specifications | API implementation, integration |
+| `docs/design-docs/` | Architecture decisions | System design questions |
+| `.cursor/rules/*.mdc` | AI guidance | All interactions (if alwaysApply) |
+| `CONTRIBUTING.md` | Team workflows | Onboarding, process questions |
+
+### Best Practices
+
+- Keep documentation **version-controlled** and **synchronized with code**
+- Use **semantic conventions**: expand acronyms on first use, include links to related standards
+- Include **Mermaid or PlantUML diagrams** for architecture visualization
+- Generate documentation **automatically in CI/CD** to keep it current
+
+---
+
+## Context Provisioning Best Practices
+
+### Just Enough Context
+
+| Principle | Description |
+|---|---|
+| **Relevance first** | Only include context directly related to the task |
+| **Avoid overload** | Too much context dilutes agent effectiveness |
+| **Iterate and refine** | Adjust based on agent performance |
+| **No redundancy** | Don't repeat context the agent already has |
+
+### Hallucination Prevention
+
+Context gaps are the primary cause of AI hallucinations. Prevent them by:
+
+1. **Explicit context** -- Provide relevant project context explicitly
+2. **Code references** -- Use `@code` for specific symbols
+3. **File references** -- Use `@file` for complete files
+4. **Rule references** -- Use `@rule-name.mdc` for project standards
+5. **External context** -- Use MCP for information outside the repo
+
+### Context Validation
+
+After providing context, verify:
+
+- [ ] Agent references the correct files/symbols
+- [ ] Agent's understanding matches provided context
+- [ ] No contradictions between context and agent output
+- [ ] Context is current (not stale documentation)
+
+---
+
+## Context Strategy by Task Type
+
+### Code Implementation
+
+```
+Context needed:
+1. @code existing-interfaces          # Existing type definitions
+2. @file relevant-module.ts           # Module context
+3. @rule coding-standards.mdc         # Project conventions
+4. @code similar-function             # Reference implementation
+```
+
+### Bug Fixing
+
+```
+Context needed:
+1. @code error-location               # Where the bug is
+2. @file error-module.ts              # Module containing the bug
+3. @code related-function             # Related code that might be source
+4. Error message / log output          # Runtime context
+```
+
+### Refactoring
+
+```
+Context needed:
+1. @folder refactored-module/         # Module being refactored
+2. @code affected-interfaces          # Interfaces that change
+3. @folder dependent-modules/         # Modules that depend on changes
+4. @rule architecture.mdc             # Architecture constraints
+```
+
+### Code Review
+
+```
+Context needed:
+1. @file changed-file.ts              # The code being reviewed
+2. @rule security-rules.mdc           # Security requirements
+3. @rule conventions.mdc              # Style requirements
+4. @code original-vs-new              # Diff context
+```
+
+---
+
+## Context Resolution Order
+
+When multiple context sources are available, Cursor resolves them in this order:
+
+1. **System prompt** -- Always loaded, defines baseline capabilities
+2. **Always-apply rules** -- `.cursor/rules/*.mdc` with `alwaysApply: true`
+3. **Auto-attached rules** -- Rules matching open file patterns
+4. **Manual @-references** -- User-provided `@file`, `@folder`, `@code` references
+5. **MCP resources** -- External context from MCP servers
+6. **Conversation history** -- Prior messages in the session
+
+---
+
+## Related Documents
+
+- [Architecture Overview](01-overview.mdc) -- Context in the agent workflow
+- [Rules System](03-rules-system.mdc) -- Rules as context sources
+- [Skills System](04-skills-system.mdc) -- Skills as context sources
+- [MCP Integration](05-mcp-integration.mdc) -- External context via MCP
+- [Agent Hierarchy](02-agent-hierarchy.mdc) -- Context in subagent communication
+- [Agent Settings](19-agent-settings.mdc) -- Context window settings and management
+- [Context Compaction](28-context-compaction.mdc) -- Compaction triggers and recovery
+- [Agent Reasoning](27-agent-reasoning.mdc) -- How compaction affects agent planning
+- [Secure Agent Behavior](33-secure-agent-behavior.mdc) -- Context safety filters

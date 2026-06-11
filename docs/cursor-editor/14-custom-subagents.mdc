@@ -1,0 +1,470 @@
+---
+title: Cursor Editor — Custom Subagents
+description: Reference for creating custom subagents in .cursor/agents/ with YAML frontmatter and system prompts for specialized AI task delegation.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, subagents, custom, agents, system-prompt, delegation, .cursor/agents]
+---
+
+# Cursor Editor — Custom Subagents
+
+## Overview
+
+Custom subagents are specialized AI assistants that run in isolated contexts with custom system prompts. They are defined as `.md` files in the `.cursor/agents/` directory and allow you to create domain-specific agents that the Cursor AI can delegate tasks to.
+
+Custom subagents are distinct from:
+
+- **Built-in subagents** (generalPurpose, explore, shell, cursor-guide, ci-investigator, bugbot, security-review, best-of-n-runner): These are predefined agent types in the Cursor Task tool
+- **Skills** (SKILL.md files): Skills modify the main agent's behavior through instructions; subagents spawn entirely separate agent instances with their own system prompts
+
+Custom subagents provide persistent, reusable agent configurations that can be shared with a team (project-level) or used across all projects (user-level).
+
+---
+
+## Custom Subagents vs Built-in Subagents
+
+| Aspect | Custom Subagents | Built-in Subagents |
+|--------|-----------------|-------------------|
+| **Definition** | User-created `.md` files | Predefined in Cursor engine |
+| **Location** | `.cursor/agents/` or `~/.cursor/agents/` | Built into Cursor |
+| **System Prompt** | Full control via file body | Fixed by Cursor |
+| **Tool Access** | Inherits from invocation context | Defined per type |
+| **Purpose** | Domain-specific, team-specific | General-purpose |
+| **Sharing** | Via Git (project) or settings (user) | N/A |
+| **Examples** | code-reviewer, debugger, data-scientist | explore, shell, bugbot |
+
+---
+
+## Directory Structure
+
+### Storage Locations
+
+| Type | Path | Scope | Persistence |
+|------|------|-------|-------------|
+| **Project** | `.cursor/agents/` | Current workspace only | Checked into version control |
+| **User** | `~/.cursor/agents/` | All projects on this machine | Persists across workspace changes |
+
+### Priority Resolution
+
+When multiple subagents share the same name, the higher-priority location wins:
+
+```
+Priority (highest to lowest):
+  1. .cursor/agents/<name>.md (project-level)
+  2. ~/.cursor/agents/<name>.md (user-level)
+  3. Built-in subagent (Cursor default)
+```
+
+```mermaid
+flowchart TD
+    A[Agent needs to invoke subagent] --> B{Check .cursor/agents/}
+    B -->|Found| C[Use project-level agent]
+    B -->|Not found| D{Check ~/.cursor/agents/}
+    D -->|Found| E[Use user-level agent]
+    D -->|Not found| F{Is it a built-in type?}
+    F -->|Yes| G[Use built-in subagent]
+    F -->|No| H[Fail: no matching agent]
+```
+
+### Example Project Structure
+
+```
+your-project/
+├── .cursor/
+│   └── agents/
+│       ├── code-reviewer.md
+│       ├── debugger.md
+│       ├── data-scientist.md
+│       └── security-auditor.md
+├── src/
+├── tests/
+└── README.md
+```
+
+### Example User Structure
+
+```
+~/.cursor/agents/
+├── code-reviewer.md
+├── debugger.md
+├── data-scientist.md
+└── performance-analyst.md
+```
+
+---
+
+## File Format
+
+Custom subagent files consist of YAML frontmatter followed by a markdown body (the system prompt).
+
+### Required Structure
+
+```markdown
+---
+name: code-reviewer
+description: Reviews code for quality and best practices
+---
+
+You are a senior code reviewer. When invoked, analyze the code and provide
+specific, actionable feedback on quality, security, and maintainability.
+```
+
+### Frontmatter Fields
+
+| Field | Required | Type | Description | Constraints |
+|-------|----------|------|-------------|-------------|
+| `name` | Yes | string | Unique identifier | Lowercase letters, numbers, hyphens only |
+| `description` | Yes | string | When to delegate to this subagent | Must be specific and actionable |
+
+### Complete Example: Code Reviewer
+
+```markdown
+---
+name: code-reviewer
+description: Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code.
+---
+
+You are a senior code reviewer ensuring high standards of code quality and security.
+
+When invoked:
+1. Run git diff to see recent changes
+2. Focus on modified files
+3. Begin review immediately
+
+Review checklist:
+- Code is clear and readable
+- Functions and variables are well-named
+- No duplicated code
+- Proper error handling
+- No exposed secrets or API keys
+- Input validation implemented
+- Good test coverage
+- Performance considerations addressed
+
+Provide feedback organized by priority:
+- Critical issues (must fix)
+- Warnings (should fix)
+- Suggestions (consider improving)
+
+Include specific examples of how to fix issues.
+```
+
+### Complete Example: Debugger
+
+```markdown
+---
+name: debugger
+description: Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues.
+---
+
+You are an expert debugger specializing in root cause analysis.
+
+When invoked:
+1. Capture error message and stack trace
+2. Identify reproduction steps
+3. Isolate the failure location
+4. Implement minimal fix
+5. Verify solution works
+
+Debugging process:
+- Analyze error messages and logs
+- Check recent code changes
+- Form and test hypotheses
+- Add strategic debug logging
+- Inspect variable states
+
+For each issue, provide:
+- Root cause explanation
+- Evidence supporting the diagnosis
+- Specific code fix
+- Testing approach
+- Prevention recommendations
+
+Focus on fixing the underlying issue, not the symptoms.
+```
+
+### Complete Example: Data Scientist
+
+```markdown
+---
+name: data-scientist
+description: Data analysis expert for SQL queries, BigQuery operations, and data insights. Use proactively for data analysis tasks and queries.
+---
+
+You are a data scientist specializing in SQL and BigQuery analysis.
+
+When invoked:
+1. Understand the data analysis requirement
+2. Write efficient SQL queries
+3. Use BigQuery command line tools (bq) when appropriate
+4. Analyze and summarize results
+5. Present findings clearly
+
+Key practices:
+- Write optimized SQL queries with proper filters
+- Use appropriate aggregations and joins
+- Include comments explaining complex logic
+- Format results for readability
+- Provide data-driven recommendations
+
+For each analysis:
+- Explain the query approach
+- Document any assumptions
+- Highlight key findings
+- Suggest next steps based on data
+
+Always ensure queries are efficient and cost-effective.
+```
+
+---
+
+## Writing Effective Descriptions
+
+The `description` field is **critical** — the Cursor AI uses it to decide when to delegate tasks to your subagent.
+
+### Description Best Practices
+
+1. **Be specific about triggers**: Include the exact phrases or actions that should cause delegation
+2. **Include "use proactively"**: This encourages automatic delegation without explicit user request
+3. **Describe expertise**: Make clear what domain the agent specializes in
+4. **Include context**: Mention when and how the agent should run
+
+### Good vs Bad Descriptions
+
+```yaml
+# Bad — too vague
+description: Helps with code
+
+# Good — specific and actionable
+description: Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code.
+
+# Bad — missing trigger
+description: Analyzes data
+
+# Good — includes trigger and context
+description: Data analysis expert for SQL queries, BigQuery operations, and data insights. Use proactively for data analysis tasks and queries.
+```
+
+### Description Patterns
+
+| Pattern | When to Use | Example |
+|---------|-------------|---------|
+| **Expertise + trigger** | Most subagents | "Expert security reviewer. Use when auditing code for vulnerabilities." |
+| **Domain + proactive** | Domain-specific agents | "Performance analyst. Proactively optimize slow code paths." |
+| **Role + workflow** | Process-oriented agents | "Commit message generator. Use after staging changes with git." |
+| **Action + context** | Task-specific agents | "Documentation writer. Use when code lacks comments or READMEs." |
+
+---
+
+## Creating Custom Subagents
+
+### Step-by-Step Workflow
+
+#### Step 1: Decide the Scope
+
+| Question | Decision |
+|----------|----------|
+| Should this agent be shared with the team? | Yes → Project-level (`.cursor/agents/`) |
+| Is this personal across all projects? | Yes → User-level (`~/.cursor/agents/`) |
+| Is this a temporary experiment? | Yes → Project-level (easier to discard) |
+
+#### Step 2: Create the File
+
+```bash
+# For project-level
+mkdir -p .cursor/agents
+touch .cursor/agents/my-agent.md
+
+# For user-level
+mkdir -p ~/.cursor/agents
+touch ~/.cursor/agents/my-agent.md
+```
+
+#### Step 3: Define Frontmatter
+
+```yaml
+---
+name: my-agent
+description: Brief, specific description of when to use this agent. Use proactively for [specific tasks].
+---
+```
+
+#### Step 4: Write the System Prompt
+
+The markdown body becomes the agent's system prompt. Include:
+
+- **Role definition**: Who the agent is and what expertise it has
+- **Invocation behavior**: What the agent should do when first invoked
+- **Workflow**: Step-by-step process the agent follows
+- **Output format**: How the agent should present results
+- **Constraints**: What the agent should or should not do
+
+#### Step 5: Test the Agent
+
+Invoke the subagent through the Cursor agent:
+
+```
+Use the my-agent subagent to [task description]
+```
+
+The agent will look up `my-agent` in `.cursor/agents/my-agent.md` (project) or `~/.cursor/agents/my-agent.md` (user), load the system prompt, and execute with that context.
+
+---
+
+## Invoking Custom Subagents
+
+### Invocation Syntax
+
+```
+Use the <name> subagent to [describe task]
+```
+
+Example invocations:
+
+```
+# Project-level agent
+Use the code-reviewer subagent to review the changes in src/auth.ts
+
+# User-level agent
+Use the debugger subagent to investigate the test failures in the payment module
+
+# With specific context
+Use the data-scientist subagent to analyze user behavior patterns from the metrics table
+```
+
+### How Invocation Works
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent
+    participant Subagent
+    participant FS as File System
+
+    User->>Agent: "Use code-reviewer subagent to review changes"
+    Agent->>FS: Check .cursor/agents/code-reviewer.md
+    FS-->>Agent: Found (project)
+    Agent->>FS: Read file content
+    FS-->>Agent: YAML + system prompt
+    Agent->>Subagent: Create isolated context with system prompt
+    Subagent->>Agent: Execute task, return results
+    Agent->>User: Present review findings
+```
+
+### Inference from Context
+
+If previous conversation context exists, the agent can infer the subagent's purpose and behavior:
+
+- Reviewing code changes → delegate to `code-reviewer`
+- Debugging errors → delegate to `debugger`
+- Data analysis task → delegate to `data-scientist`
+
+The agent will automatically use the appropriate subagent without explicit invocation when the description matches the task.
+
+---
+
+## Best Practices
+
+### Design Principles
+
+1. **Single responsibility**: Each subagent should excel at one specific task
+2. **Specific descriptions**: Include trigger terms so the AI knows when to delegate
+3. **Check into version control**: Share project subagents with your team
+4. **Use proactive language**: Include "use proactively" in descriptions
+5. **Be concise**: Keep system prompts focused and actionable
+
+### System Prompt Guidelines
+
+1. **Start with role definition**: Clearly state who the agent is
+2. **Define invocation behavior**: What should happen immediately when invoked
+3. **Provide a workflow**: Step-by-step process for common tasks
+4. **Specify output format**: How results should be presented
+5. **Include constraints**: What the agent should avoid
+
+### Description Guidelines
+
+1. **Include trigger phrases**: Match what users actually type
+2. **Be specific, not generic**: "Security audit for OWASP Top 10" vs "Security help"
+3. **Use action verbs**: "Reviews", "Analyzes", "Debugs", "Generates"
+4. **Add "use proactively"**: Encourages automatic delegation
+
+### Anti-Patterns to Avoid
+
+```yaml
+# Bad — overlapping descriptions
+# agent-a: "Helps with code quality"
+# agent-b: "Assists with code quality issues"
+
+# Good — distinct boundaries
+# code-reviewer: "Reviews code for quality, security, and maintainability"
+# debugger: "Investigates and fixes errors and test failures"
+```
+
+---
+
+## Common Use Cases
+
+### Code Review Agent
+
+Delegated when code changes are detected or the user requests a review.
+
+### Security Audit Agent
+
+Delegated when the user asks about security, vulnerabilities, or when reviewing third-party dependencies.
+
+### Documentation Agent
+
+Delegated when code lacks comments, functions need API docs, or README files need updates.
+
+### Performance Agent
+
+Delegated when slow code is identified, profiling is needed, or optimization suggestions are requested.
+
+### Data Analysis Agent
+
+Delegated for SQL queries, database schema exploration, data visualization, or statistical analysis.
+
+---
+
+## Relationship to Other Systems
+
+Custom subagents integrate with Cursor's broader agent ecosystem:
+
+- **[Agent Hierarchy](mdc:02-agent-hierarchy.mdc)**: Custom subagents are invoked through the Task tool, just like built-in subagents
+- **[Skills System](mdc:04-skills-system.mdc)**: Skills modify the main agent's behavior; custom subagents create entirely new agent instances
+- **[Rules System](mdc:03-rules-system.mdc)**: Rules provide persistent context to the main agent; custom subagents provide persistent context to delegated agents
+- **[Hooks System](mdc:09-hooks-and-automation.mdc)**: Hooks trigger scripts on events; custom subagents can be triggered via hooks using `subagentStart` events
+- **[Context Management](mdc:10-context-management.mdc)**: Custom subagents receive their own context window from their system prompt; they do not inherit the main agent's conversation context unless explicitly provided
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Subagent not found | File missing or wrong extension | Ensure file exists with `.md` extension in `.cursor/agents/` |
+| Wrong subagent invoked | Name collision between project and user level | Check priority resolution — project overrides user |
+| Agent not delegating | Description too vague | Make description more specific with trigger terms |
+| No "use proactively" | Subagent only works manually | Add "Use proactively" to the description |
+| System prompt ignored | Invalid YAML frontmatter | Fix YAML syntax — `name` and `description` are required |
+
+### Debug Checklist
+
+1. **Verify file location**: Is the file in the correct `.cursor/agents/` directory?
+2. **Check file extension**: Must be `.md`, not `.txt` or `.mdc`
+3. **Validate YAML frontmatter**: `name` and `description` must be present and valid
+4. **Confirm name matching**: Invocation uses the `name` field, not the filename
+5. **Check priority order**: Project-level overrides user-level with the same name
+6. **Test with explicit invocation**: "Use the [name] subagent to [task]"
+
+---
+
+## Related Documents
+
+- [Agent Hierarchy](mdc:02-agent-hierarchy.mdc) — Built-in subagent types and parameters
+- [Skills System](mdc:04-skills-system.mdc) — How skills differ from custom subagents
+- [Rules System](mdc:03-rules-system.mdc) — Persistent context for the main agent
+- [Hooks and Automation](mdc:09-hooks-and-automation.mdc) — Trigger subagents via events
+- [Context Management](mdc:10-context-management.mdc) — How context is managed in subagents

@@ -1,0 +1,515 @@
+---
+title: Cursor Editor — Git Integration with AI
+description: Comprehensive guide for AI-powered Git operations, commit messages, branch-aware context, PR integration, and Git-aware agent workflows.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, git, commit, branches, pull-requests, ai-commit, conventional-commits]
+---
+
+# Cursor Editor — Git Integration with AI
+
+## Overview
+
+Cursor's AI capabilities are deeply integrated with Git, enabling intelligent commit messages, branch-aware code generation, PR context fetching, and Git-assisted operations. This integration works across the editor (Composer, Agent mode), Claude Code CLI, and Cursor Automations.
+
+---
+
+## AI-Generated Commit Messages
+
+### Keyboard Shortcut
+
+```
+Windows/Linux: Ctrl+Shift+G
+macOS: Cmd+Shift+G
+```
+
+Pressing the shortcut opens a commit message generator that:
+
+1. Analyzes your staged changes (`git diff --cached`)
+2. Optionally considers unstaged changes
+3. Generates a conventional commit message following your project's style
+4. Presents the message for review and editing
+
+### Commit Message Format
+
+Cursor follows [Conventional Commits](https://www.conventionalcommits.org/) by default:
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+### Supported Commit Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `feat` | New feature | `feat(auth): add OAuth2 login` |
+| `fix` | Bug fix | `fix(api): handle null response` |
+| `docs` | Documentation | `docs: update README` |
+| `style` | Formatting | `style: fix indentation in auth.ts` |
+| `refactor` | Code restructuring | `refactor(db): extract connection pool` |
+| `test` | Test changes | `test: add unit tests for auth` |
+| `chore` | Maintenance | `chore: update dependencies` |
+| `perf` | Performance improvement | `perf(query): add index on users.email` |
+| `ci` | CI/CD changes | `ci: add staging pipeline` |
+| `build` | Build system changes | `build: upgrade to TypeScript 5` |
+
+### Custom Commit Message Templates
+
+Configure commit message style via rules or custom instructions:
+
+```json
+{
+  // In custom instructions
+  "cursor.agent.agentCustomInstructions": "When generating commit messages, use Conventional Commits with the following scopes: auth, api, ui, db, test, ci, docs, chore. Keep descriptions under 72 characters.",
+  
+  // Or via a rule file
+  // .cursor/rules/git-conventions.mdc
+  "git.commitConventions": "conventional"
+}
+```
+
+### Commit Message Best Practices
+
+1. **Be specific**: "fix(api): handle null response from /users endpoint" not "fix bug"
+2. **Use imperative mood**: "add feature" not "added feature" or "adding feature"
+3. **Reference issues**: Include ticket numbers in footer "Closes #123"
+4. **Scope the change**: Group related changes in one commit
+5. **One logical change per commit**: Avoid bundling unrelated changes
+
+---
+
+## Branch-Aware Context
+
+### How the Agent Knows Your Branch
+
+The agent automatically detects:
+
+1. **Current branch**: Via `git branch --show-current`
+2. **Remote tracking branch**: Via `git branch -vv`
+3. **Upstream branch**: Via `git rev-parse --abbrev-ref @{u}`
+4. **Divergence from upstream**: Via `git log HEAD..@{u}` (commits ahead)
+5. **Active changes**: Staged, unstaged, and untracked files via `git status`
+
+### Branch Context in Agent Responses
+
+```
+Agent sees:
+  - Branch: feature/oauth-login
+  - Remote: origin/main
+  - Ahead by: 3 commits
+  - Behind by: 12 commits (main has been updated)
+  - Staged files: src/auth/oauth.ts
+  - Unstaged files: src/auth/oauth.ts, tests/auth.spec.ts
+```
+
+The agent uses this information to:
+
+- Tailor suggestions to the feature context
+- Note divergence from main branch
+- Consider the scope of the feature branch
+- Align changes with the branch's purpose
+
+### Branch Name Conventions
+
+Use descriptive branch names to help the agent understand context:
+
+```bash
+# Recommended patterns
+feature/add-user-auth
+bugfix/fix-login-crash
+hotfix/critical-security-patch
+release/v2.1.0
+docs/update-api-reference
+refactor/migrate-to-new-db
+
+# Convention-based (many teams use these)
+feat/USER-123-add-login
+fix/API-456-null-handling
+```
+
+### Branch Detection in Settings
+
+```json
+{
+  // Branch-based agent behavior (optional)
+  "cursor.agent.branchAware": true,
+  
+  // Use branch name to determine default mode
+  "cursor.agent.branchModeMapping": {
+    "main|master": "ask",
+    "release/*": "agent",
+    "feature/*": "agent",
+    "hotfix/*": "agent"
+  }
+}
+```
+
+---
+
+## Staged vs Unstaged Context
+
+### What the Agent Sees Based on Git State
+
+| Git State | Agent Sees | Best Practice |
+|-----------|-----------|---------------|
+| **All staged** | Only staged diff | Stage changes before asking agent to commit |
+| **Some staged** | Staged diff only | Stage only what you want the agent to see |
+| **Unstaged** | Working tree diff | Agent sees all changes, including uncommitted |
+| **No changes** | Nothing | Ask agent to identify what needs attention |
+
+### How Context Flows to the Agent
+
+```mermaid
+flowchart TD
+    A[Agent is invoked] --> B{Git state?}
+    B -->|Staged changes| C[git diff --cached]
+    B -->|Unstaged changes| D[git diff]
+    B -->|No changes| E[git status]
+    
+    C --> F[Agent sees staged diff]
+    D --> G[Agent sees all changes]
+    E --> H[Agent sees file list only]
+    
+    F --> I[Commit message from staged]
+    G --> J[Commit message from all]
+    H --> K[Agent asks for context]
+```
+
+### Staged-Only Commit Pattern
+
+```bash
+# 1. Make changes to a file
+vim src/auth/oauth.ts
+
+# 2. Stage only the relevant changes
+git add src/auth/oauth.ts
+
+# 3. Open Cursor Composer (Cmd+K)
+#    Agent now sees only staged diff
+
+# 4. Ask: "Generate a conventional commit message for these changes"
+#    Agent generates: feat(auth): add OAuth2 login flow
+
+# 5. Commit
+git commit -m "feat(auth): add OAuth2 login flow"
+```
+
+### Multi-Stage Commit Pattern
+
+```bash
+# When a file has multiple logical changes
+
+# 1. View file and identify separate changes
+vim src/api/server.ts
+
+# 2. Use git add -p to selectively stage
+git add -p src/api/server.ts
+# Stage only the logging changes first
+
+# 3. Ask agent to generate commit for staged changes
+# → fix(api): add request logging middleware
+
+# 4. Continue with git add -p for next change
+# → refactor(api): extract route handlers
+
+# 5. Commit each stage separately
+```
+
+---
+
+## PR Context in Agent
+
+### Automatic PR Detection
+
+When Cursor detects you're on a branch with an open PR:
+
+1. Fetches the PR diff (`git diff base...HEAD`)
+2. Fetches PR metadata (title, description, reviewers)
+3. Fetches review comments (if authenticated with GitHub/GitLab)
+4. Fetches CI status (if connected to CI/CD)
+
+The agent then has full PR context:
+
+- "This is PR #42 for the OAuth2 feature, opened against main"
+- "Reviewer @alice requested changes to the callback handler"
+- "CI checks are passing: lint, test, build"
+
+### PR-Focused Agent Commands
+
+```
+# Ask agent to review PR
+"Review this PR and suggest improvements"
+
+# Ask agent to address review feedback
+"Fix the issues mentioned in @alice's review comments"
+
+# Ask agent to update PR description
+"Generate a detailed PR description for these changes"
+
+# Ask agent to check PR CI
+"What CI checks are running on this PR?"
+```
+
+### PR Generation Flow
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant IDE as Cursor IDE
+    participant Agent as AI Agent
+    participant Git as Git Remote
+    
+    Dev->>IDE: Open Composer on feature branch
+    IDE->>Agent: Provide branch context
+    Agent->>Git: Fetch PR list
+    Git-->>Agent: Return open PRs
+    Agent->>Git: Fetch PR diff
+    Git-->>Agent: Return PR changes
+    Agent->>Agent: Analyze diff + comments
+    Agent-->>Dev: PR summary + review suggestions
+    Dev->>Agent: "Update PR description"
+    Agent->>IDE: Write updated PR description
+```
+
+---
+
+## AI-Assisted Git Operations
+
+### Git Operations via Agent
+
+The agent can perform common Git operations in Agent mode:
+
+```typescript
+// Agent can execute:
+git add <file>           // Stage files
+git commit -m "<msg>"    // Commit with message
+git stash                // Stash current changes
+git stash pop            // Reapply stashed changes
+git diff                 // View changes
+git status               // Check state
+git log --oneline -10    // View recent history
+```
+
+### Recommended Usage
+
+**For simple operations** (git add, git commit):
+
+- Let agent execute directly in Agent mode
+- Review the command in the Output channel
+
+**For destructive operations** (git reset, git rebase):
+- Agent should ask for confirmation
+- Prefer manual execution for safety
+
+### Agent Git Workflow Example
+
+```
+User: "Stage all changed files and commit with a conventional message"
+
+Agent:
+1. git status → sees modified files
+2. git diff → analyzes changes
+3. git add . → stages all changes
+4. Generate commit message → feat(api): add rate limiting middleware
+5. git commit -m "feat(api): add rate limiting middleware" → commits
+6. Report: "Committed 3 files: rate-limiter.ts, middleware.ts, test.spec.ts"
+```
+
+---
+
+## Multi-Branch Workflows
+
+### Switching Context Between Branches
+
+```bash
+# Agent can help understand branch differences
+"Show me the differences between feature/oauth and main"
+"List files changed in feature/oauth since it diverged from main"
+
+# Agent analyzes:
+git diff main...feature/oauth
+# → Returns list of changed files and diff summary
+```
+
+### Feature Branch Pattern
+
+```
+1. Create branch: git checkout -b feature/add-search
+2. Work on feature: Edit files, test changes
+3. Agent generates commits: "Stage and commit these changes"
+4. Push branch: git push -u origin feature/add-search
+5. Create PR: Agent or manual via GitHub/GitLab
+6. Review: Agent can review PR comments
+7. Merge: Agent can prepare merge commit
+```
+
+### Agent in Feature Branches
+
+When working in a feature branch, the agent:
+
+- Uses branch name to infer task type (feat/fix/docs)
+- Adjusts commit message types automatically
+- Considers branch history when generating code
+- References PR context when available
+
+---
+
+## Commit Attribution
+
+### How Agent Commits Are Attributed
+
+| Source | Author | Committer |
+|--------|--------|-----------|
+| **Manual commit** | Your git identity | Your git identity |
+| **Agent via Composer** | Your git identity | Your git identity |
+| **Agent via Claude Code CLI** | Your git identity (if configured) | Your git identity |
+| **Agent via Automations (cloud)** | `cursor-automation` | `cursor-automation` |
+
+### Configuring Agent Commit Identity
+
+```bash
+# Set global git identity for AI commits
+git config --global user.name "Your Name"
+git config --global user.email "your@email.com"
+
+# Or set per-repo
+git config user.name "Your Name"
+git config user.email "your@email.com"
+
+# Use in Claude Code CLI
+claude --git-author "AI Assistant <ai@cursor.com>" "Generate and commit these changes"
+```
+
+### Cloud Agent PR Attribution
+
+When Cloud Agent creates a PR:
+
+```
+PR Author: cursor-automation (<team>@cursor.com)
+Branch: cursor-automation/feature/<run-id>
+Commit message: Generated by Cursor Cloud Agent
+
+Example:
+Author: cursor-automation <team@cursor.com>
+Date:   Thu Jun 11 10:00:00 2026 +0000
+
+    feat(auth): add OAuth2 login flow
+
+    Implements Google OAuth2 login flow including:
+    - Google provider configuration
+    - OAuth2 callback handler
+    - Token validation middleware
+    - Unit tests for all new functions
+```
+
+---
+
+## Git Hooks and AI Integration
+
+### How Hooks Interact with AI Operations
+
+| Hook Type | AI Impact |
+|-----------|-----------|
+| **pre-commit** | Runs before agent commits; can block commits |
+| **commit-msg** | Validates commit message format (e.g., Conventional Commits) |
+| **pre-push** | Runs before agent pushes; can block pushes |
+| **prepare-commit-msg** | Can inject AI-generated messages |
+| **post-commit** | Runs after agent commits; can notify systems |
+
+### Example: Commit Message Validation Hook
+
+```bash
+#!/bin/bash
+# .git/hooks/commit-msg
+
+# Validate conventional commit format
+if ! grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build)(\(.+\))?: .+" "$1"; then
+  echo "Error: Commit message does not follow Conventional Commits format"
+  echo "Examples: feat(auth): add login, fix(api): handle null"
+  exit 1
+fi
+
+# Success
+exit 0
+```
+
+### Agent Hook Behavior
+
+When hooks are present:
+
+1. **Pre-commit hooks**: Agent waits for hook completion; if hook fails, agent reports error
+2. **Commit-msg hooks**: Agent validates message format before committing
+3. **Pre-push hooks**: Agent can be configured to skip or respect push hooks
+4. **Hook failures**: Agent reports the failure reason and suggests fixes
+
+---
+
+## Slash Commands and Git
+
+### Git-Related Slash Commands
+
+| Command | Description | File |
+|---------|-------------|------|
+| `/commit` | Generate commit message and stage changes | [13-composer-and-shortcuts.mdc](13-composer-and-shortcuts.mdc) |
+| `/diff` | Show and explain changes | [13-composer-and-shortcuts.mdc](13-composer-and-shortcuts.mdc) |
+| `/fix` | Fix issues in staged changes | [13-composer-and-shortcuts.mdc](13-composer-and-shortcuts.mdc) |
+
+---
+
+## Best Practices
+
+### 1. Commit Before Agent Changes
+
+```bash
+# Before asking agent to modify code
+git stash        # Or commit current state
+# Now agent works on clean slate
+```
+
+### 2. Use Small, Focused Commits
+
+```bash
+# Instead of one massive commit
+git commit -m "changes"
+
+# Use multiple commits
+git commit -m "feat(auth): add OAuth2 login"
+git commit -m "test(auth): add OAuth2 unit tests"
+git commit -m "docs: update API reference for OAuth2"
+```
+
+### 3. Review Agent's Git Actions
+
+- Always check `git status` after agent operations
+- Review staged files before committing
+- Verify commit messages are accurate
+
+### 4. Leverage Branch Names
+
+```bash
+# Clear branch names help agent context
+git checkout feature/add-search
+git checkout fix/handle-null-response
+git checkout docs/update-readme
+```
+
+### 5. Use Conventional Commits Consistently
+
+- Define types and scopes in custom instructions
+- Enforce via commit-msg hooks
+- Generate changelogs automatically from conventional commits
+
+---
+
+## Related Documents
+
+- [Composer and Shortcuts](mdc:13-composer-and-shortcuts.mdc) — Slash commands and keyboard shortcuts
+- [Automations Editor](mdc:15-automations.mdc) — Git triggers in Automations
+- [Claude Code CLI](mdc:18-claude-code-cli.mdc) — Git operations via CLI
+- [Settings and Configuration](mdc:19-agent-settings.mdc) — Agent settings
+- [Custom Subagents](mdc:14-custom-subagents.mdc) — Custom git subagent examples
+- [Context Management](mdc:10-context-management.mdc) — @-references for Git context

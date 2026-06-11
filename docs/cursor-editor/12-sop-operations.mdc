@@ -1,0 +1,581 @@
+---
+description: "Standard operating procedures for Cursor Editor: production-grade workflows for common and critical operations"
+tags: [sop, procedures, workflow, operations, best-practices]
+---
+
+# Cursor Editor — Standard Operating Procedures
+
+## Overview
+
+This document defines production-grade SOPs for common Cursor Editor operations. Each procedure is structured as a repeatable workflow with clear steps, validation criteria, and expected outcomes.
+
+---
+
+## SOP-01: New Project Bootstrap
+
+### Purpose
+Establish a functional development environment for a new project in minimal time.
+
+### Time Budget
+- **15-minute critical setup**: Version control, structure, README, .gitignore
+- **45-minute enhanced setup**: Dependencies, CI, linting, testing, environment config
+
+### Procedure
+
+#### 15-Minute Setup
+
+1. **Create project structure**
+   ```bash
+   mkdir -p src docs tests scripts .github/workflows
+   ```
+   Validation: All directories exist.
+
+2. **Create essential README.md**
+   - Project description
+   - Quick Start section with installation steps
+   - Development section with setup instructions
+   - Contributing section with basic guidelines
+   Validation: README contains all required sections.
+
+3. **Create .gitignore**
+   - JavaScript: `node_modules/, dist/, .env`
+   - Python: `__pycache__/, *.pyc, .env, venv/`
+   - Java: `target/, *.class, .env`
+   - General: `.env, .DS_Store, *.log, tmp/`
+   Validation: Sensitive files are ignored.
+
+4. **Initialize version control**
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial project structure"
+   ```
+   Validation: Git repository initialized with first commit.
+
+#### 45-Minute Enhanced Setup
+
+5. **Initialize dependency management**
+   ```bash
+   npm init -y              # JavaScript
+   python -m venv venv      # Python
+   go mod init project-name # Go
+   ```
+   Validation: Dependency file created (package.json, requirements.txt, etc.)
+
+6. **Set up CI/CD**
+   - Create `.github/workflows/ci.yml`
+   - Include: checkout, setup, test steps
+   Validation: CI configuration file exists and is valid YAML.
+
+7. **Configure development tools**
+   - Linting (ESLint, Ruff, Checkstyle, etc.)
+   - Formatting (Prettier, Black, google-java-format, etc.)
+   - Pre-commit hooks
+   - Environment variable template (.env.example)
+   Validation: Linting and formatting config files exist.
+
+8. **Set up testing**
+   - Install test framework (Jest, pytest, JUnit, etc.)
+   - Create test structure
+   - Write at least one sample test
+   Validation: `npm test` or equivalent passes.
+
+### Success Criteria
+- [ ] New contributor can set up development environment in < 30 minutes
+- [ ] All code changes go through basic quality checks
+- [ ] Essential documentation exists and is accurate
+- [ ] Project can be deployed reliably
+
+---
+
+## SOP-02: Adding a New Rule
+
+### Purpose
+Create or modify a Cursor rule file with proper structure and integration.
+
+### Procedure
+
+1. **Gather requirements**
+   - Determine purpose: What should this rule enforce?
+   - Determine scope: Always apply or file-specific?
+   - Determine file patterns: Which files trigger this rule?
+   Validation: Clear answers to all three questions.
+
+2. **Choose attach type**
+   | Requirement | Attach Type |
+   |---|---|
+   | Always available | `alwaysApply: true` |
+   | File-specific | `globs: ["**/*.ext"]` |
+   | Agent decides | `description: "..."` only |
+   | Manual only | No triggers in frontmatter |
+
+3. **Create the .mdc file**
+   ```markdown
+   ---
+   description: "Clear description of what this rule does"
+   alwaysApply: true
+   tags: [category, specific, tags]
+   ---
+   
+   # Rule Title
+   
+   ## Purpose
+   Brief explanation.
+   
+   ## Guidelines
+   - Specific actionable directives
+   - Clear examples
+   
+   ## Examples
+   ### Good Practice
+   [Code example]
+   
+   ### Bad Practice
+   [Code example]
+   ```
+
+4. **Validate constraints**
+   - [ ] File is `.mdc` format in `.cursor/rules/`
+   - [ ] Frontmatter configured correctly
+   - [ ] Content under 500 lines
+   - [ ] Includes concrete examples
+   - [ ] Uses consistent terminology
+
+5. **Update index**
+   - Add entry to `index-rules.mdc` or `init.mdc`
+   - Include rule file path, purpose, attach type, tags
+   - Verify the link works
+
+6. **Update changelog**
+   - Add entry to `meta/changelog.mdc`
+   - Include: date, rule name, change type, author, rationale
+
+### Success Criteria
+- [ ] Rule loads correctly in new sessions
+- [ ] File pattern matching works as expected
+- [ ] Rule content is concise and actionable
+- [ ] Index and changelog are updated
+
+---
+
+## SOP-03: Creating a New Skill
+
+### Purpose
+Author a new Cursor Agent Skill with proper structure and discovery.
+
+### Procedure
+
+#### Phase 1: Discovery
+
+1. **Define purpose** -- What specific task does this skill solve?
+2. **Choose storage** -- Personal (`~/.cursor/skills/`) vs Project (`.cursor/skills/`)
+3. **Identify triggers** -- When should the agent apply this skill?
+4. **Gather domain knowledge** -- What specialized info does the agent need?
+5. **Define output format** -- Templates, formats, styles required?
+
+#### Phase 2: Design
+
+1. **Draft skill name** -- Lowercase, hyphens, max 64 chars
+2. **Write description** -- Third person, specific, include WHAT and WHEN
+3. **Outline sections** -- Quick start, instructions, examples, resources
+4. **Identify supporting files** -- Reference docs, examples, scripts
+
+#### Phase 3: Implementation
+
+1. **Create directory**
+   ```
+   skill-name/
+   ├── SKILL.md
+   ├── reference.md    (optional)
+   └── examples.md     (optional)
+   ```
+
+2. **Write SKILL.md**
+   ```markdown
+   ---
+   name: skill-name
+   description: "What it does. Use when..."
+   ---
+   
+   # Skill Name
+   
+   ## Quick Start
+   [Essential instructions]
+   
+   ## Details
+   [Step-by-step guidance]
+   
+   ## Additional Resources
+   - [reference.md](reference.md)
+   ```
+
+3. **Create supporting files** if needed
+
+#### Phase 4: Verification
+
+1. **Content check** -- SKILL.md under 500 lines
+2. **Description check** -- Specific, includes trigger terms, third person
+3. **Terminology check** -- Consistent throughout
+4. **Reference check** -- All file references one level deep
+5. **Discovery test** -- Skill is found and applied correctly
+
+### Success Criteria
+- [ ] Skill description is specific and includes trigger terms
+- [ ] Description includes both WHAT and WHEN
+- [ ] SKILL.md body is under 500 lines
+- [ ] Consistent terminology throughout
+- [ ] Progressive disclosure used appropriately
+
+---
+
+## SOP-04: MCP Server Setup
+
+### Purpose
+Configure and validate a new MCP server integration.
+
+### Procedure
+
+1. **Create server directory**
+   ```
+   mcps/<server-name>/
+   ├── tools/
+   │   └── <tool-name>.json
+   └── resources/
+       └── <resource-name>.json
+   ```
+
+2. **Define tools** -- Create JSON schema for each tool:
+   ```json
+   {
+     "name": "tool-name",
+     "description": "What this tool does",
+     "inputSchema": {
+       "type": "object",
+       "properties": {
+         "param1": { "type": "string", "description": "Param 1" }
+       },
+       "required": ["param1"]
+     }
+   }
+   ```
+
+3. **Define resources** -- Create JSON for each resource:
+   ```json
+   {
+     "uri": "mcp://<server-name>/<resource-name>",
+     "name": "Resource Name",
+     "description": "What this provides",
+     "mimeType": "application/json"
+   }
+   ```
+
+4. **Add server instructions** (optional) -- `serverUseInstructions.md`
+
+5. **Authenticate if needed**
+   - Attempt tool call
+   - If auth error, call `mcp_auth` for the server
+   - Retry the tool call
+
+6. **Test tools** -- Verify each tool works with sample parameters
+7. **Test resources** -- Verify resource fetching works
+
+### Success Criteria
+- [ ] Tools return expected results
+- [ ] Resources are accessible via correct URIs
+- [ ] Authentication works
+- [ ] Error handling is graceful
+
+---
+
+## SOP-05: SDK Integration Setup
+
+### Purpose
+Create a production-grade Cursor SDK integration.
+
+### Procedure
+
+#### Step 1: Language Selection
+
+1. **Check for explicit signal** -- `@cursor/sdk` → TypeScript, `cursor-sdk` → Python
+2. **Check codebase signal** -- `package.json` → TypeScript, `pyproject.toml` → Python
+3. **No signal?** → Ask the user: "TypeScript or Python?"
+
+#### Step 2: Authentication
+
+```bash
+export CURSOR_API_KEY="cursor_..."
+```
+
+- User API keys: Cursor Dashboard → Integrations
+- Team service-account keys: Team Settings → Service accounts
+- Always pass `apiKey` explicitly in shared infrastructure
+
+#### Step 3: Runtime Choice
+
+| Requirement | Runtime |
+|---|---|
+| Dev loops, existing environment | Local: `local: { cwd: process.cwd() }` |
+| Long jobs, CI, PR creation | Cloud: `cloud: { repos: [...] }` |
+
+**Always set one explicitly** -- never rely on the default.
+
+#### Step 4: Error Handling
+
+```typescript
+try {
+  const run = await agent.send(prompt);
+  const result = await run.wait();
+  if (result.status === "error") process.exit(2);
+} catch (err) {
+  if (err instanceof CursorAgentError) process.exit(1);
+  throw err;
+}
+```
+
+- Exit code 1: Startup failure (thrown `CursorAgentError`)
+- Exit code 2: Run failure (`result.status == "error"`)
+- Exit code 0: Success (`result.status == "finished"`)
+
+#### Step 5: Production Hardening
+
+1. Always dispose (`await using` or `with ... as`)
+2. Log `run.id` and `agent.agentId` immediately after `send()`
+3. Respect `isRetryable` / `is_retryable` flag
+4. Honor `retry_after` in Python before exponential backoff
+5. For CI cloud agents, set `skipReviewerRequest: true`
+6. Prefer `Agent.prompt()` for true one-shots
+7. Don't load ambient settings unless needed
+8. Pass apiKey explicitly in shared code
+
+### Success Criteria
+- [ ] Correct language variant selected
+- [ ] API key configured and tested
+- [ ] Runtime explicitly configured
+- [ ] Error handling distinguishes startup vs run failures
+- [ ] Proper disposal pattern used
+- [ ] Production best practices applied
+
+---
+
+## SOP-06: Code Review with Bugbot
+
+### Purpose
+Review code changes for bugs using the Bugbot subagent.
+
+### Procedure
+
+1. **Determine diff type**
+   - `branch changes`: Committed, staged, and unstaged changes vs base branch
+   - `uncommitted changes`: Only local working tree / dirty / not-yet-committed
+
+2. **Check out target branch** (if reviewing specific PR/branch)
+   - Resolve PR link or branch name to target branch
+   - If already checked out, continue
+   - If different branch checked out, attempt to switch
+   - If Git refuses, explain blocker and ask to stash
+
+3. **Launch Bugbot subagent**
+   ```
+   Full Repository Path: <absolute path>
+   Diff: branch changes
+   Base Branch: <only if reviewing against specific branch>
+   Custom Instructions: <only if user gave specific instructions>
+   ```
+
+4. **Summarize results**
+   - No diff found: Report in one sentence
+   - No issues: "Bugbot found no bugs"
+   - Issues found: Print compact table
+
+5. **Do NOT fix findings** unless explicitly asked
+
+### Finding Summary Table Format
+
+| Severity | Location | Finding |
+|---|---|---|
+| Critical | `src/auth.ts:42` | SQL injection in query |
+| High | `src/api.ts:15` | Missing error handling |
+
+Sorted by severity (highest first).
+
+---
+
+## SOP-07: Security Review with Subagent
+
+### Purpose
+Review code changes for security vulnerabilities using the Security Review subagent.
+
+### Procedure (identical to Bugbot SOP)
+
+1. **Check out target branch**
+2. **Launch Security Review subagent**
+   ```
+   Full Repository Path: <absolute path>
+   Diff: branch changes
+   Custom Instructions: <optional>
+   ```
+3. **Summarize results**
+4. **Do NOT fix findings** unless explicitly asked
+
+### Review Focus Areas
+- Injection vulnerabilities (SQL, XSS, command injection)
+- Authentication and authorization bypass
+- Sensitive data exposure
+- Insecure dependencies
+- Misconfigurations
+
+---
+
+## SOP-08: Canvas Creation
+
+### Purpose
+Create a Canvas artifact for analytical output.
+
+### Procedure
+
+1. **Decide if Canvas is needed**
+   - Standalone analytical artifact? → Yes, use Canvas
+   - Specific tool request? → No, use the tool
+   - Targeted deliverable? → No, plain text
+   - Working within existing artifact? → No, edit existing
+   - Short factual answer? → No, plain text
+
+2. **Write the .canvas.tsx file**
+   - Location: `~/.cursor/projects/<workspace>/canvases/<name>.canvas.tsx`
+   - Single file, no helpers
+   - Import only from `cursor/canvas`
+   - Default-export top-level component
+   - Embed all data inline
+   - Never render empty states
+
+3. **Run pre-delivery self-check**
+   - [ ] Visual hierarchy exists (one thing stands out)
+   - [ ] Composition has variety (not uniform blocks)
+   - [ ] No forbidden patterns (gradients, emojis, box-shadows, wall of cards, rainbow coloring, giant text, decorative borders)
+
+4. **Present with link**
+   ```markdown
+   [analysis-name](/Users/<user>/.cursor/projects/<workspace>/canvases/analysis-name.canvas.tsx)
+   ```
+
+### Success Criteria
+- [ ] Canvas file written to correct path
+- [ ] TypeScript check passes
+- [ ] Visual hierarchy present
+- [ ] No forbidden patterns
+- [ ] Link presented to user
+
+---
+
+## SOP-09: PR Babysitting Loop
+
+### Purpose
+Keep a PR merge-ready by resolving conflicts, triaging comments, and fixing CI in a loop.
+
+### Procedure
+
+1. **Check PR status**
+   - Merge conflicts present? → Resolve intelligently, preserve intent
+   - Unresolved comments? → Review and address valid change requests
+   - CI failures? → Fix only failures caused by PR changes
+
+2. **Resolve merge conflicts**
+   - Preserve intent of both branches
+   - If intents conflict, abort and ask for clarification
+
+3. **Triaging comments**
+   - Filter out resolved threads first
+   - Read comment body and minimum location needed
+   - Validate Bugbot-reported issues; only act on valid ones
+
+4. **Fix CI issues**
+   - Only fix failures caused by changes within PR's scope
+   - Never change CI checks/workflows just to make failures pass
+   - If merge-blocking failure seems unrelated, check if branch is behind base and merge latest
+   - Push scoped fixes and re-watch CI
+
+5. **Verify merge-ready**
+   - Green CI
+   - No unresolved blockers
+   - Comments triaged
+   - Merge conflicts resolved
+
+---
+
+## SOP-10: Settings Change Procedure
+
+### Purpose
+Safely modify Cursor settings.
+
+### Procedure
+
+1. **Read current settings**
+   - Windows: `%APPDATA%\Cursor\User\settings.json`
+   - macOS: `~/Library/Application Support/Cursor/User/settings.json`
+   - Linux: `~/.config/Cursor/User/settings.json`
+
+2. **Identify setting** using the mapping table in [Settings & Configuration](08-settings-configuration.mdc)
+
+3. **Validate JSON syntax** before writing
+
+4. **Update the setting**
+   - Parse existing JSON
+   - Add or modify the requested setting
+   - Preserve all other existing settings
+   - Write back with 2-space indentation
+
+5. **Inform user** of the change and whether a reload is needed
+
+### Reload Requirements
+
+| Requires Reload | Immediate |
+|---|---|
+| `workbench.colorTheme` | `editor.fontSize` |
+| `workbench.iconTheme` | `editor.tabSize` |
+| `files.autoSave` | `editor.formatOnSave` |
+| `terminal.integrated.fontSize` (new terminals only) | `editor.wordWrap` |
+
+---
+
+## Related Documents
+
+- [Command Reference](11-command-reference.mdc) -- Tools used in each SOP
+- [SDK Reference](07-sdk-reference.mdc) -- SDK integration patterns
+- [Rules System](03-rules-system.mdc) -- Rule creation procedure
+- [Skills System](04-skills-system.mdc) -- Skill creation procedure
+- [MCP Integration](05-mcp-integration.mdc) -- MCP setup procedure
+
+## New SOPs
+
+### SOP-11: AI-Assisted Git Workflow
+
+**Purpose**: Use Cursor's AI capabilities for Git operations including commit messages, branch management, and PR integration.
+
+1. **AI-generated commit messages**
+   - Use `Ctrl+Shift+G` / `Cmd+Shift+G` for conventional commits
+   - Review and edit generated messages
+   - See [Git Integration](25-git-integration.mdc) for details
+
+2. **Branch-aware operations**
+   - Agent automatically detects current branch
+   - Use branch names for context (e.g., `feature/add-search`)
+   - See [Model Providers](16-model-providers.mdc) -- Provider configuration
+
+### SOP-12: Plan Mode for Architecture Decisions
+
+**Purpose**: Use Plan Mode for complex decisions that require analysis and options before implementation.
+
+1. **Present options** to user before making changes
+2. **Recommend approach** with pros/cons
+3. **Switch to Agent Mode** after user approval
+4. **Implement** approved approach
+
+### SOP-13: Secure Agent Operation
+
+**Purpose**: Operate the agent safely with proper escalation and compliance.
+
+1. **Critical operations** always require confirmation (DELETE, DROP, sudo)
+2. **Security changes** flagged for review
+3. **Audit trail** maintained via Git history
+4. See [Secure Agent Behavior](33-secure-agent-behavior.mdc) -- Safety guardrails
+

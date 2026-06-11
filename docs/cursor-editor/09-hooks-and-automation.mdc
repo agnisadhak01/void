@@ -1,0 +1,253 @@
+---
+description: "Cursor hooks and automation reference: event-driven workflows, hooks.json format, and automation patterns"
+tags: [hooks, automation, events, workflow, triggers]
+---
+
+# Cursor Editor — Hooks & Automation
+
+## Overview
+
+Cursor Hooks provide event-driven automation that triggers scripts or commands in response to agent actions. Hooks enable custom workflows without manual invocation, bridging the gap between the agent's actions and external systems.
+
+---
+
+## What Are Hooks
+
+Hooks are configuration-driven event listeners that execute in response to specific agent activities:
+
+```
+Agent Action → Hook Trigger → Script Execution → Result
+```
+
+Hooks run in the context of the active workspace and have access to:
+- The current file state
+- Git information
+- Environment variables
+- The agent's action history
+
+---
+
+## hooks.json Configuration
+
+### File Location
+
+```
+.cursor/hooks.json
+```
+
+### File Format
+
+Hooks are defined as a JSON array of hook configurations:
+
+```json
+[
+  {
+    "event": "<event-type>",
+    "script": "<path-to-script>",
+    "options": {
+      "when": "<condition>",
+      "env": { "<key>": "<value>" }
+    }
+  }
+]
+```
+
+### Configuration Fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `event` | string | Yes | The event type to listen for |
+| `script` | string | Yes | Path to the script to execute |
+| `options.when` | string | No | Condition for execution |
+| `options.env` | object | No | Environment variables for the script |
+
+---
+
+## Hook Events
+
+Hooks respond to agent actions throughout the development lifecycle. Available event types correspond to common agent operations.
+
+### Event Categories
+
+| Category | Trigger | Use Case |
+|---|---|---|
+| **File operations** | File creation, modification, deletion | Auto-formatting, linting, validation |
+| **Git operations** | Commit, push, branch change | Pre-commit hooks, changelog updates |
+| **Agent actions** | Task completion, tool usage | Logging, analytics, notifications |
+| **PR operations** | PR creation, comment, merge | CI triggering, review assignment |
+
+---
+
+## Automation Patterns
+
+### Pattern 1: Post-Task Logging
+
+Automatically log agent activity for analytics or auditing:
+
+```json
+[
+  {
+    "event": "task.completed",
+    "script": "scripts/log-task.js",
+    "options": {
+      "env": {
+        "LOG_DIR": "./logs/agent"
+      }
+    }
+  }
+]
+```
+
+### Pattern 2: Pre-Commit Validation
+
+Run validation scripts before commits:
+
+```json
+[
+  {
+    "event": "git.commit",
+    "script": "scripts/validate-before-commit.sh",
+    "options": {
+      "when": "agent.initiates.commit"
+    }
+  }
+]
+```
+
+### Pattern 3: Auto-Documentation
+
+Generate documentation when code changes are made:
+
+```json
+[
+  {
+    "event": "file.modified",
+    "script": "scripts/update-docs.js",
+    "options": {
+      "when": "file.path.matches('src/**/*.ts')"
+    }
+  }
+]
+```
+
+### Pattern 4: Notification Hooks
+
+Send notifications for agent actions:
+
+```json
+[
+  {
+    "event": "agent.run.start",
+    "script": "scripts/notify-start.js"
+  },
+  {
+    "event": "agent.run.complete",
+    "script": "scripts/notify-complete.js"
+  }
+]
+```
+
+---
+
+## Hooks vs Manual Agent Invocation
+
+### When to Use Hooks
+
+| Scenario | Use Hook | Reason |
+|---|---|---|
+| Automated post-processing | Yes | Runs automatically, no manual trigger needed |
+| Consistent validation | Yes | Ensures every agent action passes checks |
+| Notification systems | Yes | Centralized event handling |
+| Audit logging | Yes | Persistent, automated recording |
+| One-off tasks | No | Manual invocation is sufficient |
+| Complex decision logic | No | Agent should make the decision explicitly |
+| User-interaction required | No | Hooks run silently |
+
+### When to Use Manual Agent Invocation
+
+| Scenario | Use Manual | Reason |
+|---|---|---|
+| Interactive workflows | Yes | User needs to make choices |
+| Complex multi-step processes | Yes | Agent can evaluate and adapt |
+| User confirmation required | Yes | Hooks cannot prompt for confirmation |
+| Ad-hoc experiments | Yes | No permanent configuration needed |
+
+---
+
+## Integration with Other Systems
+
+### MCP Integration
+
+Hooks can trigger MCP tool calls for external integrations:
+
+```json
+[
+  {
+    "event": "file.saved",
+    "script": "scripts/trigger-mcp-sync.js"
+  }
+]
+```
+
+The script can use `CallMcpTool` or HTTP requests to invoke MCP servers.
+
+### SDK Integration
+
+Hooks can interact with the Cursor SDK for programmatic control:
+
+```json
+[
+  {
+    "event": "agent.run.complete",
+    "script": "scripts/sdk-report.js"
+  }
+]
+```
+
+### Canvas Integration
+
+Hooks can trigger canvas creation for reporting:
+
+```json
+[
+  {
+    "event": "pr.merged",
+    "script": "scripts/generate-report-canvas.js"
+  }
+]
+```
+
+---
+
+## Best Practices
+
+### Script Design
+
+1. **Keep scripts idempotent** -- Running the same hook twice should have the same effect as running it once
+2. **Handle errors gracefully** -- Hooks should not block the agent's workflow
+3. **Use exit codes** -- Exit 0 for success, non-zero for failures
+4. **Log output** -- Capture stdout/stderr for debugging
+5. **Timeout handling** -- Scripts should have reasonable timeouts
+
+### Configuration Design
+
+1. **Version control hooks.json** -- Track hook changes in git
+2. **Environment-specific hooks** -- Use different hooks for dev/staging/prod
+3. **Minimal hooks** -- Only configure hooks that provide clear value
+4. **Document hooks** -- Add comments explaining what each hook does
+
+### Security
+
+1. **Validate scripts** -- Only run scripts from trusted sources
+2. **Restrict permissions** -- Hooks should have minimal file system access
+3. **No sensitive data** -- Don't pass secrets through hook environment variables
+4. **Audit trail** -- Maintain logs of hook executions
+
+---
+
+## Related Documents
+
+- [Architecture Overview](01-overview.mdc) -- Hooks as an integration point
+- [SDK Reference](07-sdk-reference.mdc) -- SDK integration from hooks
+- [MCP Integration](05-mcp-integration.mdc) -- MCP integration from hooks
+- [Command Reference](11-command-reference.mdc) -- Hook-related commands

@@ -1,0 +1,340 @@
+---
+title: Cursor Editor — Composer & Keyboard Shortcuts
+description: Complete reference for the Cursor Composer (inline edit and side panel chat), keyboard shortcuts, slash commands, and file context management.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, editor, composer, shortcuts, keyboard, slash-commands, inline-edit, chat]
+---
+
+# Cursor Editor — Composer & Keyboard Shortcuts
+
+## Overview
+
+The **Composer** is Cursor's primary interaction surface. It is the interface through which developers communicate with the AI agent to edit code, ask questions, generate files, and manage project tasks. The Composer has two distinct entry points:
+
+- **Inline Edit** (Cmd+K / Ctrl+K): Modifies selected text in the current file
+- **Side Panel Chat** (Cmd+L / Ctrl+L): Full conversation with access to all project context
+
+The Composer differs from standard editor chat panels by automatically including rich contextual information (selected code, open files, file paths, @-references) and by executing edits directly in the editor rather than just generating text in a chat bubble.
+
+---
+
+## Keyboard Shortcuts
+
+### Core Shortcuts
+
+| Shortcut | Platform | Action | Description |
+|----------|----------|--------|-------------|
+| `Cmd+K` / `Ctrl+K` | Mac / Windows | Open Inline Edit | Opens Composer inline in the editor at cursor position |
+| `Cmd+L` / `Ctrl+L` | Mac / Windows | Open Side Panel Chat | Opens Composer in the sidebar for full conversation |
+| `Cmd+Enter` / `Ctrl+Enter` | Mac / Windows | Submit Prompt | Sends the current prompt in any Composer panel |
+| `Escape` | All | Dismiss Composer | Closes the Composer panel inline or in side panel |
+| `Cmd+Shift+K` / `Ctrl+Shift+K` | Mac / Windows | New Composer Tab | Opens a fresh inline edit prompt |
+| `Tab` | All | Accept Completion | Accepts Tab autocompletion suggestion |
+| `Ctrl+Right` / `Cmd+Right` | Mac / Windows | Accept Next Word | Accepts the next word in the completion |
+
+### Inline Edit Shortcuts (Active in Inline Prompt)
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+Enter` | Submit the inline edit prompt |
+| `Cmd+Z` | Undo the last generated edit |
+| `Escape` | Cancel the inline edit without applying changes |
+| Arrow Up | Navigate through the current file context |
+
+### Side Panel Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+Shift+N` | New Composer chat session |
+| `Cmd+Shift+G` | Generate commit message |
+| `Cmd+Shift+H` | Open history sidebar |
+| `Cmd+Shift+F` | Search codebase |
+
+---
+
+## Inline Edit Flow (Cmd+K / Ctrl+K)
+
+### When to Use Inline Edit
+
+Inline editing is the most efficient way to make targeted code changes. Use it when:
+
+- You want to modify specific lines of code
+- You need to add documentation to a function
+- You want to refactor a specific block
+- You need to fix a bug in a known location
+- You want to generate tests for existing code
+
+### Inline Edit Workflow
+
+```mermaid
+flowchart TD
+    A[Select code in editor] --> B[Press Cmd+K / Ctrl+K]
+    B --> C[Type instruction or question]
+    C --> D[Press Cmd+Enter]
+    D --> E[Agent generates edits]
+    E --> F{Inline diff view appears}
+    F -->|Accept| G[Changes applied to file]
+    F -->|Reject| H[Changes discarded]
+    F -->|Customize| I[Modify the prompt and resubmit]
+    G --> J[Continue working]
+    H --> J
+    I --> D
+```
+
+### Step-by-Step
+
+1. **Select code** — Highlight the code you want to modify (can be single line, multiple lines, or entire file)
+2. **Open inline prompt** — Press `Cmd+K` (Mac) or `Ctrl+K` (Windows)
+3. **Type instruction** — Describe what you want to change:
+   - "Refactor this to use async/await"
+   - "Add error handling for network failures"
+   - "Convert this to TypeScript"
+4. **Submit** — Press `Cmd+Enter`
+5. **Review diff** — The agent presents changes in an inline diff view
+6. **Accept or reject** — Accept to apply changes, reject to discard, or customize to refine the prompt
+
+### Inline Edit Best Practices
+
+- **Be specific about location**: Inline edits automatically target selected code — describe what to change in the selected block
+- **Use natural language**: "Make this more efficient" or "Add input validation"
+- **Include constraints**: "Keep the existing API signature" or "Don't change the error handling"
+- **Small changes work best**: For large refactors, use the side panel with file-level context
+
+---
+
+## Side Panel Chat (Cmd+L / Ctrl+L)
+
+### When to Use Side Panel Chat
+
+The side panel provides a full conversation experience with broader context. Use it when:
+
+- You need to explain a complex problem or architecture question
+- You want to generate new files or features
+- You need to debug across multiple files
+- You want to review or refactor large sections of code
+- You need help understanding unfamiliar codebases
+
+### Side Panel Features
+
+- **Full conversation history**: Multiple turns with persistent context
+- **Rich @-reference system**: Automatically includes selected code, open files, and file paths
+- **File targeting**: Drag and drop files or use `@file` to include specific files
+- **Multi-turn context**: Agent remembers previous messages in the session
+
+### Side Panel Context Auto-Inclusion
+
+The Composer automatically includes contextual information in side panel prompts:
+
+| Context Element | How It's Included | Example |
+|----------------|-------------------|---------|
+| **Selected code** | Highlighted text in editor | @code block with line references |
+| **Open files** | Currently open tabs in editor | File paths added to context |
+| **Active file** | File where cursor is positioned | Full path included automatically |
+| **@-references** | Explicit `@` mentions | @file, @folder, @code, @rule |
+
+### Side Panel Workflow
+
+```mermaid
+flowchart LR
+    A[Open side panel Cmd+L] --> B[Context auto-included: open files, selection]
+    B --> C[Type question or request]
+    C --> D[Submit Cmd+Enter]
+    D --> E[Agent responds]
+    E --> F{Follow-up needed?}
+    F -->|Yes| C
+    F -->|No| G[Accept generated changes]
+    G --> H[Continue conversation or start new task]
+```
+
+### Multi-Turn Conversation
+
+The side panel supports continuous dialogue:
+
+1. Ask a question about the codebase
+2. Agent responds with analysis
+3. Follow up with clarifications or deeper questions
+4. Agent maintains context from previous messages
+5. Use `Cmd+Shift+N` to start a new session when context needs refreshing
+
+---
+
+## Slash Commands
+
+Cursor supports slash commands as a quick way to trigger predefined agent behaviors:
+
+### Core Slash Commands
+
+| Command | Description | When to Use |
+|---------|-------------|-------------|
+| `/fix` | Analyze and fix errors in selected code | When code has bugs, lint errors, or runtime issues |
+| `/test` | Generate tests for selected code | After writing a function or class that needs test coverage |
+| `/new` | Create a new file with the agent | When starting a new feature, component, or module |
+| `/help` | Get help about Cursor features | When unsure about how to use a feature |
+| `/upgrade` | Upgrade to a newer model version | When you want to use a more capable model for a task |
+| `/explain` | Explain the selected code in detail | When reviewing unfamiliar code or understanding complex logic |
+| `/docs` | Generate documentation for selected code | When creating API docs, README, or function documentation |
+| `/commit` | Generate a commit message | After staging changes, using git diff context |
+| `/review` | Review selected code for quality | Before submitting PRs or after refactoring |
+| `/refactor` | Refactor selected code | When improving code structure while maintaining behavior |
+
+### Slash Command Behavior
+
+Each slash command follows a consistent pattern:
+
+1. **Trigger**: Type the command in the Composer input
+2. **Context capture**: Agent captures selected code, active file, and project context
+3. **Execution**: Agent performs the specific action (fix, generate, explain, etc.)
+4. **Output**: Results presented as inline edits (for code changes) or chat responses (for explanations)
+
+### Slash Command Examples
+
+```
+// Fix errors in selected code
+/select line 10-25
+/fix
+
+// Generate unit tests
+/select myFunction()
+/test
+
+// Explain complex logic
+/select the conditional block
+/explain
+
+// Document a function
+/select the public API
+/docs
+```
+
+---
+
+## Composer vs Standard Chat
+
+### Key Differences
+
+| Aspect | Composer (Cmd+K/L) | Standard Chat |
+|--------|-------------------|---------------|
+| **Context** | Auto-includes selected code, open files | User must manually reference files |
+| **Output** | Can directly edit code in editor | Generates text in chat bubble |
+| **Execution** | Can run tools, files, and terminal commands | Text-only responses |
+| **Shortcuts** | Keyboard-driven workflow | Mouse-driven interface |
+| **Integration** | Deeply integrated with editor | Standalone panel |
+| **Use case** | Code modification, quick fixes | Exploration, explanation, planning |
+
+### When to Use Each
+
+```mermaid
+flowchart TD
+    A[Need AI assistance] --> B{What type of action?}
+    B -->|Modify code| C[Cmd+K Inline Edit]
+    B -->|Explain or chat| D[Cmd+L Side Panel]
+    B -->|Generate new file| E[Cmd+L with /new]
+    B -->|Quick fix| F[Cmd+K with /fix]
+    B -->|Test generation| G[Cmd+K with /test]
+    C --> H[Select code first]
+    D --> I[Type question]
+    E --> J[Describe file content]
+    F --> K[Select buggy code]
+    G --> L[Select code to test]
+```
+
+---
+
+## File Context Management
+
+### Automatic Context
+
+The Composer automatically includes:
+
+1. **Active file**: The file currently being viewed or edited
+2. **Selected code**: Any text highlighted in the editor
+3. **Open files**: Files currently open in editor tabs (limited context window)
+4. **File path**: Full path to the active file for context lookup
+5. **Line references**: Exact line numbers in the selected code
+
+### Manual Context Control
+
+| Action | How to Execute | Result |
+|--------|----------------|--------|
+| Include specific file | Type `@filename` | Adds full file content to context |
+| Include directory | Type `@folder/` | Adds all files in directory to context |
+| Include symbol | Type `@FunctionName` | Adds that function/class to context |
+| Include rule | Type `@rule-name.mdc` | Adds the rule file to context |
+| Exclude file | Press Escape and deselect | Removes from active context |
+
+### Context Window Considerations
+
+- The Composer has a limited context window that fills with included content
+- When the window is full, the agent prioritizes recent and relevant context
+- For very large projects, be selective with `@` references
+- Use inline edits (Cmd+K) for focused tasks to minimize context overhead
+
+---
+
+## Composer Settings
+
+The following Cursor settings control Composer behavior:
+
+```json
+{
+  // Enable or disable inline completions
+  "editor.tabAutocompletion": true,
+  
+  // Composer panel position
+  "workbench.panel.defaultLocation": "right",
+  
+  // Enable Composer history
+  "cursor.history.enabled": true,
+  
+  // Auto-include context settings
+  "cursor.context.includeOpenFiles": true,
+  "cursor.context.includeSelectedCode": true
+}
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Composer does not open | Shortcut conflict or extension issue | Check `settings.json` for conflicting keybindings |
+| Inline edits not applied | Agent rejected or context too broad | Narrow the selection, be more specific in prompt |
+| Side panel missing context | Open files not included | Use `@file` explicitly or open relevant tabs |
+| Slow response | Large context window | Reduce `@` references, use inline edit for focused tasks |
+| Changes not appearing | Rejecting or cancelling | Check editor undo history with `Cmd+Z` |
+| Slash commands not working | Cursor version or permission | Verify Cursor version supports slash commands |
+
+### Best Practices for Reliable Results
+
+1. **Be specific in prompts**: Clear instructions produce better results
+2. **Select relevant code**: Include only the code you want modified
+3. **Use appropriate context**: Add `@` references only for files that matter
+4. **Iterate incrementally**: Small changes are more reliable than large refactors
+5. **Review diffs carefully**: Always verify agent-generated changes before accepting
+6. **Use the right entry point**: Inline edit for targeted changes, side panel for exploration
+
+---
+
+## Relationship to Other Systems
+
+The Composer integrates with all major Cursor subsystems:
+
+- **[Agent Hierarchy](mdc:02-agent-hierarchy.mdc)**: Composer prompts are routed to the main agent, which may spawn subagents for complex tasks
+- **[Context Management](mdc:10-context-management.mdc)**: The `@`-reference system and context auto-inclusion are managed through the context system
+- **[Commands Reference](mdc:11-command-reference.mdc)**: Slash commands invoke the same tool infrastructure as manual agent operations
+- **[Rules System](mdc:03-rules-system.mdc)**: Rules files can influence Composer behavior when their matching globs include the active file
+- **[Skills System](mdc:04-skills-system.mdc)**: Skills can modify how the Composer responds to specific prompts
+
+---
+
+## Related Documents
+
+- [Architecture Overview](mdc:01-overview.mdc) — System layers and integration points
+- [Agent Hierarchy](mdc:02-agent-hierarchy.mdc) — Subagent types and launch modes
+- [Context Management](mdc:10-context-management.mdc) — @-references and context efficiency
+- [Command Reference](mdc:11-command-reference.mdc) — All tools and parameters
+- [Standard Operating Procedures](mdc:12-sop-operations.mdc) — Composer-based workflows

@@ -1,0 +1,103 @@
+---
+title: Cursor Editor — Production Documentation
+description: Complete reference for Cursor AI Editor architecture, agents, skills, rules, SDK, MCP, canvas, settings, and standard operating procedures.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, editor, architecture, agents, skills, rules, sdk, mcp, canvas, documentation, sop]
+---
+
+# Cursor Editor — Production Documentation
+
+> _Complete reference for the Cursor AI Editor system — architecture, agent hierarchy, skills, rules, SDK, MCP integration, canvas system, settings, and standard operating procedures._
+
+## Purpose
+
+This documentation set provides a single source of truth for understanding, operating, and extending the Cursor AI Editor. It covers the full system stack from the editor core through the agent engine, skills system, rules system, MCP integration, SDK layer, and Canvas artifacts.
+
+## Target Audience
+
+| Audience | Priority Chapters |
+|---|---|
+| **Developers** | 02 (Agent Hierarchy), 03 (Rules), 04 (Skills), 07 (SDK), 11 (Command Reference) |
+| **DevOps / Platform** | 05 (MCP), 07 (SDK), 09 (Hooks), 10 (Context) |
+| **Team Leads / Architects** | 01 (Overview), 02 (Agent Hierarchy), 04 (Skills), 12 (SOPs) |
+| **AI Researchers** | 01 (Overview), 02 (Agent Hierarchy), 10 (Context Management) |
+
+## Quick Navigation
+
+| # | Document | Path | Scope |
+|---|---|---|---|
+| 0 | [Master Index (this file)](mdc:README.mdc) | `README.mdc` | Overview, navigation, version history |
+| 1 | [Architecture Overview](mdc:01-overview.mdc) | `01-overview.mdc` | System layers, agent workflow, local vs cloud |
+| 2 | [Agent Hierarchy](mdc:02-agent-hierarchy.mdc) | `02-agent-hierarchy.mdc` | All 8 subagent types, launch modes, models |
+| 3 | [Rules System](mdc:03-rules-system.mdc) | `03-rules-system.mdc` | `.mdc` files, attach types, categories, authoring |
+| 4 | [Skills System](mdc:04-skills-system.mdc) | `04-skills-system.mdc` | Skill structure, storage, authoring guide, examples |
+| 5 | [MCP Integration](mdc:05-mcp-integration.mdc) | `05-mcp-integration.mdc` | MCP servers, resources, tools, authentication |
+| 6 | [Canvas System](mdc:06-canvas-system.mdc) | `06-canvas-system.mdc` | Canvas artifacts, rules, design guidelines |
+| 7 | [SDK Reference](mdc:07-sdk-reference.mdc) | `07-sdk-reference.mdc` | TypeScript/Python SDK, patterns, traps, best practices |
+| 8 | [Settings & Configuration](mdc:08-settings-configuration.mdc) | `08-settings-configuration.mdc` | Settings locations, categories, common mappings |
+| 9 | [Hooks & Automation](mdc:09-hooks-and-automation.mdc) | `09-hooks-and-automation.mdc` | Event-driven automation, hooks.json |
+| 10 | [Context Management](mdc:10-context-management.mdc) | `10-context-management.mdc` | `@`-references, MCP context, progressive disclosure |
+| 11 | [Command Reference](mdc:11-command-reference.mdc) | `11-command-reference.mdc` | All tools, parameter patterns, selection guidelines |
+| 12 | [Standard Operating Procedures](mdc:12-sop-operations.mdc) | `12-sop-operations.mdc` | 10 production-grade SOPs |
+| 13 | [Composer & Keyboard Shortcuts](mdc:13-composer-and-shortcuts.mdc) | `13-composer-and-shortcuts.mdc` | Cmd+K, Cmd+L, slash commands, Composer workflows |
+| 14 | [Custom Subagents](mdc:14-custom-subagents.mdc) | `14-custom-subagents.mdc` | `.cursor/agents/` format, priority, authoring |
+| 15 | [Automations Editor](mdc:15-automations.mdc) | `15-automations.mdc` | Cloud agent scheduling, triggers, YAML format |
+| 16 | [Model Providers](mdc:16-model-providers.mdc) | `16-model-providers.mdc` | Provider config, custom endpoints, Ollama |
+| 17 | [Tab Autocompletions](mdc:17-tab-autocompletions.mdc) | `17-tab-autocompletions.mdc` | Tab completions, context sources, configuration |
+| 18 | [Claude Code CLI](mdc:18-claude-code-cli.mdc) | `18-claude-code-cli.mdc` | CLI tool, commands, Git integration, CI/CD |
+| 19 | [Agent Settings & Configuration](mdc:19-agent-settings.mdc) | `19-agent-settings.mdc` | Mode config, per-mode providers, context windows, custom instructions |
+| 20 | [Cursor Cloud](mdc:20-cursor-cloud.mdc) | `20-cursor-cloud.mdc` | cursor.com, team management, billing, API keys |
+| 22 | [Agent Debugging & Diagnostics](mdc:22-agent-debugging.mdc) | `22-agent-debugging.mdc` | Agent output, debug logging, session tracing |
+| 25 | [Git Integration with AI](mdc:25-git-integration.mdc) | `25-git-integration.mdc` | AI commits, branch context, PR integration, Git operations |
+| 26 | [Data Privacy](mdc:26-data-privacy.mdc) | `26-data-privacy.mdc` | Local vs cloud, telemetry, compliance, enterprise settings |
+| 27 | [Agent Reasoning](mdc:27-agent-reasoning.mdc) | `27-agent-reasoning.mdc` | Tool selection, multi-step planning, self-correction |
+| 28 | [Context Windows & Compaction](mdc:28-context-compaction.mdc) | `28-context-compaction.mdc` | Context window mechanics, compaction triggers, user strategies |
+| 29 | [Plan Mode](mdc:29-plan-mode.mdc) | `29-plan-mode.mdc` | Ask vs Agent vs Plan modes, mode switching, autonomy levels |
+| 30 | [Collaborative Editing](mdc:30-multiplayer.mdc) | `30-multiplayer.mdc` | Live Share integration, multiplayer AI, pair programming |
+| 31 | [Workspace Trust](mdc:31-workspace-trust.mdc) | `31-workspace-trust.mdc` | Trusted vs untrusted workspaces, feature restrictions |
+| 32 | [File-Type Behavior Mapping](mdc:32-file-association-rules.mdc) | `32-file-association-rules.mdc` | File-type agent adaptation, custom associations, skip patterns |
+| 33 | [Secure Agent Behavior](mdc:33-secure-agent-behavior.mdc) | `33-secure-agent-behavior.mdc` | Safety guardrails, content filters, escalation, compliance |
+
+## Documentation Phases
+
+| Phase | Status | Documents |
+|---|---|---|
+| **Phase 1** (Core) | Complete | Docs 01-12 |
+| **Phase 1** (Feature Docs) | Complete | Docs 13-18 |
+| **Phase 2** (SHOULD) | Complete | Docs 19-20, 22, 25-29 |
+| **Phase 3** (NICE) | Complete | Docs 28, 30-33 |
+
+## File Naming Convention
+
+All documentation follows the pattern:
+
+```
+<NN>-<topic>.mdc
+```
+
+- `NN` = zero-padded sequence number
+- `topic` = kebab-case topic name
+- Extension = `.mdc` (Markdown Cursor-compatible)
+
+## Version History
+
+| Date | Version | Changes |
+|---|---|---|
+| 2026-06-11 | 1.1.0 | Added Phase 2-3 docs (19-20, 22, 25-29, 28, 30-33), updated cross-references |
+| 2026-06-11 | 1.0.0 | Initial creation — all 13 documents |
+
+## Cross-References
+
+Documents reference each other using the `mdc:` scheme:
+
+```markdown
+- See [Agent Hierarchy](mdc:02-agent-hierarchy.mdc) for subagent details
+- See [SDK Reference](mdc:07-sdk-reference.mdc) for API patterns
+```
+
+For file-based references (same directory):
+
+```markdown
+- [01-overview.mdc](01-overview.mdc)
+```

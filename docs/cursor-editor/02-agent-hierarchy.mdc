@@ -1,0 +1,421 @@
+---
+description: "Complete taxonomy of Cursor subagent types, launch modes, orchestration patterns, and model options"
+tags: [agents, subagents, hierarchy, orchestration, task-tool]
+---
+
+# Cursor Editor — Agent Hierarchy
+
+## Overview
+
+Cursor's agent architecture consists of a **Main Agent** (the conversational AI you interact with) and **Subagents** (specialized workers launched via the `Task` tool for focused, often parallelizable tasks).
+
+```mermaid
+graph TB
+    MA[Main Agent / Conversational AI]
+    
+    MA -->|Task Tool| T[Task Launcher]
+    
+    T --> SA1[generalPurpose]
+    T --> SA2[explore]
+    T --> SA3[shell]
+    T --> SA4[cursor-guide]
+    T --> SA5[ci-investigator]
+    T --> SA6[bugbot]
+    T --> SA7[security-review]
+    T --> SA8[best-of-n-runner]
+    
+    subgraph "Launch Modes"
+        LM1[Foreground - run_in_background: false]
+        LM2[Background - run_in_background: true]
+        LM3[Resume - resume: <agent-id>]
+        LM4[Fork - resume: "self"]
+    end
+    
+    SA1 -.-> LM1
+    SA2 -.-> LM1
+    SA3 -.-> LM1
+    SA4 -.-> LM1
+    SA5 -.-> LM1
+    SA6 -.-> LM1
+    SA7 -.-> LM1
+    SA8 -.-> LM1
+    
+    SA1 -.-> LM2
+    SA2 -.-> LM2
+    SA3 -.-> LM2
+    SA4 -.-> LM2
+    SA5 -.-> LM2
+    SA6 -.-> LM2
+    SA7 -.-> LM2
+    SA8 -.-> LM2
+    
+    SA1 -.-> LM3
+    SA2 -.-> LM3
+    SA3 -.-> LM3
+    SA4 -.-> LM3
+    SA5 -.-> LM3
+    SA6 -.-> LM3
+    SA7 -.-> LM3
+    SA8 -.-> LM3
+    
+    SA1 -.-> LM4
+    SA2 -.-> LM4
+    SA3 -.-> LM4
+    SA4 -.-> LM4
+    SA5 -.-> LM4
+    SA6 -.-> LM4
+    SA7 -.-> LM4
+    SA8 -.-> LM4
+```
+
+## Main Agent vs Subagents
+
+| Aspect | Main Agent | Subagent |
+|---|---|---|
+| **Role** | Conversational AI, task coordinator | Specialized worker for focused tasks |
+| **Launch** | Always present in chat | Launched via `Task` tool |
+| **Autonomy** | Full tool access | Depends on subagent_type |
+| **Parallelism** | Sequential (one at a time) | Can run multiple in parallel |
+| **Background** | N/A | `run_in_background: true` supported |
+| **Resumability** | N/A | `resume: <agent-id>` supported |
+| **Forking** | N/A | `resume: "self"` supported |
+
+---
+
+## Subagent Type Reference
+
+### 1. `generalPurpose`
+
+**Purpose**: General-purpose agent for exploring codebases, researching questions, searching for code/files, and executing multi-step tasks.
+
+**When to Use**:
+- Keyword or file search where you're not confident you'll find the match quickly
+- Exploring unfamiliar codebases
+- Answering complex questions requiring multiple file reads
+- Multi-step implementation tasks
+
+**When NOT to Use**:
+- Simple single-file operations (use main agent tools directly)
+- Read-only exploration (use `explore` instead)
+- Shell commands (use `shell` instead)
+
+**Parameters**:
+```yaml
+description: "Clear, user-friendly title for the subagent"
+prompt: "Detailed task description with all necessary context"
+model: "Optional model slug (e.g., composer-2.5-fast)"
+resume: "Optional agent ID to resume, or 'self' to fork"
+readonly: false  # Default: agent can modify files
+subagent_type: "generalPurpose"
+file_attachments: "Optional array of image/video file paths"
+interrupt: false  # Stop running agent to send new prompt
+run_in_background: false
+```
+
+**Example**:
+```
+Task(description="Refactor auth module", prompt="Move all authentication logic from src/auth.ts to a new src/services/AuthService class...", subagent_type="generalPurpose")
+```
+
+---
+
+### 2. `explore`
+
+**Purpose**: Fast, read-only agent specialized for exploring codebases. Cannot modify files.
+
+**Thoroughness Levels**:
+| Level | Speed | Scope | Best For |
+|---|---|---|---|
+| `quick` | Fastest | Surface-level scan | Finding files by pattern, verifying existence |
+| `medium` | Moderate | Multiple locations, moderate depth | Answering "how does X work?" questions |
+| `very thorough` | Slowest | Comprehensive across all naming conventions | Deep architecture understanding, full dependency mapping |
+
+**When to Use**:
+- Finding files by glob patterns (e.g., `src/components/**/*.tsx`)
+- Searching code for keywords or patterns
+- Answering questions about how things work in the codebase
+- Any task where read-only access is sufficient
+
+**When NOT to Use**:
+- Any task requiring file modifications
+- Running shell commands
+- Asking Cursor product documentation questions
+
+**Example**:
+```
+Task(description="Find error handling patterns", prompt="Search for all error handling patterns in the codebase, looking at try/catch blocks and error middleware...", subagent_type="explore", readonly: true)
+```
+
+---
+
+### 3. `shell`
+
+**Purpose**: Command execution specialist for running bash commands.
+
+**When to Use**:
+- Git operations (status, diff, log, commit, push, branch)
+- Package manager commands (npm install, pip install, etc.)
+- Build commands (make, webpack, tsc, etc.)
+- File system operations (ls, find, mkdir, cat, etc.)
+- Any terminal command execution
+
+**When NOT to Use**:
+- Code changes (use `generalPurpose` or main agent)
+- File reads (use `Read` tool directly)
+- Search operations (use `Grep` or `explore`)
+
+**Best Practices**:
+- Quote file paths with spaces: `cd "/path with spaces"`
+- Chain independent commands with `&&` for sequential execution
+- Run independent commands in parallel via separate `Shell` tool calls
+- Use `;` only when you don't care if earlier commands fail
+
+**Example**:
+```
+Shell(command="git status && git diff --stat", description="Check git status and diff")
+```
+
+---
+
+### 4. `cursor-guide`
+
+**Purpose**: Reads Cursor product documentation to answer questions about Cursor features.
+
+**When to Use**:
+- "In Cursor, how do I [do X]?"
+- Questions about Cursor Desktop features
+- Questions about IDE capabilities
+- Cloud Agents documentation
+- Bugbot, Hook, or Skill documentation
+
+**When NOT to Use**:
+- Code-related questions (use `generalPurpose` or `explore`)
+- Questions about other tools/products (use WebSearch)
+
+**Example**:
+```
+Task(description="How do Cursor hooks work?", prompt="Explain how Cursor hooks work, including hooks.json format, available events, and execution model...", subagent_type="cursor-guide")
+```
+
+---
+
+### 5. `ci-investigator`
+
+**Purpose**: Investigates a single failing PR CI check and returns a root-cause summary.
+
+**When to Use**:
+- Summarizing a failed CI check
+- Explaining why a specific check failed
+- Diagnosing CI failures
+- Investigating test failures in pull requests
+
+**When NOT to Use**:
+- Investigating multiple checks (do one per subagent)
+- Fixing CI issues (use `shell` or `generalPurpose`)
+- Non-CI investigations
+
+**Input**: Specific CI check URL or identifier
+
+**Example**:
+```
+Task(description="Investigate failing unit tests", prompt="Investigate the failing unit tests in PR #123 and return root cause summary...", subagent_type="ci-investigator")
+```
+
+---
+
+### 6. `bugbot`
+
+**Purpose**: Reviews code changes for bugs, quality issues, and common pitfalls.
+
+**Configuration**:
+- `readonly: true` — Does not modify files
+- `run_in_background: false` — Must complete before proceeding (unless explicitly asked)
+- Single-shot, no resume support
+
+**Prompt Format**:
+```text
+Full Repository Path: <absolute repository path>
+Diff: <one of: "branch changes", "uncommitted changes">
+Base Branch: <only include when reviewing against a specific branch>
+Custom Instructions: <only include when user gave specific review instructions>
+```
+
+**Diff Types**:
+| Value | Description | Use When |
+|---|---|---|
+| `branch changes` | Compares against merge-base with default/base branch | Reviewing committed, staged, and unstaged changes (default) |
+| `uncommitted changes` | Reviews only local working tree / dirty / not-yet-committed | User asks to review only uncommitted changes |
+
+**Example**:
+```
+Task(description="Bugbot", prompt="Full Repository Path: /path/to/repo\nDiff: branch changes\nCustom Instructions: Focus on null pointer issues", subagent_type="bugbot", readonly: true, run_in_background: false)
+```
+
+---
+
+### 7. `security-review`
+
+**Purpose**: Reviews code changes for security vulnerabilities.
+
+**Configuration**:
+- `readonly: true` — Does not modify files
+- `run_in_background: false` — Must complete before proceeding (unless explicitly asked)
+- Single-shot, no resume support
+
+**Prompt Format** (identical to bugbot):
+```text
+Full Repository Path: <absolute repository path>
+Diff: <one of: "branch changes", "uncommitted changes">
+Base Branch: <only include when reviewing against a specific branch>
+Custom Instructions: <only include when user gave specific review instructions>
+```
+
+**Security Focus Areas**:
+- Injection vulnerabilities (SQL, XSS, command injection)
+- Authentication and authorization bypass
+- Sensitive data exposure
+- Insecure dependencies
+- Misconfigurations
+
+**Example**:
+```
+Task(description="Security Review", prompt="Full Repository Path: /path/to/repo\nDiff: branch changes", subagent_type="security-review", readonly: true, run_in_background: false)
+```
+
+---
+
+### 8. `best-of-n-runner`
+
+**Purpose**: Runs a task in an isolated git worktree. Each runner gets its own branch and working directory.
+
+**When to Use**:
+- Best-of-N parallel attempts (try multiple approaches simultaneously)
+- Isolated experiments that must not affect the main branch
+- A/B testing implementations
+- Parallel optimization runs
+
+**When NOT to Use**:
+- Single-approach tasks (use `generalPurpose` or `shell`)
+- Tasks requiring shared state between attempts
+- Simple file modifications
+
+**Example**:
+```
+Task(description="Try 3 optimization approaches", prompt="Implement the caching layer using three different strategies in isolated worktrees...", subagent_type="best-of-n-runner")
+```
+
+---
+
+## Launch Modes
+
+### Foreground Mode
+
+```yaml
+run_in_background: false  # Default
+```
+
+- Blocks the main agent until subagent completes
+- Result is immediately available
+- Suitable for quick tasks or when the next step depends on the result
+
+### Background Mode
+
+```yaml
+run_in_background: true
+```
+
+- Subagent runs independently; main agent continues
+- Notified when subagent completes via end-of-turn notification
+- Suitable for long-running tasks (builds, tests, complex refactoring)
+- Use `notify_on_output` pattern to watch for specific output
+
+### Resume Mode
+
+```yaml
+resume: "<agent-id>"
+```
+
+- Resumes a previous subagent with a new prompt
+- Preserves existing context
+- Useful for iterative refinement
+
+### Fork Mode
+
+```yaml
+resume: "self"
+```
+
+- Starts a new agent with the entire conversation history
+- Forks from the current parent agent
+- Useful for exploring alternatives from the same starting point
+
+---
+
+## Model Options
+
+| Model Slug | Description | Best For |
+|---|---|---|
+| `composer-2.5-fast` | Fast variant of Composer 2.5 | Quick tasks, exploration, simple code generation |
+| `composer-2.5` | Default Composer 2.5 | General-purpose tasks |
+| `{ id: "auto" }` / `"auto"` | Server-resolved model | SDK integrations where server picks |
+
+**Available models for subagents**: `composer-2.5-fast`
+
+When not specifying a model, the system uses the default model for the account.
+
+---
+
+## Parallelism Patterns
+
+### When to Use Parallel Execution
+
+| Scenario | Parallel? | Reason |
+|---|---|---|
+| Independent file searches | Yes | No shared state, results don't depend on each other |
+| Multiple codebase explorations | Yes | Read-only, independent queries |
+| Best-of-N approaches | Yes | Each needs isolation |
+| Sequential dependencies | No | Second task needs first task's output |
+| Shared resource modification | No | Risk of conflicts |
+| Git operations on same branch | No | Can cause lock contention |
+
+### Parallel Launch Pattern
+
+```
+# All independent — launch in parallel
+Task(description="Search for X", subagent_type="explore")
+Task(description="Search for Y", subagent_type="explore")
+Task(description="Search for Z", subagent_type="explore")
+```
+
+### Sequential Launch Pattern
+
+```
+# Dependent — launch sequentially
+Task(description="Find all error handlers", subagent_type="explore")
+→ Then, based on results:
+Task(description="Refactor found error handlers", subagent_type="generalPurpose")
+```
+
+---
+
+## Task Tool Parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `description` | string | Yes | User-friendly title, appears in UI |
+| `prompt` | string | Yes | Detailed task description with all context |
+| `model` | string | No | Optional model slug |
+| `resume` | string | No | Agent ID to resume, or `"self"` to fork |
+| `readonly` | boolean | No | Default `false`. If `true`, agent cannot modify files |
+| `subagent_type` | enum | Yes | One of: `generalPurpose`, `explore`, `shell`, `cursor-guide`, `ci-investigator`, `bugbot`, `security-review`, `best-of-n-runner` |
+| `file_attachments` | string[] | No | Optional array of image/video file paths |
+| `interrupt` | boolean | No | Default `false`. If `true` and `resume` targets a running async agent, interrupt and send new prompt |
+| `run_in_background` | boolean | No | Default `false`. If `true`, agent runs independently |
+
+---
+
+## Related Documents
+
+- [Architecture Overview](01-overview.mdc) — Where subagents fit in the system
+- [Command Reference](11-command-reference.mdc) — The Task tool parameter schema
+- [SOPs](12-sop-operations.mdc) — Code review and security review procedures

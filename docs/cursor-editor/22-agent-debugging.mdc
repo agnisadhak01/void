@@ -1,0 +1,442 @@
+---
+title: Cursor Editor — Agent Debugging & Diagnostics
+description: Guide for inspecting agent runs, interpreting debug output, tracing execution, and troubleshooting agent misbehavior.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, debugging, diagnostics, agent-output, session-tracing, error-handling]
+---
+
+# Cursor Editor — Agent Debugging & Diagnostics
+
+## Overview
+
+Agent debugging and diagnostics help you understand what the AI agent is doing, why it's behaving a certain way, and how to fix issues. Cursor provides multiple layers of observability:
+
+- **Agent Output channel**: Real-time tool call and response visibility
+- **Debug logging**: Verbose logs for deep troubleshooting
+- **Session tracing**: Inspect individual agent runs
+- **SDK inspection**: `Agent.get()` and `Agent.getRun()` for past runs
+- **CLI diagnostics**: `claude` command with debug flags
+
+---
+
+## Agent Output Channel
+
+The Agent Output channel provides real-time visibility into what the agent is doing during a session.
+
+### Accessing the Output Channel
+
+```
+1. Open Cursor IDE
+2. View → Output
+3. Select "Cursor: Agent" from the dropdown
+```
+
+### What the Output Channel Shows
+
+| Information | Description |
+|------------|-------------|
+| **Tool calls** | Every Read, Grep, Shell, Write, etc. the agent executes |
+| **Thoughts** | Agent's reasoning and decision-making process |
+| **Responses** | Full model responses including content and formatting |
+| **Errors** | Tool failures, rate limits, network issues |
+| **Timing** | How long each step takes |
+| **Context usage** | Token counts and context window utilization |
+
+### Output Format
+
+```
+[ToolCall] Read(file: "src/utils.ts", offset: 1, limit: 50)
+[ToolResult] Read: 42 lines read
+[Thought] The user wants to refactor this utility...
+[ToolCall] Shell(command: "npm run build", timeout: 30000)
+[ToolResult] Build succeeded in 4.2s
+```
+
+### Filtering Output
+
+The Output channel supports text filtering:
+
+1. Click the filter icon in the Output panel
+2. Enter text or regex to filter visible lines
+3. Use `Error`, `Failed`, `Timeout` to quickly find problems
+
+---
+
+## Debug Logging
+
+Debug logging captures detailed internal information about agent execution, beyond what the Output channel shows.
+
+### Enabling Debug Logging
+
+**Via Settings UI**:
+```
+1. Cursor Settings → Developer Tools → Enable Debug Logging
+```
+
+**Via settings.json**:
+```json
+{
+  "cursor.agent.debugLogging": true,
+  "cursor.agent.logLevel": "debug",
+  "cursor.agent.logVerbose": true
+}
+```
+
+### Log File Locations
+
+| OS | Log Location |
+|----|-------------|
+| **Windows** | `%APPDATA%\Cursor\Logs\agent.log` |
+| **macOS** | `~/Library/Application Support/Cursor/Logs/agent.log` |
+| **Linux** | `~/.config/Cursor/Logs/agent.log` |
+| **Windows (Portable)** | `Cursor\logs\agent.log` (next to Cursor executable) |
+
+### Log Levels
+
+| Level | Use Case | Information Included |
+|-------|----------|---------------------|
+| `error` | Critical failures only | Error messages, stack traces |
+| `warn` | Warnings and recoverable issues | Errors + warnings |
+| `info` | Normal operation | Errors + warnings + key events |
+| `debug` | Detailed troubleshooting | All of above + tool calls + timing |
+| `verbose` | Deep investigation | All of above + raw API payloads |
+
+### Interpreting Log Output
+
+```
+[2026-06-11T10:00:00.000Z] [INFO] Agent started: mode=agent, model=claude-sonnet-4-20250514
+[2026-06-11T10:00:01.234Z] [DEBUG] Tool called: Read(file="src/app.ts")
+[2026-06-11T10:00:01.456Z] [DEBUG] Tool result: Read returned 120 lines
+[2026-06-11T10:00:02.000Z] [DEBUG] API request: POST /v1/messages
+[2026-06-11T10:00:05.678Z] [INFO] API response: 200 OK, tokens=4521
+[2026-06-11T10:00:05.679Z] [DEBUG] Context window usage: 4521 / 128000 tokens (3.5%)
+```
+
+---
+
+## Session Tracing
+
+Session tracing lets you inspect a specific agent run from start to finish, including all tool calls, responses, and decisions.
+
+### Agent ID Format
+
+| ID Type | Prefix | Example | Source |
+|---------|--------|---------|--------|
+| **Cloud agent** | `bc-` | `bc_abc123def456` | Cloud VM run |
+| **Local agent** | None | `507f1f77bcf86cd799439011` | Local machine run |
+
+### Finding the Agent ID
+
+The agent ID appears in:
+
+1. **Agent Output channel** (first line of each session)
+2. **Terminal logs** (if running Claude Code CLI)
+3. **SDK responses** (in the `AgentRun` response object)
+4. **Cursor.com dashboard** (for cloud agent runs)
+
+### Tracing with SDK
+
+```typescript
+// TypeScript SDK
+import { Agent } from "@cursor/sdk";
+
+// Get a specific run by ID
+const run = await Agent.getRun("bc_abc123def456");
+
+// Access run details
+console.log("Agent ID:", run.id);
+console.log("Model:", run.model);
+console.log("Mode:", run.mode);
+console.log("Status:", run.status);
+
+// Get tool calls made during the run
+const toolCalls = await run.getToolCalls();
+for (const call of toolCalls) {
+  console.log(`${call.tool}: ${call.args}`);
+  console.log(`  Result: ${call.result}`);
+}
+
+// Get agent thoughts/reasoning
+const thoughts = await run.getThoughts();
+for (const thought of thoughts) {
+  console.log(thought.content);
+}
+
+// Get full transcript
+const transcript = await run.getTranscript();
+console.log(transcript);
+```
+
+```python
+# Python SDK
+from cursor_sdk import Agent
+
+# Get a specific run by ID
+run = await Agent.getRun("bc_abc123def456")
+
+# Access run details
+print(f"Agent ID: {run.id}")
+print(f"Model: {run.model}")
+print(f"Status: {run.status}")
+
+# Get tool calls
+tool_calls = await run.getToolCalls()
+for call in tool_calls:
+    print(f"Tool: {call.tool}, Args: {call.args}")
+    print(f"Result: {call.result}")
+
+# Get transcript
+transcript = await run.getTranscript()
+print(transcript)
+```
+
+---
+
+## CLI Diagnostic Commands
+
+The `claude` CLI provides diagnostic commands for debugging agent behavior.
+
+### Environment Inspection
+
+```bash
+# Show current CLI configuration
+claude --env
+
+# Expected output:
+# Model: claude-sonnet-4-20250514
+# Provider: anthropic
+# API Key: configured (hidden)
+# Attribution: enabled
+# Debug logging: disabled
+```
+
+### Session Listing
+
+```bash
+# List recent agent sessions
+claude --list
+
+# Expected output:
+# ID                          Model                      Status
+# bc_abc123...                claude-sonnet-4-20250514   completed
+# 507f1f7...                  claude-opus-4-20250514     completed
+# def456...                   claude-haiku-3-5           failed
+```
+
+### Verbose Output
+
+```bash
+# Run agent with verbose debug output
+claude --verbose "Explain what tools you have available"
+
+# Run agent with JSON output (machine-readable)
+claude --output json "What files do you see in this directory?"
+
+# Run agent with session logging
+claude --log /tmp/debug-session.log "Refactor the authentication module"
+```
+
+### Debugging Misbehavior
+
+```bash
+# Force specific model for debugging
+claude --model claude-opus-4-20250514 "Reproduce the issue"
+
+# Force specific provider
+claude --provider anthropic "Test with Anthropic"
+
+# Check API connectivity
+claude --health
+```
+
+---
+
+## Troubleshooting Agent Misbehavior
+
+### Slow Responses
+
+**Symptoms**: Agent takes >30 seconds to respond
+
+**Common Causes**:
+
+| Cause | Diagnostic | Fix |
+|-------|-----------|-----|
+| Large context window | Check `cursor.agent.contextWindow` setting | Reduce context window size |
+| Model too slow | Check `cursor.agent.agentModel` | Switch to faster model (Sonnet, Haiku) |
+| API rate limit | Check logs for `429` status | Wait for rate limit reset, use queue |
+| Network latency | Check network status | Use VPN closer to provider, check connection |
+| Heavy tool operations | Check Output channel for long-running tools | Split task into smaller steps |
+
+**Diagnostic Steps**:
+
+```bash
+# 1. Check model configuration
+claude --env
+
+# 2. Check for slow tool calls in output
+# View Output channel → Cursor: Agent → filter by timing
+
+# 3. Test with simpler model
+claude --model claude-haiku-3-5 "Quick response test"
+```
+
+### Wrong Tool Selection
+
+**Symptoms**: Agent uses Read instead of Grep, or Shell for operations that don't need it
+
+**Common Causes**:
+
+| Cause | Diagnostic | Fix |
+|-------|-----------|-----|
+| Poor prompt clarity | Check prompt in transcript | Provide more specific instructions |
+| Missing context | Check @-references in output | Add relevant @file or @code references |
+| Inconsistent rules | Check `.cursor/rules/` files | Update rules to guide tool selection |
+| Model limitation | Check if same issue with different models | Try a different model |
+
+**Diagnostic Steps**:
+
+```
+1. Open Output channel
+2. Review agent's tool selection sequence
+3. Compare with expected behavior
+4. Check if rules are guiding tool selection
+5. Try adding @file references for explicit context
+```
+
+### Context Loss
+
+**Symptoms**: Agent forgets earlier instructions or loses track of code context
+
+**Common Causes**:
+
+| Cause | Diagnostic | Fix |
+|-------|-----------|-----|
+| Context window full | Check token count in logs | Split task into smaller sessions |
+| Compaction triggered | Check for summary messages in output | Review compaction behavior |
+| Too many open files | Count open editor tabs | Close unnecessary tabs |
+| Large @-references | Check size of explicit context | Use more surgical @code references |
+
+**Diagnostic Steps**:
+
+```bash
+# 1. Check current context window usage
+claude --env | grep contextWindow
+
+# 2. Review output channel for compaction events
+# Look for messages about context summarization
+
+# 3. Count open tabs
+# View in Cursor IDE
+
+# 4. Test with minimal context
+claude --output json --max-tokens 2048 "Recap what we discussed"
+```
+
+### API and Authentication Errors
+
+**Symptoms**: Agent fails with authentication errors or API timeouts
+
+**Common Causes**:
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `401 Unauthorized` | Invalid/expired API key | Re-sign in at cursor.com/dashboard |
+| `429 Too Many Requests` | Rate limit exceeded | Wait and retry, upgrade tier |
+| `500 Internal Server Error` | Provider outage | Check provider status page |
+| `ECONNREFUSED` | Network/firewall issue | Check network connection, proxy settings |
+
+**Diagnostic Steps**:
+
+```bash
+# Check API key status
+claude --health
+
+# Test API connectivity
+curl -H "Authorization: Bearer $CURSOR_API_KEY" \
+  https://api.anthropic.com/v1/messages
+
+# View error logs
+cat "%APPDATA%/Cursor/Logs/agent.log" | grep -i error
+```
+
+---
+
+## Agent Thought Chain Analysis
+
+Understanding agent reasoning output helps diagnose behavior patterns.
+
+### Thought Chain Format
+
+When debug logging is enabled, agent thoughts appear in the output:
+
+```
+[Thought] The user wants to refactor the authentication module.
+  - I should first understand the current code
+  - Let me read the auth service to see what's there
+  - Then I can plan the refactoring approach
+  
+[ToolCall] Read(file="src/auth/service.ts")
+[ToolResult] 85 lines read
+
+[Thought] I see the auth service has 3 main functions.
+  - validateToken is pure and testable
+  - refreshToken needs state management
+  - logout should clear session data
+  - I'll propose a module-based split
+  
+[ToolCall] StrReplace(file="src/auth/service.ts", ...)
+[ToolResult] 2 replacements made
+```
+
+### Reading Thought Chains
+
+| Element | Purpose | Debugging Value |
+|---------|---------|-----------------|
+| **Thought** | Agent's reasoning before action | Shows decision process |
+| **ToolCall** | Action the agent takes | Verify correct tool selection |
+| **ToolResult** | Outcome of the action | Check if result met expectations |
+| **Thought + ToolCall sequence** | Agent's workflow | Spot inefficiencies or errors |
+
+---
+
+## When to Escalate
+
+### Error Classification
+
+| Error Type | Example | Action |
+|-----------|---------|--------|
+| **SDK Error** | `@cursor/sdk` throws `AgentError` | Fix SDK usage, check version |
+| **Model Error** | API returns `model_not_found` | Check model configuration, try different model |
+| **Configuration Error** | Agent ignores custom instructions | Verify settings locations, check precedence |
+| **Infrastructure Error** | Cursor.com API unreachable | Check network, report to Cursor support |
+
+### Escalation Checklist
+
+Before escalating to Cursor support:
+
+1. **Reproduce**: Can the issue be consistently reproduced?
+2. **Log**: Capture debug logs with `--verbose` or `--log`
+3. **ID**: Note the agent run ID (`bc-` or non-prefixed)
+4. **Steps**: Document the exact steps to reproduce
+5. **Environment**: Note OS, Cursor version, model, provider
+6. **Isolate**: Test with default settings to rule out config issues
+
+```bash
+# Collect diagnostic bundle
+claude --diagnose --output /tmp/cursor-diagnose.json
+```
+
+---
+
+## Related Documents
+
+- [Agent Hierarchy](mdc:02-agent-hierarchy.mdc) — Subagent types and invocation
+- [SDK Reference](mdc:07-sdk-reference.mdc) — Agent.get(), Agent.getRun()
+- [Settings and Configuration](mdc:19-agent-settings.mdc) — Debug settings
+- [Model Providers](mdc:16-model-providers.mdc) — Model-specific debugging
+- [Context Management](mdc:10-context-management.mdc) — Context windows and @-references
+- [Context Compaction](mdc:28-context-compaction.mdc) — Compaction behavior and debugging
+- [Claude Code CLI](mdc:18-claude-code-cli.mdc) — CLI diagnostic commands
+- [Automations Editor](mdc:15-automations.mdc) — Cloud agent debugging
+- [Workspace Rules](mdc:03-rules-system.mdc) — How rules affect agent behavior

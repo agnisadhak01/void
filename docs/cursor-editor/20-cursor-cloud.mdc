@@ -1,0 +1,404 @@
+---
+title: Cursor Editor — Cursor Cloud (cursor.com)
+description: Reference for Cursor's cloud infrastructure, team management, billing, workspace settings, and API key management via cursor.com.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, cloud, cursor-com, team-management, billing, workspace, api-keys, service-accounts]
+---
+
+# Cursor Editor — Cursor Cloud (cursor.com)
+
+## Overview
+
+Cursor Cloud refers to the hosted infrastructure and web platform accessible at [cursor.com](https://cursor.com) that powers Cursor's agent services, team collaboration features, billing management, and cloud runtime execution. It is the backend counterpart to the local Cursor Editor.
+
+While the Cursor Editor runs locally on your machine, Cursor Cloud handles:
+- Cloud agent execution (run agents on Cursor-hosted VMs)
+- Team workspace management
+- Billing and subscription management
+- API key and service account management
+- Cursor Automations scheduling (cloud agent runs)
+- Usage analytics and telemetry aggregation
+
+```mermaid
+flowchart TD
+    subgraph local [Local Cursor Editor]
+        A[Cursor IDE] --> B[Cloud Agent Runtime]
+        A --> C[Local Agent Runtime]
+        A --> D[Team Settings Sync]
+    end
+    
+    subgraph cloud [Cursor Cloud Infrastructure]
+        E[cursor.com Web Portal] --> F[Cloud VMs]
+        F --> G[Cloud Agent Execution]
+        F --> H[Automations Scheduler]
+        E --> I[Billing & Subscriptions]
+        E --> J[API Key Management]
+        E --> K[Team Workspace Config]
+        E --> L[Usage Analytics]
+    end
+    
+    B -->|"HTTPS / API"| F
+    C -->|"Local only"| M[cwd/Repo on Machine]
+    D -->|"Sync settings"| K
+    I -->|"Payment processing"| E
+    J -->|"Personal & team keys"| E
+```
+
+---
+
+## Cursor.com Account
+
+### Creating an Account
+
+1. Visit [cursor.com](https://cursor.com)
+2. Sign up with email or GitHub account
+3. Connect the account to your Cursor IDE:
+   - Open Cursor Settings
+   - Navigate to the account/authentication section
+   - Sign in with your cursor.com credentials
+
+### Account Tiers
+
+| Tier | Features | Agent Access |
+|------|----------|-------------|
+| **Free** | Basic editor, limited AI usage | Local agent only |
+| **Pro** | Full editor, cloud agent, unlimited usage | Local + Cloud agent |
+| **Enterprise** | Team management, SSO, admin controls, audit logs | All tiers + team features |
+
+### Account Linking
+
+When you sign in to Cursor with your cursor.com account:
+
+1. Cursor generates an authentication token linked to your account
+2. The token is stored securely in Cursor's user data directory
+3. Cloud agent runs, team settings, and billing are tied to your account
+4. The IDE checks for account validity periodically
+
+---
+
+## Cloud Agent Infrastructure
+
+### What is Cloud Agent?
+
+Cloud Agent runs Cursor agents on Cursor-hosted virtual machines instead of your local machine. The agent:
+
+1. Clones your repository into the cloud VM
+2. Executes all tools (Read, Write, Shell, etc.) inside the VM
+3. Returns results and generated changes back to your IDE
+4. Can optionally auto-create pull requests
+
+### Cloud vs Local Runtime Comparison
+
+| Aspect | Cloud Runtime | Local Runtime |
+|--------|--------------|---------------|
+| **Execution location** | Cursor-hosted VM | Your machine |
+| **Repo state** | Fresh clone, clean git state | Current working directory |
+| **Network access** | Outbound internet enabled | Depends on local firewall |
+| **Persistence** | Ephemeral (VM destroyed after run) | Persistent (your machine) |
+| **Resource limits** | Defined by subscription tier | Your hardware limits |
+| **Best for** | Long jobs, CI, PR creation | Quick edits, local debugging |
+| **Agent ID prefix** | `bc-` | Non-prefixed |
+
+### Cloud VM Capabilities
+
+```mermaid
+flowchart LR
+    A[Cloud VM] --> B[Fresh repo clone]
+    A --> C[HTTP/MCP servers]
+    A --> D[Shell execution]
+    A --> E[File read/write]
+    A --> F[Git operations]
+    A --> G[Auto PR creation]
+    A --> H[CI check runs]
+```
+
+---
+
+## Team Workspace Management
+
+### Creating a Team
+
+1. Go to [cursor.com/dashboard](https://cursor.com/dashboard)
+2. Select "Create Team" or "New Workspace"
+3. Name the team and set the organization identifier
+4. Invite members via email or link
+
+### Team Structure
+
+```mermaid
+flowchart TD
+    A[Cursor Account] --> B[Team/Workspace]
+    B --> C[Team Members]
+    B --> D[Team Settings]
+    B --> E[Team API Keys]
+    B --> F[Team Resources]
+    
+    C --> G[Admin]
+    C --> H[Developer]
+    C --> I[Viewer]
+    
+    D --> J[Shared Models]
+    D --> K[Team Rules]
+    D --> L[Team Skills]
+    D --> M[Billing Preferences]
+    
+    F --> N[Shared MCP Servers]
+    N --> O[Team Dashboard Servers]
+```
+
+### Team Roles
+
+| Role | Permissions | Agent Access |
+|------|------------|-------------|
+| **Admin** | Full control, billing, member management | All features |
+| **Developer** | Code access, agent runs, settings | All except billing |
+| **Viewer** | Read-only access to project | Limited |
+
+### Team Settings
+
+Team-level settings override individual user settings for all team members:
+
+```json
+{
+  // Team-level model configuration (all members use these)
+  "team.agent.chatModel": "claude-sonnet-4-20250514",
+  "team.agent.agentModel": "claude-opus-4-20250514",
+  
+  // Team-level API keys (inherited by all members)
+  "team.provider.apiKey": "team_api_key_...",
+  
+  // Team-level custom instructions
+  "team.agent.customInstructions": "Enterprise codebase. Follow OWASP guidelines.",
+  
+  // Team-level agent settings
+  "team.agent.contextWindow": 200000,
+  "team.agent.autoApprove": false
+}
+```
+
+### Team Resources
+
+| Resource | Shared? | Description |
+|----------|---------|-------------|
+| **Team API keys** | Yes | Shared API keys for all team members |
+| **Team rules** | Yes | `.cursor/rules/` in shared repo |
+| **Team skills** | Yes | `.cursor/skills/` in shared repo |
+| **Team MCP servers** | Yes | Dashboard-backed MCP servers shared across team |
+| **Team agent runs** | Yes | Cloud agent runs billed to team account |
+
+---
+
+## API Key Management
+
+### Key Types
+
+| Key Type | Scope | Usage |
+|----------|-------|-------|
+| **Personal API Key** | Individual account | Personal agent runs, cloud VMs |
+| **Team Service Account Key** | Team workspace | Shared agent runs, CI/CD pipelines |
+| **Admin API Key** | ❌ Not yet supported | — |
+
+### Key Locations
+
+```yaml
+Personal Keys:
+  URL: https://cursor.com/dashboard/integrations
+  Scope: Individual user account
+  Creation: Any team member with personal access
+
+Team Service Accounts:
+  URL: https://cursor.com/dashboard/teams/<teamId>/settings
+  Scope: Entire team workspace
+  Creation: Team Admin only
+  Usage: CI/CD, shared automation, team services
+```
+
+### Key Management Best Practices
+
+1. **Use service account keys for CI/CD**, not personal keys
+2. **Rotate team keys** quarterly or after team member changes
+3. **Never commit keys** to version control
+4. **Use environment variables** in shared infrastructure
+5. **Limit scope**: Service accounts should only have necessary permissions
+
+```bash
+# Personal key (not recommended for CI)
+export CURSOR_API_KEY="cursor_personal_abc123"
+
+# Team service account key (recommended for CI)
+export CURSOR_API_KEY="cursor_team_xyz789"
+```
+
+---
+
+## Billing and Subscriptions
+
+### Subscription Tiers
+
+| Tier | Pricing Model | Cloud Agent Minutes | Team Seats |
+|------|--------------|---------------------|------------|
+| **Free** | $0/month | None | 1 |
+| **Pro** | Per-user subscription | Included | 1-3 |
+| **Enterprise** | Custom pricing | Unlimited | Unlimited |
+
+### Billing Features
+
+- **Seat management**: Add/remove team members
+- **Usage analytics**: Track agent runs, token usage, cloud compute hours
+- **Invoice history**: Download invoices for accounting
+- **Payment methods**: Credit card, corporate billing
+- **Usage alerts**: Set thresholds for spend notification
+
+### Cloud Agent Dashboard
+
+Access via [cursor.com/dashboard?tab=cloud-agents](https://cursor.com/dashboard?tab=cloud-agents)
+
+Features:
+- View all cloud agent runs
+- Monitor active and completed runs
+- Check usage metrics and billing
+- Manage team settings
+- Configure shared MCP servers
+
+```mermaid
+flowchart TD
+    A[Cloud Agent Dashboard] --> B[Agent Runs]
+    A --> C[Usage Metrics]
+    A --> D[Team Management]
+    A --> E[Billing]
+    A --> F[MCP Servers]
+    
+    B --> G[List all runs]
+    B --> H[Run details]
+    B --> I[Run transcript]
+    
+    C --> J[Tokens consumed]
+    C --> K[Compute hours]
+    C --> L[Agent count]
+    
+    D --> M[Member list]
+    D --> N[Invite members]
+    D --> O[Role management]
+    
+    E --> P[Subscription status]
+    E --> Q[Payment methods]
+    E --> R[Invoice history]
+    
+    F --> S[Shared servers]
+    S --> T[Dashboard-backed]
+    S --> U[Plugin servers]
+```
+
+---
+
+## Personal vs Team Resources
+
+### Resource Ownership
+
+| Resource | Personal | Team |
+|----------|----------|------|
+| User API key | Owns | — |
+| Team service account key | — | Owned by team |
+| Custom subagents (`~/.cursor/agents/`) | Owns | Inherited by all team members |
+| Custom subagents (`.cursor/agents/`) | — | Owned by repo, shared |
+| Skills (`~/.cursor/skills/`) | Owns | Inherited by all team members |
+| Skills (`.cursor/skills/`) | — | Owned by repo, shared |
+| Dashboard MCP servers | Assigned to user | Shared across team |
+| Cloud agent runs | Billed to user | Billed to team |
+
+### Sync Mechanism
+
+```mermaid
+sequenceDiagram
+    participant Admin as Team Admin
+    participant Cloud as cursor.com
+    participant IDE as Cursor IDE
+    
+    Admin->>Cloud: Update team settings
+    Cloud->>Cloud: Persist team config
+    Cloud->>IDE: Sync team settings
+    IDE->>IDE: Apply team config
+    Note over IDE: IDE respects team overrides
+    IDE->>Admin: Agent runs use team models/keys
+```
+
+---
+
+## Workspace Configuration
+
+### Creating a Workspace
+
+1. Navigate to [cursor.com/dashboard](https://cursor.com/dashboard)
+2. Click "New Workspace" or "Create Team"
+3. Configure workspace name and team identifier
+4. Set workspace-level agent settings
+5. Invite team members
+
+### Workspace Settings Structure
+
+```json
+{
+  "workspace": {
+    "name": "My Team",
+    "id": "team_abc123",
+    "settings": {
+      "agent": {
+        "chatModel": "claude-sonnet-4-20250514",
+        "agentModel": "claude-opus-4-20250514",
+        "contextWindow": 200000
+      },
+      "provider": {
+        "default": "anthropic",
+        "apiKey": "team_api_key_..."
+      },
+      "billing": {
+        "plan": "enterprise",
+        "seats": 10,
+        "usageLimit": 10000
+      }
+    }
+  }
+}
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Account not syncing | Auth token expired | Re-sign in at cursor.com/dashboard |
+| Team settings not applying | Local override exists | Check workspace settings for conflicting values |
+| Cloud agent not starting | Insufficient credits | Check billing status at cursor.com/dashboard/integrations |
+| Service account key not working | Wrong scope | Verify key is a team service account key, not personal |
+| MCP server not shared | Not dashboard-backed | Server must have `dashboard-` or `plugin-` prefix |
+
+### Diagnostics
+
+```bash
+# Check current account status
+# Visit: https://cursor.com/dashboard
+
+# Verify team membership
+# Visit: https://cursor.com/dashboard/teams
+
+# Check API key validity
+curl -H "Authorization: Bearer $CURSOR_API_KEY" \
+  https://api.cursor.com/v1/agent/status
+
+# List team members
+# Visit: https://cursor.com/dashboard/teams/<teamId>/members
+```
+
+---
+
+## Related Documents
+
+- [Model Providers](mdc:16-model-providers.mdc) — Configuring cloud vs local providers
+- [Agent Settings](mdc:19-agent-settings.mdc) — Agent settings including team overrides
+- [Automations Editor](mdc:15-automations.mdc) — Cloud Agent scheduling
+- [Settings and Configuration](mdc:08-settings-configuration.mdc) — Local settings locations
+- [SDK Reference](mdc:07-sdk-reference.mdc) — API key management in code

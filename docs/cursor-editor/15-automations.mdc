@@ -1,0 +1,600 @@
+---
+title: Cursor Editor — Automations Editor
+description: Complete reference for Cursor's in-app Automations editor: triggers, tools, prompts, cloud agent configuration, YAML wire format, MCP integration, and portal completeness rules.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, automations, editor, triggers, tools, prompts, cloud-agent, mcp, yaml, workflow]
+---
+
+# Cursor Editor — Automations Editor
+
+## Overview
+
+Cursor Automations is a visual editor that lets you define agent workflows triggered by external events. Unlike hooks (which run shell scripts or prompt-based checks on Cursor events), Automations create **cloud agent runs** triggered by events from integrated services such as GitHub, Slack, Linear, PagerDuty, Sentry, and cron schedulers.
+
+Automations run on Cursor's cloud infrastructure (Cloud Agent), not locally. Each automation consists of a trigger, a set of tools, instructions (prompt), and model configuration.
+
+```mermaid
+flowchart LR
+    A[Trigger Event] --> B[Cloud Agent Starts]
+    B --> C[Agent Executes Tools]
+    C --> D[Follow Prompt Instructions]
+    D --> E[Post Results]
+    E --> F[Slack / PR Comment / etc.]
+```
+
+## How Automations Differ from Hooks
+
+| Aspect | Hooks (`hooks.json`) | Automations Editor |
+|---------|---------------------|-------------------|
+| **Execution location** | Local (runs on your machine) | Cloud (Cursor's infrastructure) |
+| **Trigger source** | Cursor internal events | External services (Git, Slack, PagerDuty, etc.) |
+| **Output** | JSON to stdin/stdout | Agent runs with tool actions |
+| **Language** | Shell scripts / prompt-based | Visual editor with drag-and-drop |
+| **Agent type** | No agent (script execution) | Full Claude Code agent |
+| **Use case** | Pre/post execution gates, formatting, validation | Scheduled tasks, incident response, code review |
+
+---
+
+## Automations Editor Interface
+
+The Automations editor is accessible through Cursor's UI. It provides a visual workflow builder with:
+
+- **Trigger configuration**: Select event type and scope
+- **Tool selection**: Choose what the agent can do (post to Slack, comment on PR, etc.)
+- **Prompt/instructions editor**: Define agent behavior when the trigger fires
+- **Model selection**: Choose the AI model for the agent
+- **Cloud Agent settings**: Configure agent options, memory, and compute settings
+
+### Accessing the Editor
+
+The editor is opened via the `cursor-app-control.open_automation` tool when available, or through the Cursor Automations UI panel.
+
+---
+
+## Automation Architecture
+
+An automation consists of five core components:
+
+```mermaid
+flowchart TD
+    subgraph triggers [Triggers]
+        T1[Cron Schedule]
+        T2[Git Event]
+        T3[Slack Event]
+        T4[Linear Event]
+        T5[PagerDuty Event]
+        T6[Sentry Event]
+        T7[Webhook]
+    end
+
+    subgraph tools [Tools / Actions]
+        A1[PR Comment]
+        A2[Post to Slack]
+        A3[Read Slack]
+        A4[Request Reviewers]
+        A5[Manage Check Run]
+        A6[Use MCP Server]
+    end
+
+    subgraph prompts [Prompt / Instructions]
+        P1[Agent Behavior]
+        P2[Response Format]
+        P3[Constraints]
+    end
+
+    subgraph config [Cloud Agent Config]
+        C1[Model Selection]
+        C2[Agent Options]
+        C3[Memory]
+    end
+
+    T1 & T2 & T3 & T4 & T5 & T6 & T7 --> B[Trigger Fired]
+    B --> A1 & A2 & A3 & A4 & A5 & A6
+    P1 & P2 & P3 --> A1 & A2 & A3 & A4 & A5 & A6
+    C1 & C2 & C3 --> B
+```
+
+### 1. Trigger
+
+The event that starts the automation. An automation has exactly one trigger.
+
+### 2. Tools (Actions)
+
+Capabilities the agent has when the automation runs. Multiple tools can be enabled.
+
+### 3. Prompt (Instructions)
+
+Natural language instructions telling the agent what to do when the trigger fires.
+
+### 4. Model
+
+The AI model the agent uses to execute the automation.
+
+### 5. Agent Options
+
+Configuration for the Cloud Agent including memory, installation behavior, and other runtime settings.
+
+---
+
+## Trigger Types
+
+### Cron Triggers
+
+Schedule-based triggers using cron expressions.
+
+| Option | Cron Expression | Description |
+|--------|----------------|-------------|
+| Every hour | `0 * * * *` | Runs at the start of every hour |
+| Every day | `0 9 * * *` | Runs daily at 9:00 AM |
+| Every week | `0 9 * * 1` | Runs every Monday at 9:00 AM |
+| Weekdays | `0 9 * * 1-5` | Runs Monday through Friday at 9:00 AM |
+| Custom | User-defined | Full cron expression |
+
+```yaml
+# Cron trigger YAML
+workflow:
+  triggers:
+    - cron: { cron: "0 9 * * *" }
+```
+
+**Important**: Cron stores a single expression with no separate timezone field. The hour/day pattern maps directly to cron fields.
+
+### Git Triggers
+
+GitHub/GitLab event-based triggers.
+
+| Event | Proto Enum | Description |
+|-------|-----------|-------------|
+| Draft PR opened | `DRAFT_OPENED` | A draft pull request was opened |
+| PR opened | `OPENED` | A pull request was opened |
+| Code pushed to PR | `PUSHED` | New commits pushed to a pull request |
+| PR merged | `MERGED` | A pull request was merged |
+| PR commented | `COMMENTED` | A comment was added on a PR |
+| Label change | `LABEL` | A label was added or removed from a PR |
+| New push to branch | `PUSH` | New commits pushed to a branch |
+| CI checks completed | `ciCompleted` | A CI check run completed |
+
+```yaml
+# Git PR trigger YAML
+workflow:
+  triggers:
+    - git:
+        pullRequest:
+          repos:
+            - owner/repo
+          orgs:
+            - my-org
+          action: OPENED
+  gitConfig:
+    repo: owner/repo
+    branch: main
+```
+
+### Slack Triggers
+
+Slack event-based triggers.
+
+| Event | Proto | Description |
+|-------|-------|-------------|
+| New message in channel | `slackTrigger` | A new message is posted in a channel |
+| Channel created | `slackChannelCreated` | A new Slack channel is created |
+
+```yaml
+# Slack trigger YAML
+workflow:
+  triggers:
+    - slackTrigger: { channels: ["C0ABC123"] }
+```
+
+### Linear Triggers
+
+Linear issue event triggers.
+
+| Event | Proto | Description |
+|-------|-------|-------------|
+| Issue created | `linear.issueCreated` | A Linear issue was created |
+| Issue status changed | `linear.statusChanged` | An issue's status was updated |
+| End of cycle | `linear.endOfCycle` | A Linear cycle ended |
+
+```yaml
+# Linear trigger YAML
+workflow:
+  triggers:
+    - linear:
+        trigger: issueCreated
+```
+
+### PagerDuty Triggers
+
+PagerDuty incident event triggers.
+
+| Event | Proto | Description |
+|-------|-------|-------------|
+| Incident triggered | `incidentTriggered` | A new incident was created |
+| Incident acknowledged | `incidentAcknowledged` | An incident was acknowledged |
+| Incident resolved | `incidentResolved` | An incident was resolved |
+| Any incident event | `incidentAny` | Any PagerDuty incident event |
+
+Optional: `serviceIds` can limit the trigger to specific PagerDuty services.
+
+```yaml
+# PagerDuty trigger YAML
+workflow:
+  triggers:
+    - pagerduty:
+        trigger: incidentTriggered
+        serviceIds: ["P1234AB"]
+```
+
+### Sentry Triggers
+
+Sentry issue event triggers.
+
+| Event | Proto | Description |
+|-------|-------|-------------|
+| Issue created | `issueCreated` | A new Sentry issue was created |
+| Issue resolved | `issueResolved` | An issue was marked resolved |
+| Issue assigned | `issueAssigned` | An issue was assigned to someone |
+| Issue archived | `issueArchived` | An issue was archived |
+| Issue unresolved | `issueUnresolved` | A resolved issue was re-triggered |
+| Any issue event | `issueAny` | Any Sentry issue event |
+
+Optional: `projectIds` can limit the trigger to specific Sentry projects.
+
+```yaml
+# Sentry trigger YAML
+workflow:
+  triggers:
+    - sentry:
+        trigger: issueCreated
+        projectIds: ["567890"]
+```
+
+### Webhook Triggers
+
+HTTP webhook triggers for external service integrations.
+
+```yaml
+# Webhook trigger YAML
+workflow:
+  triggers:
+    - webhook: {}
+```
+
+**Note**: Webhook triggers require completing URL and authentication details in the Automations editor after save. They cannot be fully configured from chat.
+
+---
+
+## Tool Types (Actions)
+
+Tools define what the Cloud Agent can do when an automation runs.
+
+| Tool Label | Proto Name | Description |
+|-----------|-----------|-------------|
+| Comment on PRs | `prComment` | Posts a comment on a GitHub/GitLab pull request |
+| Post to Slack | `slack` | Sends a message to a Slack channel or DM |
+| Read Slack | `readSlack` | Reads messages from a Slack channel |
+| Request reviewers | `requestReviewers` | Requests code review from specified users |
+| Manage check runs | `manageCheckRun` | Creates or updates a CI check run |
+| Use MCP server | `mcp` | Calls an MCP server tool |
+
+### Tool Configuration Examples
+
+```yaml
+# PR Comment action
+workflow:
+  actions:
+    - prComment:
+        action: COMMENTED
+        body: "Automated review: code looks good."
+
+# Slack action
+workflow:
+  actions:
+    - slack:
+        channel: "C0ABC123"
+        message: "Deployment completed successfully."
+
+# MCP action
+workflow:
+  actions:
+    - mcp:
+        server:
+          name: "Linear"
+        tool: "searchIssues"
+        arguments:
+          query: "critical bugs"
+```
+
+---
+
+## Prompt / Instructions
+
+The prompt is the natural language instructions that guide the agent's behavior when the automation fires.
+
+### Prompt Best Practices
+
+1. **Be specific**: Describe exactly what the agent should analyze and report
+2. **Define output format**: Specify how results should be presented (tables, bullet points, code blocks)
+3. **Set constraints**: Limit scope, specify what to ignore, define error handling
+4. **Include context awareness**: Reference the trigger event type for conditional behavior
+
+### Example Prompts
+
+```yaml
+# Code review prompt
+workflow:
+  prompts:
+    - |
+      Review the changes in this pull request.
+      Focus on:
+      - Security vulnerabilities (input validation, auth checks)
+      - Performance issues (N+1 queries, unnecessary allocations)
+      - Code quality (naming, error handling, test coverage)
+      
+      Provide findings organized by severity:
+      - Critical: Must fix before merge
+      - Warning: Should fix
+      - Suggestion: Nice to have
+      
+      Format output as a PR comment with inline code references.
+
+# Incident response prompt
+workflow:
+  prompts:
+    - |
+      An incident has been triggered in PagerDuty.
+      1. Check the PagerDuty service details for recent deployments
+      2. Review the last 10 commits for changes that might have caused the issue
+      3. Post a summary to the #incidents Slack channel with:
+         - Incident details
+         - Likely root cause
+         - Suggested rollback target
+         - Links to affected commits
+```
+
+---
+
+## Cloud Agent Configuration
+
+### Model Selection
+
+```yaml
+workflow:
+  model: "claude-sonnet-4-20250514"
+```
+
+### Agent Options
+
+```yaml
+workflow:
+  agentOptions:
+    skipInstall: false    # Skip npm install during automation run
+    memoryEnabled: true   # Enable agent memory across runs
+```
+
+### Full Automation Example
+
+```yaml
+name: "PR Security Review"
+description: "Automatically review PRs for security issues and post findings"
+workflow:
+  triggers:
+    - git:
+        pullRequest:
+          repos:
+            - myorg/myrepo
+          action: OPENED
+  gitConfig:
+    repo: myorg/myrepo
+    branch: main
+  actions:
+    - prComment:
+        action: COMMENTED
+    - slack:
+        channel: "C0REVIEW"
+  prompts:
+    - |
+      Review this pull request for security issues.
+      Check for:
+      - SQL injection vectors
+      - Unvalidated redirects
+      - Hardcoded secrets
+      - Missing auth checks
+      
+      Post findings as a PR comment and summary to Slack.
+  model: "claude-sonnet-4-20250514"
+  agentOptions:
+    skipInstall: false
+  memoryEnabled: true
+```
+
+---
+
+## YAML Wire Format
+
+The internal YAML wire format matches the Automations editor's proto JSON schema. This is the format used by the `open_automation` tool when prefilling the editor.
+
+### Skeleton
+
+```yaml
+name: "Automation Name"
+description: "Optional description"
+workflow:
+  triggers: []      # Trigger definitions
+  actions: []       # Tool/action definitions
+  prompts: []       # Agent instructions (use | block scalar)
+  model: ""         # Model identifier
+  agentOptions:
+    skipInstall: false
+  memoryEnabled: true
+```
+
+### Key Conventions
+
+- **Prompts use `|` block scalar**: Never use `>-` (folding scalar) as it breaks bullet points
+- **PR enums are full names**: Use `GIT_PULL_REQUEST_ACTION_OPENED`, not `opened`
+- **`ignoreDraftPrs`**: Plural form, not `ignoreDraftPr`
+- **Git scope**: Lives on `git.pullRequest.repos` or `git.pullRequest.orgs`; `gitConfig` holds `repo` and `branch`
+- **Slack IDs**: `C…` (channel), `G…` (group), `D…` (DM). Never `U…` (user ID).
+- **`mcp.server.name`**: Required when MCP action is enabled — see MCP Server Prefill Rules below
+
+---
+
+## MCP Server Prefill Rules
+
+### Server Name Resolution
+
+When using the `mcp` tool in an automation, `server.name` must be the `serverName` from the server's `SERVER_METADATA.json` — **not** the folder identifier.
+
+```yaml
+# Correct
+workflow:
+  actions:
+    - mcp:
+        server:
+          name: "Linear"    # From SERVER_METADATA.json serverName field
+
+# Wrong — uses folder identifier
+workflow:
+  actions:
+    - mcp:
+        server:
+          name: "dashboard-team-1-Linear"  # This is serverIdentifier, NOT serverName
+```
+
+### Dashboard Eligibility
+
+Only dashboard-backed servers can be used in the `mcp` action. Eligible servers have identifiers starting with:
+
+| Prefix | Description |
+|--------|-------------|
+| `dashboard-team-<teamId>-` | Team-shared servers |
+| `dashboard-` | Personal user-configured servers |
+| `plugin-<slug>-` | Marketplace plugin servers |
+
+Other servers (local MCP servers, `cursor-ide-browser`, `cursor-app-control`, `extension-*`) are **not eligible** for the `mcp` action. Prefilling them will block the automation from saving.
+
+### MCP Authentication Gate
+
+Before prefilling an MCP server in an automation:
+
+1. **Check `STATUS.md`**: `~/.cursor/mcps/<folder>/STATUS.md` exists with auth requirement message
+2. **Check `serverStatus`**: `GetMcpTools` reports `needsAuth` for that server
+3. **Check tool list**: Server only exposes `mcp_auth` with no other usable tools
+4. **If unauthenticated**: Stop the automation drafting flow. Do not prefill the MCP. Do not open the editor.
+
+**Never defer MCP OAuth to the Automations editor** — unauthenticated prefilled MCP rows block save and the editor auth redirect loses draft state.
+
+---
+
+## PCD — Portal Completeness & Deferral
+
+PCD checks ensure the automation draft is complete before opening the editor.
+
+### PCD Gates
+
+| Gate | Scope | Description |
+|------|-------|-------------|
+| **PCD:slack-trigger** | `slackTrigger` channel selection | Channel IDs must be resolved or explicitly deferred |
+| **PCD:slack-actions** | `slack` / `readSlack` actions | Destination channel/DM must be resolved |
+| **PCD:git-scope** | Git PR/push/CI triggers | Repo/org/branch scope must be resolved |
+| **PCD:universal** | All gates | Every intentional gap appears in draft table |
+
+### PCD Resolution Matrix
+
+| Scope | Before Opening Editor Unless Deferred |
+|-------|--------------------------------------|
+| **PCD:slack-trigger** | Slack channel IDs resolved, or user chose to pick channels in the Automations UI |
+| **PCD:slack-actions** | `slack.channel` / `readSlack` scope resolved; IDs must be `C…` / `G…` / `D…` |
+| **PCD:git-scope** | PR triggers have repos/orgs; push triggers have repo + branch; CI triggers have repo scope |
+
+### PCD Notes
+
+- Slack trigger and Slack action destinations are **separate questions**. A Slack trigger does not imply a Slack action destination.
+- For Slack replies, offer "respond in the triggering thread" separately from "send to a specific channel or DM".
+- Empty `{}` actions are valid when the user chooses "Select channels" in the editor.
+
+---
+
+## Draft Table Format
+
+When creating an automation through chat, the draft is recapped in a Markdown table:
+
+| Draft Field | Editor Display |
+|-------------|---------------|
+| Name / description | Short plain-language value |
+| Trigger | What starts the automation |
+| Tools | Enabled capabilities |
+| Instructions | Agent behavior summary |
+| Resolved settings | Repo, branch, Slack channel, service, schedule |
+| To finish in editor | Deferred settings for the UI; "None" if nothing deferred |
+
+End the draft table with: "Does this look correct?"
+
+---
+
+## Finish Path
+
+The only finish path for creating an automation:
+
+1. Show the Markdown draft table
+2. Wait for user approval
+3. List deferred fields and configuration needed in the editor
+4. Ask "Are you ready for me to open it for you?"
+5. Open the Automations editor with the reviewed draft
+
+**Never** submit, open a URL, paste a browser prefill link, or switch buckets. The approved draft table and user readiness confirmation are the only required steps.
+
+---
+
+## Validation Rules
+
+After draft approval, validate:
+
+- PR enums use full names (e.g., `GIT_PULL_REQUEST_ACTION_OPENED`)
+- `ignoreDraftPrs` is plural (not `ignoreDraftPr`)
+- Slack channel IDs start with `C`, `G`, or `D` (never `U`)
+- `gitConfig` is present when needed for non-git triggers
+- `mcp.server.name` is present and matches a dashboard-eligible, authenticated server
+- Description text is free of internal metadata markers (`__securitybot_metadata__`, `customInstruction`)
+- YAML uses `|` block scalar for prompts (not `>-`)
+
+**Do not** write inline JSON-schema validators for automation YAML — the proto shape changes and can falsely fail valid drafts.
+
+---
+
+## Integration with Other Systems
+
+Automations integrate with Cursor's broader ecosystem:
+
+- **[MCP Integration](mdc:05-mcp-integration.mdc)**: MCP servers can be called as tools within automations
+- **[Context Management](mdc:10-context-management.mdc)**: Automations use the same `@`-reference system in their prompts
+- **[Command Reference](mdc:11-command-reference.mdc)**: Automations use the same tools (Read, Write, Shell, etc.) as the main agent
+- **[Hooks and Automation](mdc:09-hooks-and-automation.mdc)**: Hooks are local event scripts; Automations are cloud agent workflows
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Automation won't save with MCP | MCP server not dashboard-eligible | Use only servers with `dashboard-`, `dashboard-team-`, or `plugin-` prefix |
+| MCP auth fails in editor | Server unauthenticated | Authenticate MCP in chat before prefilling |
+| Slack channel not found | Used user ID instead of channel ID | Ensure Slack IDs are `C…`, `G…`, or `D…` format |
+| Cron trigger not firing | Invalid cron expression | Use standard 5-field cron format: `min hour day month weekday` |
+| Git trigger wrong repo | `gitConfig` scope mismatch | Ensure `gitConfig.repo` matches the trigger's PR scope |
+| Draft table blocked | Unresolved PCD gates | Resolve all PCD gates or explicitly defer to editor |
+
+---
+
+## Related Documents
+
+- [Hooks and Automation](mdc:09-hooks-and-automation.mdc) — Local event-driven automation (vs cloud Automations)
+- [MCP Integration](mdc:05-mcp-integration.mdc) — MCP servers used in automation tools
+- [Context Management](mdc:10-context-management.mdc) — @-references in automation prompts
+- [Command Reference](mdc:11-command-reference.mdc) — Tools available to automation agents
+- [Standard Operating Procedures](mdc:12-sop-operations.mdc) — SOP for creating automations

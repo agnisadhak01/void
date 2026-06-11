@@ -1,0 +1,326 @@
+---
+title: Cursor Editor — Workspace Trust Model
+description: Reference for Cursor's workspace trust system, trusted vs untrusted workspaces, and how trust affects agent behavior.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, workspace-trust, security, trusted-untrusted, agent-behavior]
+---
+
+# Cursor Editor — Workspace Trust Model
+
+## Overview
+
+Cursor inherits VS Code's workspace trust system, which controls which features and capabilities are available based on whether the current workspace is trusted. This security model prevents unauthorized code execution and protects against malicious project configurations.
+
+---
+
+## What Is Workspace Trust?
+
+Workspace trust is a security model that determines whether Cursor should allow potentially dangerous operations in a given project. It is especially important when opening workspaces from unknown or untrusted sources.
+
+```mermaid
+flowchart TD
+    A[Open workspace] --> B{Is workspace trusted?}
+    B -->|Yes| C[Full trust mode]
+    B -->|No| D[Restricted trust mode]
+    
+    C --> E[All features available]
+    C --> F[Agent can execute Shell]
+    C --> F[Agent can run Task]
+    C --> F[Agent can use CallMcpTool]
+    C --> F[Hooks execute automatically]
+    
+    D --> G[Restricted features]
+    D --> H[Agent cannot execute Shell]
+    D --> H[Agent cannot run Task]
+    D --> H[Agent cannot use CallMcpTool]
+    D --> H[Hooks do not execute]
+    D --> I[Read-only agent operations]
+```
+
+---
+
+## Trusted vs Untrusted Workspaces
+
+### Feature Availability by Trust Level
+
+| Feature | Trusted | Untrusted | Notes |
+|---------|---------|-----------|-------|
+| **File read/write** | ✅ Yes | ✅ Yes | Always available |
+| **Grep/Search** | ✅ Yes | ✅ Yes | Always available |
+| **Shell execution** | ✅ Yes | ❌ No | Dangerous operation |
+| **Task (subagent)** | ✅ Yes | ❌ No | May execute commands |
+| **CallMcpTool** | ✅ Yes | ❌ No | MCP tools may execute |
+| **Hooks** | ✅ Yes | ❌ No | May trigger commands |
+| **Automations** | ✅ Yes | ❌ No | Cloud agent may execute |
+| **Web search/fetch** | ✅ Yes | ✅ Yes | Read-only operations |
+| **Semantic search** | ✅ Yes | ✅ Yes | Read-only operations |
+| **Git operations** | ✅ Yes | ⚠️ Limited | Read git status only |
+| **Settings access** | ✅ Yes | ⚠️ Limited | Some settings hidden |
+| **Agent Output channel** | ✅ Yes | ⚠️ Limited | Reduced visibility |
+
+### Trust Impact on Agent Behavior
+
+```
+Untrusted Workspace — Agent Behavior:
+  ✅ Can: Read files, grep, search, explain, suggest
+  ❌ Cannot: Execute shell commands, modify settings, run hooks
+  ⚠️  Result: Agent acts in Ask/Plan mode only
+  
+Trusted Workspace — Agent Behavior:
+  ✅ Can: Everything (including Shell, Task, MCP)
+  ⚠️  Result: Full Agent mode available
+```
+
+---
+
+## How Trust Affects Agent Behavior
+
+### Agent Mode Restrictions in Untrusted Workspaces
+
+| Agent Capability | Untrusted Workspace | Trusted Workspace |
+|-----------------|---------------------|-------------------|
+| **Read files** | ✅ Yes | ✅ Yes |
+| **Grep/Search** | ✅ Yes | ✅ Yes |
+| **Write files** | ✅ Yes | ✅ Yes |
+| **StrReplace** | ✅ Yes | ✅ Yes |
+| **Shell commands** | ❌ No | ✅ Yes |
+| **Spawn Task subagent** | ❌ No | ✅ Yes |
+| **Execute hooks** | ❌ No | ✅ Yes |
+| **Run Automations** | ❌ No | ✅ Yes |
+| **Access MCP tools** | ❌ No | ✅ Yes |
+| **Git operations (write)** | ❌ No | ✅ Yes |
+| **Commit changes** | ❌ No | ✅ Yes |
+
+### Practical Impact
+
+```
+Scenario: Agent needs to run tests
+
+Untrusted workspace:
+  Agent: "I can see the test files and explain what they do,
+         but I cannot run 'npm test' because Shell execution
+         is blocked in this untrusted workspace."
+  
+Trusted workspace:
+  Agent: "Running npm test... Tests passing: 42/42."
+```
+
+---
+
+## How to Grant Trust
+
+### UI Controls
+
+```
+1. Open workspace in Cursor
+2. If untrusted, notification appears: "This workspace is not trusted"
+3. Click "Trust workspace" button in notification
+4. OR: Command Palette → "Developer: Trust Workspace"
+5. OR: Status bar → Click trust indicator → "Trust workspace"
+```
+
+### Trust Levels
+
+| Trust Level | Features Available | Scope |
+|------------|-------------------|-------|
+| **No trust** | Read-only agent, file ops, search | Restricted |
+| **Partial trust** | Most features except shell/automation | Configurable |
+| **Full trust** | All features available | Full access |
+
+### Trust Persistence
+
+| Trust Type | Scope | Persistence |
+|-----------|-------|-------------|
+| **Per-workspace trust** | Specific folder | Saves to `.vscode/workspace trust` |
+| **Per-folder trust** | Specific folder path | Persists across sessions |
+| **Global trust** | All workspaces | Not recommended |
+| **Temporary trust** | Current session only | Resets on close |
+
+### Trust Configuration
+
+```json
+{
+  // Trust configuration (in workspace settings)
+  "security.workspace.trust.enabled": true,
+  "security.workspace.trust.untrustedFiles": "prompt",
+  
+  // Trust options: "prompt" | "open" | "newWindow"
+  "security.workspace.trust.onStart": "prompt",
+  
+  // Trusted folders (explicitly trusted)
+  "security.workspace.trust.trustedFolders": [
+    "/path/to/project-a",
+    "/path/to/project-b"
+  ],
+  
+  // Untrusted folders (explicitly restricted)
+  "security.workspace.trust.untrustedFolders": [
+    "/path/to/untrusted-project"
+  ]
+}
+```
+
+---
+
+## Trust and Specific Operations
+
+### Shell Command Trust
+
+Shell commands require full trust because they can execute arbitrary system commands:
+
+```json
+{
+  // Agent can execute shell commands in trusted workspace only
+  "cursor.agent.shell.enabled": true,
+  "cursor.agent.shell.trustRequired": true
+}
+```
+
+### Hook Execution Trust
+
+Cursor hooks (automations) require trust because they can run on workspace events:
+
+```
+Untrusted workspace:
+  - Pre-open hooks: Skipped
+  - Pre-tool-use hooks: Skipped
+  - Post-tool hooks: Skipped
+  
+Trusted workspace:
+  - All hooks execute as configured
+```
+
+### MCP Tool Trust
+
+MCP tools can interact with external systems and require trust:
+
+```
+Untrusted workspace:
+  - CallMcpTool: ❌ Blocked
+  
+Trusted workspace:
+  - CallMcpTool: ✅ Allowed
+```
+
+### Git Operation Trust
+
+```
+Untrusted workspace:
+  - git status: ✅ Allowed (read)
+  - git diff: ✅ Allowed (read)
+  - git add: ❌ Blocked
+  - git commit: ❌ Blocked
+  - git push: ❌ Blocked
+  - git branch: ❌ Blocked
+```
+
+---
+
+## Trust Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as Cursor
+    participant T as Trust System
+    participant A as Agent
+    
+    U->>C: Open workspace
+    C->>T: Check trust status
+    T->>T: Is workspace trusted?
+    
+    alt Not trusted
+        T->>C: Untrusted
+        C->>U: Show trust notification
+        U->>C: Grant trust OR deny
+    else Trusted
+        T->>C: Trusted
+    end
+    
+    C->>A: Initialize agent with trust level
+    
+    alt Untrusted
+        A->>A: Restrict to read-only tools
+        A->>U: Explain restrictions
+    else Trusted
+        A->>A: Full tool access
+        A->>U: Execute requested operations
+    end
+```
+
+---
+
+## Trust Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Agent can't run commands | Workspace untrusted | Click "Trust workspace" |
+| Hooks not executing | Trust revoked | Re-grant trust |
+| Agent stuck in Ask mode | Trust level too low | Increase trust level |
+| Can't grant trust | MDM policy blocks | Contact IT admin |
+| Trust resets on reopen | Trust not persisted | Check `security.workspace.trust.onStart` |
+
+### Diagnostic Commands
+
+```bash
+# Check current trust status
+# Open Command Palette → "Workspace Trust: Show Trust Status"
+
+# List trusted folders
+# Settings → Search "trustedFolders"
+
+# Force trust prompt
+# Command Palette → "Developer: Reload Window"
+```
+
+---
+
+## Best Practices
+
+### For Developers
+
+1. **Always trust your own workspaces**: Open Cursor from your project folders
+2. **Be cautious with external projects**: Trust only after reviewing contents
+3. **Use partial trust for experimental projects**: Balance security and functionality
+4. **Maintain trusted folder list**: Explicitly trust known-good projects
+
+### For Organizations
+
+1. **Set workspace trust policy via MDM**: Enforce trust requirements
+2. **Maintain approved workspace list**: Pre-configure trusted folders
+3. **Audit trust grants**: Track which workspaces users trust
+4. **Untrusted by default**: Require explicit trust for all workspaces
+
+### For Security Teams
+
+```json
+{
+  // Enterprise security configuration
+  "security.workspace.trust.enabled": true,
+  "security.workspace.trust.untrustedFiles": "prompt",
+  "security.workspace.trust.onStart": "prompt",
+  
+  // Require trust for agent mode
+  "cursor.agent.shell.trustRequired": true,
+  "cursor.agent.task.trustRequired": true,
+  "cursor.agent.mcp.trustRequired": true,
+  
+  // Pre-approved trusted workspaces
+  "security.workspace.trust.trustedFolders": [
+    "/opt/projects/*"
+  ]
+}
+```
+
+---
+
+## Related Documents
+
+- [Settings and Configuration](mdc:19-agent-settings.mdc) — Trust-related settings
+- [Hooks and Automation](mdc:09-hooks-and-automation.mdc) — Hook execution in trusted workspace
+- [Security Rules](mdc:../compliance/security-rules.mdc) — Security guidelines
+- [Data Privacy](mdc:26-data-privacy.mdc) — Trust and privacy considerations
+- [Secure Agent Behavior](mdc:33-secure-agent-behavior.mdc) — Safety guardrails and trust

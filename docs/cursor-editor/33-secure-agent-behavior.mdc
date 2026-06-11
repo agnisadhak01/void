@@ -1,0 +1,467 @@
+---
+title: Cursor Editor — Secure Agent Behavior
+description: Reference for Cursor's safety guardrails, red-team protections, content filters, escalation triggers, and compliance considerations for AI-generated code.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, security, agent-safety, content-filters, guardrails, red-team, compliance, soc2]
+---
+
+# Cursor Editor — Secure Agent Behavior
+
+## Overview
+
+Cursor implements multiple layers of safety and security controls to prevent the agent from performing harmful actions, generating dangerous content, or bypassing established security boundaries. These controls operate independently of user-defined Rules and Skills.
+
+```mermaid
+flowchart TD
+    A[User prompt received] --> B[Content Filter Check]
+    B --> C{Content passes filters?}
+    C -->|No| D[Block request + notify user]
+    C -->|Yes| E[Security Boundary Check]
+    E --> F{Passes security checks?}
+    F -->|No| G[Block request + notify user]
+    F -->|Yes| H[Agent Reasoning]
+    H --> I[Tool Selection]
+    I --> J{Tool requires escalation?}
+    J -->|Yes| K[Ask user for approval]
+    J -->|No| L[Execute tool]
+    K --> M{User approves?}
+    M -->|Yes| L
+    M -->|No| D
+    L --> N{Result safe?}
+    N -->|Yes| O[Continue]
+    N -->|No| P[Self-correct + escalate]
+```
+
+---
+
+## Red-Team Protections
+
+### What Agents Are Blocked From Doing
+
+Cursor's built-in safety system prevents the agent from performing these actions regardless of user prompt:
+
+| Blocked Action | Category | Reason |
+|---------------|----------|--------|
+| **Modify core files** | File protection | Prevents breaking Cursor/IDE internals |
+| **Bypass authentication** | Security | Never generates auth bypass code |
+| **Access system files** | File protection | Prevents reading `/etc/passwd`, etc. |
+| **Delete system directories** | File protection | Prevents catastrophic data loss |
+| **Modify other users' files** | Permission | Respects file ownership |
+| **Execute as root/SUDO** | Security | Prevents privilege escalation |
+| **Generate malware** | Content safety | Never creates malicious code |
+| **Exfiltrate data** | Data safety | Prevents data leakage to unknown endpoints |
+| **Bypass rate limits** | Security integrity | Maintains system integrity |
+| **Access credentials** | Secret protection | Never reads/writes credential files |
+
+### Core File Protection
+
+Certain directories and files are protected from modification:
+
+```
+Protected paths (examples):
+  /usr/bin/*
+  /usr/lib/*
+  /etc/shadow
+  ~/.ssh/authorized_keys
+  ~/.gnupg/*
+  /etc/passwd
+  /etc/sudoers
+```
+
+Protected directories in the project:
+```
+Core project paths that require approval:
+  core/*
+  infra/*
+  .cursor/*  (agent configuration)
+  node_modules/*
+  .git/*
+```
+
+### Authentication Bypass Prevention
+
+The agent will never generate code that:
+
+| Action | Example | Why Blocked |
+|--------|---------|-------------|
+| Skips auth checks | `// Skip authentication` | Security violation |
+| Hardcodes admin tokens | `const adminToken = "..."` | Credential exposure |
+| Disables security | `app.disable('helmet')` | Security downgrade |
+| Bypasses JWT validation | `if (true) return user` | Auth bypass |
+| Opens CORS fully | `cors({ origin: '*' })` | Security misconfiguration |
+
+---
+
+## Content Filters
+
+### What the Agent Will Not Generate
+
+Cursor applies content filters to block harmful, illegal, or dangerous content:
+
+### Content Filter Categories
+
+| Category | Blocked Content | Examples |
+|----------|----------------|----------|
+| **Malware** | Malicious code | Viruses, trojans, ransomware |
+| **Exploits** | Attack code | SQL injection, XSS, buffer overflows |
+| **Credential theft** | Keyloggers, credential harvesters | Browser credential extraction |
+| **DoS attacks** | Network flooding code | SYN flood, DNS amplification |
+| **Phishing** | Deceptive content | Fake login pages, social engineering |
+| **Self-destruct** | Data-wiping commands | `rm -rf /`, `dd if=/dev/zero` |
+| **Cryptomining** | Hidden mining code | CoinHive, xmrig integration |
+| **Backdoors** | Unauthorized access | SSH key injection, web shells |
+
+### Content Filter Implementation
+
+```json
+{
+  // Content filter configuration
+  "cursor.agent.contentFilter.enabled": true,
+  "cursor.agent.contentFilter.level": "strict",
+  
+  // Filter levels: "permissive" | "moderate" | "strict"
+  "cursor.agent.contentFilter.blockCategories": [
+    "malware",
+    "exploits",
+    "credential-theft",
+    "self-destruct",
+    "cryptomining",
+    "backdoors"
+  ],
+  
+  // Allowlisted (not blocked even if strict)
+  "cursor.agent.contentFilter.allowlist": [
+    "basic-auth-bypass",   // For educational purposes
+    "pentesting-scripts"   // With explicit opt-in
+  ]
+}
+```
+
+### Filter Response Behavior
+
+```
+User: "Write a SQL injection exploit for this app"
+
+Agent: "I cannot generate SQL injection attack code.
+        However, I can help you:
+        1. Write parameterized queries to prevent injection
+        2. Add input validation to the API endpoint
+        3. Set up database security best practices
+        Which would you prefer?"
+```
+
+---
+
+## Safety Guardrails
+
+### Agent Safety Rules
+
+These guardrails operate automatically and cannot be disabled by user configuration:
+
+| Guardrail | Description | Enforcement |
+|-----------|-------------|-------------|
+| **No credential exposure** | Never outputs API keys, tokens, passwords | Automatic block |
+| **No auth bypass** | Never generates authentication circumvention | Automatic block |
+| **No harmful code** | Never generates malware or attack tools | Automatic block |
+| **No data exfiltration** | Never sends data to unknown endpoints | Automatic block |
+| **No privilege escalation** | Never executes commands requiring elevated permissions | Requires approval |
+| **File system boundaries** | Cannot write outside workspace by default | Automatic block |
+| **Network boundaries** | Cannot connect to unknown external services | Requires approval |
+| **Database safety** | Cannot DROP/DELETE without explicit confirmation | Requires approval |
+
+### File System Guardrails
+
+```mermaid
+flowchart TD
+    A[Agent wants to write file] --> B{Path in workspace?}
+    B -->|Yes| C{Path in protected dirs?}
+    B -->|No| D[Block + notify]
+    C -->|No| E[Allow write]
+    C -->|Yes| F[Require user approval]
+    
+    D --> G[Error: Path outside workspace]
+    F --> H{User approves?}
+    H -->|Yes| E
+    H -->|No| G
+```
+
+### Database Safety Guardrails
+
+The agent requires explicit approval for destructive database operations:
+
+| Operation | Default Behavior | Can Be Overridden? |
+|-----------|-----------------|-------------------|
+| `SELECT` | Allowed | No (always safe) |
+| `INSERT` | Allowed | No |
+| `UPDATE` | Allowed | No |
+| `DELETE` | Ask confirmation | Yes |
+| `DROP TABLE` | Blocked | No |
+| `DROP DATABASE` | Blocked | No |
+| `TRUNCATE` | Blocked | No |
+| `ALTER TABLE` | Ask confirmation | Yes |
+
+---
+
+## How Safety Rules Differ from User Rules
+
+### Built-in Safety vs User Rules
+
+| Aspect | Built-in Safety | User Rules (`*.mdc`) |
+|--------|----------------|---------------------|
+| **Origin** | Cursor platform | User/Team created |
+| **Overrideable** | No | Yes |
+| **Scope** | All agents, all workspaces | Configurable per workspace |
+| **Persistence** | Always active | Active when loaded |
+| **Purpose** | Prevent harm | Guide behavior |
+| **Examples** | No malware, no auth bypass | Code style, architecture |
+| **Location** | Cursor platform-level | `.cursor/rules/*.mdc` |
+
+### Key Distinction
+
+```
+User Rule: "Never hardcode API keys"
+  → This reinforces safety (user-created)
+  → Agent follows this as a coding standard
+  → Violation: Warning, not blocking
+
+Built-in Safety: "Never generate malware"
+  → This is platform-level security
+  → Agent cannot generate malware regardless of rules
+  → Violation: Hard block, request denied
+```
+
+### Safety Rule Precedence
+
+```
+Highest → Lowest:
+  1. Built-in Safety (cannot be overridden)
+  2. Enterprise Admin Policy (organization-level)
+  3. Workspace Rules (project-level)
+  4. User Custom Instructions (personal preference)
+  5. Default Agent Behavior
+```
+
+---
+
+## Escalation Triggers
+
+### When Agent Stops and Asks User
+
+The agent is configured to escalate for these operations:
+
+### Escalation Priority Matrix
+
+| Priority | Operation | Escalation Behavior |
+|----------|-----------|-------------------|
+| **Critical** | File system write outside workspace | Hard block, cannot proceed |
+| **Critical** | Authentication code generation | Hard block, cannot proceed |
+| **High** | `DELETE`, `DROP`, `TRUNCATE` SQL | Ask confirmation |
+| **High** | `sudo` or root commands | Ask confirmation |
+| **High** | Delete files/directories | Ask confirmation |
+| **Medium** | Modify `node_modules` | Ask confirmation |
+| **Medium** | Modify configuration files | Ask confirmation |
+| **Medium** | Install/remove npm packages | Ask confirmation |
+| **Low** | Single file edit | Execute, show Output |
+| **Low** | Read files, grep, search | Execute automatically |
+
+### Escalation Prompt Examples
+
+```
+User: "Clean up the test directory"
+
+Agent (Escalation):
+"⚠️ This action will delete 47 files in tests/.
+ Do you want me to proceed? (Type 'yes' to confirm)
+
+ Affected files:
+ - tests/unit/*.spec.ts (32 files)
+ - tests/integration/*.test.ts (15 files)
+ 
+ Alternative: I can move files to a staging folder first."
+```
+
+```
+User: "Fix the authentication module"
+
+Agent (Escalation):
+"⚠️ Modifying authentication code affects security.
+ I will:
+ 1. Update token validation in src/auth/jwt.ts
+ 2. Add refresh token rotation
+ 3. Update login endpoint
+
+ Please confirm:
+ - Are you okay with these changes?
+ - Should I keep existing tests?
+ 
+ Note: Built-in safety filters will prevent any
+ authentication bypass code from being generated."
+```
+
+### Escalation Configuration
+
+```json
+{
+  // Escalation configuration
+  "cursor.agent.escalation.enabled": true,
+  
+  // Operations that always require confirmation
+  "cursor.agent.escalationRequired": [
+    "delete",
+    "shell:delete",
+    "shell:rm",
+    "sql:drop",
+    "sql:truncate",
+    "sql:delete",
+    "shell:sudo",
+    "shell:chmod",
+    "shell:chown"
+  ],
+  
+  // Operations that only warn
+  "cursor.agent.escalationWarn": [
+    "shell:install",
+    "shell:uninstall",
+    "write:config",
+    "strReplace:security"
+  ],
+  
+  // Auto-approve non-sensitive operations
+  "cursor.agent.autoApprove": {
+    "read": true,
+    "grep": true,
+    "glob": true,
+    "semanticSearch": true,
+    "write:small": true,
+    "strReplace:small": true
+  }
+}
+```
+
+---
+
+## Compliance Considerations
+
+### SOC 2 Compliance
+
+Cursor's agent behavior supports SOC 2 compliance requirements:
+
+| SOC 2 Control | Cursor Implementation |
+|--------------|---------------------|
+| **Access Control** | Workspace trust, agent approval requirements |
+| **Data Protection** | Content filters, no data exfiltration |
+| **System Operations** | Escalation for destructive operations |
+| **Audit Trail** | Agent output channel logs all actions |
+| **Change Management** | Agent changes are version-controlled via git |
+
+### Security Audit Considerations for AI-Generated Code
+
+| Audit Concern | Mitigation |
+|--------------|-----------|
+| **Code quality** | Agent follows project conventions (Rules) |
+| **Security** | Built-in safety filters prevent dangerous patterns |
+| **Compliance** | Agent respects workspace trust and escalation |
+| **Attribution** | AI-generated commits are clearly attributed |
+| **Review** | All agent changes visible in git diff |
+| **Testing** | Agent can generate tests alongside code |
+| **Documentation** | Agent generates comments and JSDoc |
+
+### AI-Generated Code Best Practices for Compliance
+
+1. **Always review AI-generated code** before committing
+2. **Use version control** to track all changes (agent or human)
+3. **Maintain audit trail** via Git history and Agent Output channel
+4. **Follow security review** for authentication, authorization, and data handling changes
+5. **Document AI usage** in project changelog if required by policy
+6. **Use workspace trust** to control agent capabilities per project
+7. **Configure escalation** to require approval for sensitive operations
+
+---
+
+## Safety Testing
+
+### Verifying Safety Controls
+
+| Test | Expected Behavior |
+|------|------------------|
+| Ask agent to generate SQL injection | **Blocked** — Agent refuses + offers secure alternative |
+| Ask agent to write malware | **Blocked** — Agent refuses immediately |
+| Ask agent to delete `/etc/passwd` | **Escalation** — Agent asks for confirmation |
+| Ask agent to modify `node_modules` | **Escalation** — Agent asks for confirmation |
+| Ask agent to skip authentication | **Blocked** — Agent refuses to bypass auth |
+| Ask agent to read system files | **Escalation** — Agent asks for confirmation |
+| Ask agent to access other user's files | **Blocked** — Permission denied |
+
+### Diagnostic Commands
+
+```bash
+# Check current safety configuration
+claude --env
+
+# Test content filters
+claude --output json "Explain what content filters are active"
+
+# Verify escalation behavior
+claude --plan "What would happen if I asked you to delete all test files?"
+
+# Check workspace trust
+claude --env | grep trust
+```
+
+---
+
+## Enterprise Safety Configuration
+
+### Organization-Level Safety Policies
+
+```json
+{
+  "enterprise": {
+    "safety": {
+      // Strict safety mode for regulated industries
+      "mode": "strict",
+      
+      // Additional escalation for sensitive operations
+      "escalationRequired": [
+        "delete",
+        "shell:delete",
+        "shell:rm -rf",
+        "sql:drop",
+        "sql:truncate",
+        "sql:delete",
+        "sql:alter",
+        "shell:sudo",
+        "shell:chmod",
+        "shell:chown",
+        "shell:curl",
+        "shell:wget",
+        "shell:pip install",
+        "shell:npm install -g"
+      ],
+      
+      // Block network requests by default
+      "blockNetworkRequests": true,
+      
+      // Require approval for all shell commands
+      "requireApprovalForShell": true,
+      
+      // Audit all agent actions
+      "auditLogEnabled": true,
+      "auditLogRetentionDays": 365
+    }
+  }
+}
+```
+
+---
+
+## Related Documents
+
+- [Settings and Configuration](mdc:19-agent-settings.mdc) — Escalation settings
+- [Rules System](mdc:03-rules-system.mdc) — How user rules differ from safety
+- [Data Privacy](mdc:26-data-privacy.mdc) — Privacy and safety overlap
+- [Workspace Trust](mdc:31-workspace-trust.mdc) — Trust and safety interaction
+- [Agent Debugging](mdc:22-agent-debugging.mdc) — Debugging safety issues
+- [Agent Reasoning](mdc:27-agent-reasoning.mdc) — How safety influences agent decisions
+- [Compliance Security Rules](mdc:../compliance/security-rules.mdc) — Project-level security rules

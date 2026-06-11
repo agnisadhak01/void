@@ -1,0 +1,428 @@
+---
+description: "Complete command and tool reference for Cursor: all available tools, parameter patterns, and selection guidelines"
+tags: [tools, commands, reference, shell, files, search, agents, mcp]
+---
+
+# Cursor Editor — Command & Tool Reference
+
+## Overview
+
+Cursor provides a comprehensive toolset for the agent to interact with files, execute commands, search codebases, launch subagents, and integrate with external systems. This document catalogs all available tools, their parameters, and when to use each.
+
+---
+
+## Tool Categories
+
+```mermaid
+graph LR
+    subgraph "File Operations"
+        F1[Read]
+        F2[Write]
+        F3[StrReplace]
+        F4[Delete]
+        F5[EditNotebook]
+    end
+    
+    subgraph "Search & Discovery"
+        S1[Glob]
+        S2[Grep]
+        S3[SemanticSearch]
+    end
+    
+    subgraph "Execution"
+        E1[Shell]
+        E2[AwaitShell]
+    end
+    
+    subgraph "Agent Orchestration"
+        A1[Task]
+        A2[TodoWrite]
+    end
+    
+    subgraph "User Interaction"
+        U1[AskQuestion]
+        U2[SwitchMode]
+    end
+    
+    subgraph "MCP Integration"
+        M1[ListMcpResources]
+        M2[FetchMcpResource]
+        M3[CallMcpTool]
+    end
+    
+    subgraph "Web"
+        W1[WebSearch]
+        W2[WebFetch]
+    end
+    
+    F1 & F2 & F3 & F4 & F5 -.-> "File Ops"
+    S1 & S2 & S3 -.-> "Search"
+    E1 & E2 -.-> "Execution"
+    A1 & A2 -.-> "Agents"
+    U1 & U2 -.-> "User"
+    M1 & M2 & M3 -.-> "MCP"
+    W1 & W2 -.-> "Web"
+```
+
+---
+
+## File Operations
+
+### Read
+
+Reads file contents from the local filesystem.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | Yes | Absolute path to the file |
+| `offset` | integer | No | Line number to start reading from (1-indexed) |
+| `limit` | integer | No | Number of lines to read |
+
+**When to use**: Reading any file, including images (jpeg/jpg, png, gif, webp) and PDFs.
+
+### Write
+
+Creates or overwrites a file.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | Yes | Absolute path to the file |
+| `contents` | string | Yes | File contents to write |
+
+**When to use**: Creating new files or completely overwriting existing files. **Never use for incremental edits** -- use StrReplace instead.
+
+### StrReplace
+
+Performs exact string replacements in files.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | Yes | Absolute path to the file |
+| `old_string` | string | Yes | Text to replace (must be unique in file) |
+| `new_string` | string | Yes | Replacement text |
+| `replace_all` | boolean | No | Replace all occurrences (default: false) |
+
+**When to use**: Modifying existing file contents. **Always read the file first** before editing.
+
+### Delete
+
+Deletes a file at the specified path.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | Yes | Absolute path to the file |
+
+**When to use**: Removing files that are no longer needed.
+
+### EditNotebook
+
+Edits Jupyter notebook cells.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `target_notebook` | string | Yes | Path to the notebook file |
+| `cell_idx` | integer | Yes | Cell index (0-based) |
+| `is_new_cell` | boolean | Yes | true to create new cell, false to edit existing |
+| `cell_language` | string | Yes | Cell language (python, markdown, javascript, typescript, r, sql, shell, raw, other) |
+| `old_string` | string | Yes | Text to replace (required when is_new_cell=false) |
+| `new_string` | string | Yes | Replacement text or new cell content |
+
+**When to use**: Creating, editing, or deleting Jupyter notebook cells.
+
+---
+
+## Search & Discovery
+
+### Glob
+
+Searches for files matching a glob pattern.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `glob_pattern` | string | Yes | Glob pattern (e.g., `**/*.ts`, `src/components/**/*`) |
+| `target_directory` | string | No | Absolute path to search directory (defaults to workspace root) |
+
+**When to use**: Finding files by name pattern. **Use Grep for content search**, Glob for file name search.
+
+### Grep
+
+Powerful search tool built on ripgrep for searching file contents.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `pattern` | string | Yes | Regex pattern to search for |
+| `path` | string | No | File or directory to search in |
+| `glob` | string | No | Glob pattern filter (e.g., `*.js`, `*.{ts,tsx}`) |
+| `output_mode` | string | No | "content", "files_with_matches", or "count" (default: "content") |
+| `-B` | number | No | Lines before each match |
+| `-A` | number | No | Lines after each match |
+| `-C` | number | No | Lines before and after each match |
+| `-i` | boolean | No | Case insensitive search |
+| `type` | string | No | File type (js, py, rust, go, java, etc.) |
+| `head_limit` | number | No | Limit output size |
+| `offset` | number | No | Skip first N entries |
+| `multiline` | boolean | No | Enable multiline matching |
+
+**When to use**: Searching file contents by text or regex. **Always use Grep over shell `grep` or `rg` commands** -- it's faster and more reliable.
+
+### SemanticSearch
+
+Semantic search that finds code by meaning, not exact text.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `query` | string | Yes | Natural language question (e.g., "How does authentication work?") |
+| `target_directories` | string[] | No | Limit search to specific directories |
+
+**When to use**: Exploring unfamiliar codebases, asking "how does X work?" questions, finding code by concept rather than keyword. **Use Grep for exact text matches**, SemanticSearch for conceptual queries.
+
+---
+
+## Execution
+
+### Shell
+
+Executes commands in a shell session.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `command` | string | Yes | Command to execute |
+| `working_directory` | string | No | Absolute path to working directory |
+| `block_until_ms` | number | No | How long to wait before backgrounding (default: 30000ms) |
+| `description` | string | No | Short description of the command |
+| `notify_on_output` | object | No | Output monitoring config (pattern, reason, debounce_ms) |
+
+**When to use**: Running system commands (git, npm, pip, docker, etc.). **Always use the Shell tool over running `grep`, `find`, `cat`, `head`, or `tail` commands** -- prefer the specialized tools for those operations.
+
+### AwaitShell
+
+Checks or polls a backgrounded shell job.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `shell_id` | string | No | Shell ID to poll (required when block_until_ms=0) |
+| `block_until_ms` | number | No | Max sleep time (default: 30000ms) |
+| `pattern` | string | No | Block until regex matches stdout/stderr |
+
+**When to use**: Polling backgrounded commands. **Only poll when actively blocked on a result** -- use completion notifications otherwise.
+
+---
+
+## Agent Orchestration
+
+### Task
+
+Launches specialized subagents for complex tasks.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `description` | string | Yes | User-friendly title for the subagent |
+| `prompt` | string | Yes | Detailed task description with all context |
+| `model` | string | No | Model slug (e.g., composer-2.5-fast) |
+| `resume` | string | No | Agent ID to resume, or "self" to fork |
+| `readonly` | boolean | No | Default false; if true, agent cannot modify files |
+| `subagent_type` | enum | Yes | generalPurpose, explore, shell, cursor-guide, ci-investigator, bugbot, security-review, best-of-n-runner |
+| `file_attachments` | string[] | No | Optional array of image/video paths |
+| `interrupt` | boolean | No | Default false; interrupt running agent |
+| `run_in_background` | boolean | No | Default false; run independently |
+
+**When to use**: Multi-step tasks, codebase exploration, parallel approaches, specialized reviews. See [Agent Hierarchy](02-agent-hierarchy.mdc) for full details.
+
+### TodoWrite
+
+Creates and manages a structured task list.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `todos` | object[] | Yes | Array of todo items with id, content, status |
+| `merge` | boolean | Yes | true to merge with existing, false to replace |
+
+**When to use**: Complex multi-step tasks (3+ distinct steps). **Do not use** for simple single-step tasks.
+
+---
+
+## User Interaction
+
+### AskQuestion
+
+Collects structured multiple-choice answers from the user.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `title` | string | No | Optional title for the form |
+| `questions` | object[] | Yes | Array of question definitions |
+
+Each question:
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | Yes | Unique identifier |
+| `prompt` | string | Yes | Question text |
+| `options` | object[] | Yes | Answer options (min 2) |
+| `allow_multiple` | boolean | No | Default false; allow multiple selections |
+
+**When to use**: Presenting discrete options to the user, when blocked on a decision, collecting structured preferences.
+
+### SwitchMode
+
+Switches the interaction mode.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `target_mode_id` | string | Yes | "plan" or "agent" |
+| `explanation` | string | No | Why the mode switch is requested |
+
+**When to use**: 
+- **Plan mode**: Complex tasks with meaningful trade-offs, architectural decisions, unclear requirements
+- **Agent mode**: Clear understanding of what to implement, ready to execute
+
+---
+
+## MCP Integration
+
+### ListMcpResources
+
+Lists all available resources from an MCP server.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `server` | string | Yes | MCP server identifier |
+
+### FetchMcpResource
+
+Fetches the content of a specific MCP resource.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `server` | string | Yes | MCP server identifier |
+| `uri` | string | Yes | Resource URI |
+| `downloadPath` | string | No | Optional local path to save resource |
+| `requestSmartModeApproval` | boolean | No | Request approval if blocked |
+| `smartModeBlockReason` | string | No | Block reason from auto-review |
+
+### CallMcpTool
+
+Calls a tool on an MCP server.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `server` | string | Yes | MCP server identifier |
+| `toolName` | string | Yes | Tool name to invoke |
+| `arguments` | object | Yes | Tool-specific parameters |
+| `requestSmartModeApproval` | boolean | No | Request approval if blocked |
+| `smartModeBlockReason` | string | No | Block reason from auto-review |
+
+---
+
+## Web
+
+### WebSearch
+
+Searches the web for real-time information.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `search_term` | string | Yes | Search query |
+| `explanation` | string | No | One-sentence explanation of why this search is needed |
+
+### WebFetch
+
+Fetches content from a specified URL.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `url` | string | Yes | URL to fetch |
+| `requestSmartModeApproval` | boolean | No | Request approval if blocked |
+| `smartModeBlockReason` | string | No | Block reason from auto-review |
+
+---
+
+## Tool Selection Guidelines
+
+### Decision Flowchart
+
+```
+What do you need to do?
+├── Find files by name? → Glob
+├── Search file contents? → Grep
+├── Search by meaning/concept? → SemanticSearch
+├── Read a file? → Read
+├── Modify a file? → StrReplace (edit) or Write (replace)
+├── Delete a file? → Delete
+├── Run a command? → Shell
+├── Run complex multi-step task? → Task
+├── Ask user a question? → AskQuestion
+├── Change interaction mode? → SwitchMode
+├── Access external system? → CallMcpTool / FetchMcpResource
+├── Search the web? → WebSearch
+├── Fetch a webpage? → WebFetch
+└── Edit a notebook? → EditNotebook
+```
+
+### Key Rules
+
+| Rule | Rationale |
+|---|---|
+| **Prefer specialized tools over shell commands** | Better UX, more reliable, faster |
+| **Use Grep (ripgrep) over shell grep/rg** | Built-in, optimized, consistent |
+| **Use Glob over shell find** | Simpler interface, better performance |
+| **Use Read over cat/head/tail** | Direct file access, no shell overhead |
+| **Use StrReplace over sed/awk** | Exact string matching, safer edits |
+| **Always read before editing** | Know the current content to avoid errors |
+| **Run independent shell commands in parallel** | Faster execution |
+| **Chain dependent shell commands with &&** | Preserve ordering |
+
+---
+
+## Parameter Patterns
+
+### Working Directories
+
+Most tools support an optional `working_directory` parameter for running in a specific directory:
+
+```
+Shell(command="npm install", working_directory="/path/to/project")
+```
+
+### Timeouts
+
+The `block_until_ms` parameter controls how long to wait before backgrounding:
+
+| Value | Behavior | Use Case |
+|---|---|---|
+| 30000 (default) | Wait up to 30 seconds | Short commands |
+| 0 | Immediately background | Long-running processes (dev servers, watchers) |
+| Custom | Wait specific duration | Commands with known runtime |
+
+### Notifications
+
+The `notify_on_output` parameter monitors terminal output:
+
+```json
+{
+  "pattern": "Server running on port",
+  "reason": "Dev server startup",
+  "debounce_ms": 5000
+}
+```
+
+### Smart Mode Approval
+
+When auto-review blocks a tool call:
+
+```json
+{
+  "requestSmartModeApproval": true,
+  "smartModeBlockReason": "Exact block reason from auto-review"
+}
+```
+
+---
+
+## Related Documents
+
+- [Agent Hierarchy](02-agent-hierarchy.mdc) -- Task tool and subagent types
+- [MCP Integration](05-mcp-integration.mdc) -- MCP tools and resources
+- [Composer and Shortcuts](13-composer-and-shortcuts.mdc) -- Slash commands
+- [Plan Mode](29-plan-mode.mdc) -- Mode-specific tool access
+- [Agent Settings](19-agent-settings.mdc) -- Mode and autonomy settings
+- [SOPs](12-sop-operations.mdc) -- Procedure using these tools

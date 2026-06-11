@@ -1,0 +1,257 @@
+---
+title: Cursor Editor — Collaborative Editing
+description: Reference for Cursor's multiplayer and collaborative editing features, AI behavior in shared sessions, and pair programming workflows.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, multiplayer, collaboration, pair-programming, shared-sessions, live-share]
+---
+
+# Cursor Editor — Collaborative Editing
+
+## Overview
+
+Cursor supports collaborative editing through integration with VS Code Live Share and native team features. This document covers how AI agents behave in collaborative contexts, shared vs independent agent sessions, and best practices for pair programming with Cursor.
+
+---
+
+## Collaborative Editing Features
+
+### VS Code Live Share Integration
+
+Cursor inherits VS Code's Live Share capabilities for real-time collaboration:
+
+| Feature | Live Share Support | Cursor AI Impact |
+|---------|-------------------|-----------------|
+| **Real-time editing** | ✅ Yes | Each participant has their own AI context |
+| **Shared cursors** | ✅ Yes | AI sees all cursor positions |
+| **Shared terminals** | ✅ Yes | AI can execute in shared terminal |
+| **Shared debugging** | ✅ Yes | AI assists debugging sessions |
+| **Audio/video** | ✅ Yes (external) | Not integrated with Cursor AI |
+
+### Team Collaboration Workflows
+
+```mermaid
+flowchart TD
+    A[Host creates Live Share session] --> B[Invite participants]
+    B --> C[Participants join]
+    C --> D{AI collaboration model}
+    
+    D --> E[Shared AI session]
+    D --> F[Independent AI sessions]
+    
+    E --> G[One agent serves all participants]
+    F --> H[Each participant has own agent]
+    
+    G --> I[Shared context, synchronized]
+    H --> J[Independent context per person]
+```
+
+---
+
+## How AI Works in Multiplayer
+
+### Agent Session Model
+
+In collaborative environments, each participant typically has an **independent agent session**:
+
+| Participant | Agent Session | Context |
+|------------|--------------|---------|
+| **Host** | Independent | Own files, own Composer |
+| **Participant 1** | Independent | Own files, own Composer |
+| **Participant 2** | Independent | Own files, own Composer |
+
+### Shared vs Independent Context
+
+| Context Type | Shared? | Example |
+|-------------|---------|---------|
+| **File edits** | Yes (Live Share syncs files) | Both see changes in real-time |
+| **Agent prompts** | No | Each person's Agent sees their own prompts |
+| **Composer sessions** | No | Independent per participant |
+| **Terminal output** | Shared (if terminal is shared) | Both see terminal output |
+| **Agent Output channel** | No | Independent per participant |
+| **Rules/Skills** | Yes (loaded from shared repo) | Both use same rules |
+
+### AI Role in Pair Programming
+
+| Scenario | AI Role |
+|----------|---------|
+| **Driver writes code** | AI assists the driver |
+| **Navigator reviews** | AI can review navigator's questions |
+| **Debugging together** | AI helps diagnose from both perspectives |
+| **Code review** | AI provides independent review to both |
+| **Architecture discussion** | AI provides options to both participants |
+
+---
+
+## Shared Agent Sessions
+
+### When Sessions Are Shared
+
+| Situation | Shared? | Reason |
+|-----------|---------|--------|
+| **Same Composer instance** | ✅ Yes | Only one Composer can be open |
+| **Different editors** | ❌ No | Each has separate Composer |
+| **Claude Code CLI** | ❌ No | CLI is per-terminal |
+| **Cloud agent run** | ❌ No | Each cloud run is independent |
+
+### Shared Claude Code CLI
+
+When multiple people share a terminal with Claude Code:
+
+```
+Terminal (shared):
+User 1: claude "Explain this function"
+  → Agent sees User 1's prompt
+User 2: claude "Fix this bug"
+  → Agent sees User 2's prompt, previous context still exists
+  → Agent may get confused about context ownership
+```
+
+**Recommendation**: Each participant should use their own terminal/agent instance.
+
+---
+
+## Privacy in Multiplayer
+
+### What Each Participant Can See
+
+| Information | Visible to | Reason |
+|------------|-----------|--------|
+| **Your prompts** | You only | Private to your Composer session |
+| **Your agent responses** | You only | Private to your session |
+| **Your agent output** | You only | Debug info is personal |
+| **File edits** | All participants | Live Share syncs files |
+| **Terminal commands** | Terminal owner (or shared if shared) | Terminal sharing setting |
+| **Your cursor position** | All participants (if shared cursors on) | Live Share feature |
+| **Your open files** | Host (if host view enabled) | Live Share feature |
+
+### Privacy Controls
+
+```json
+{
+  // Live Share settings (inherited from VS Code)
+  "livestream.participantCanSeeMyFiles": false,
+  "livestream.participantCanSeeMyCursors": false,
+  
+  // Hide sensitive data in shared sessions
+  "cursor.agent.privateContext": true,
+  
+  // Don't share terminal output
+  "terminal.sharedOutput": false
+}
+```
+
+### Sensitive Context in Collaboration
+
+When collaborating, be aware:
+
+1. **Agent prompts may be visible** if shared terminal is used
+2. **Agent responses may leak** code patterns from private sessions
+3. **@-references in shared context** are visible to all
+4. **Custom instructions** are personal, not shared
+
+**Best Practice**: Never include sensitive information (API keys, secrets, PII) in prompts during collaborative sessions.
+
+---
+
+## Use Cases
+
+### Pair Programming with AI
+
+```mermaid
+sequenceDiagram
+    participant H as Host
+    participant A as Host's Agent
+    participant N as Navigator
+    participant B as Navigator's Agent
+    
+    H->>A: "Add rate limiting to login"
+    A->>H: "Here's the implementation..."
+    H->>H: Reviews and applies changes
+    N->>B: "Is this the right approach?"
+    B->>N: "Yes, but consider adding Redis for distributed rate limiting"
+    H->>A: "What does the navigator say about Redis?"
+    A->>H: "Redis is a good choice for distributed rate limiting..."
+```
+
+### AI-Assisted Code Review
+
+| Role | Activity | AI Role |
+|------|----------|---------|
+| **Reviewer** | Reviews PR | AI provides independent analysis |
+| **Author** | Addresses feedback | AI helps implement fixes |
+| **Third party** | Observes discussion | AI can answer questions from either side |
+
+### AI for Documentation Collaboration
+
+```
+User 1: "Generate API documentation for these endpoints"
+  → AI creates docs/api-reference.md
+
+User 2: "Add examples to the documentation"
+  → AI enhances docs/api-reference.md
+
+Both see the updated file via Live Share sync.
+```
+
+---
+
+## Best Practices
+
+### For Collaborative AI Usage
+
+1. **Each person has their own agent session** — avoid sharing Claude Code CLI
+2. **Use independent Composer instances** — don't share the same panel
+3. **Be mindful of shared terminal output** — prompts may be visible
+4. **Don't include secrets in shared sessions** — prompts go through API
+5. **Synchronize file changes** — understand what Live Share is syncing
+
+### For Pair Programming
+
+1. **Define AI roles**: Who controls the agent?
+2. **Communicate prompts**: Share what you're asking the AI
+3. **Review before applying**: Both participants should review AI changes
+4. **Use Plan Mode for decisions**: Get options before implementing
+5. **Agent Mode for execution**: One person implements, the other reviews
+
+### For Code Review with AI
+
+1. **Independent AI reviews**: Both reviewer and author get separate AI analysis
+2. **Cross-reference findings**: Compare AI findings with human review
+3. **Automated checks**: AI can verify specific concerns (security, performance)
+4. **Documentation**: AI-generated review summaries can be shared
+
+---
+
+## Limitations
+
+### Current Limitations
+
+| Limitation | Description |
+|-----------|-------------|
+| **No shared Composer** | Only one Composer instance per IDE window |
+| **No shared agent memory** | Each agent session is independent |
+| **No collaborative prompting** | Can't have both participants prompt the same agent |
+| **Terminal conflicts** | Sharing terminals can confuse agent context |
+| **No multi-user Claude Code** | Claude Code CLI is single-user |
+
+### Workarounds
+
+| Limitation | Workaround |
+|-----------|-----------|
+| Shared understanding | Use Plan Mode to present options, discuss |
+| Synchronized agent state | Use shared docs (md files) as agent memory |
+| Multiple agent queries | Each participant uses their own Composer |
+| Shared terminal confusion | Separate terminals per participant |
+
+---
+
+## Related Documents
+
+- [Cloud Agent](mdc:20-cursor-cloud.mdc) — Team workspace and cloud agent
+- [Agent Settings](mdc:19-agent-settings.mdc) — Mode configuration
+- [Model Providers](mdc:16-model-providers.mdc) — Per-mode provider config
+- [Agent Debugging](mdc:22-agent-debugging.mdc) — Debugging agent sessions
+- [Data Privacy](mdc:26-data-privacy.mdc) — Privacy in collaborative environments
+- [Workspace Rules](mdc:03-rules-system.mdc) — Shared rules for teams
+- [Skills System](mdc:04-skills-system.mdc) — Shared skills for teams

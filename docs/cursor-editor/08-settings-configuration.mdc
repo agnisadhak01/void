@@ -1,0 +1,250 @@
+---
+description: "Cursor settings and configuration reference: file locations, categories, common settings, and modification procedures"
+tags: [settings, configuration, preferences, vscode, editor]
+---
+
+# Cursor Editor — Settings & Configuration
+
+## Overview
+
+Cursor extends VSCode's settings system, providing hundreds of configurable options for the editor, agent behavior, terminal, and AI-specific features. Settings are stored in JSON files with comment support.
+
+---
+
+## Settings File Locations
+
+| OS | User Settings Path | Workspace Settings Path |
+|---|---|---|
+| **Windows** | `%APPDATA%\Cursor\User\settings.json` | `.vscode/settings.json` |
+| **macOS** | `~/Library/Application Support/Cursor/User/settings.json` | `.vscode/settings.json` |
+| **Linux** | `~/.config/Cursor/User/settings.json` | `.vscode/settings.json` |
+
+### User vs Workspace Settings
+
+| Level | Scope | Location | Priority |
+|---|---|---|---|
+| **User** | Applies globally to all projects | `settings.json` in user data directory | Lower (can be overridden) |
+| **Workspace** | Applies only to the current project | `.vscode/settings.json` in repo root | Higher (overrides user) |
+
+---
+
+## Settings Categories
+
+### Editor Settings
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `editor.fontSize` | number | 14 | Font size in pixels |
+| `editor.tabSize` | number | 2 | Number of spaces per tab |
+| `editor.wordWrap` | string | "off" | Wrap lines ("off", "on", "wordWrapColumn", "bounded") |
+| `editor.formatOnSave` | boolean | false | Format code when saving |
+| `editor.minimap.enabled` | boolean | true | Show the minimap |
+| `editor.lineNumbers` | string | "on" | Line number display ("on", "off", "relative", "interval") |
+| `editor.bracketPairColorization.enabled` | boolean | true | Enable bracket pair colorization |
+| `editor.cursorStyle` | string | "line" | Cursor style ("line", "block", "underline", "line-thin", "block-outline", "underline-thin") |
+| `editor.smoothScrolling` | boolean | false | Enable smooth scrolling |
+| `editor.autoClosingBrackets` | string | "always" | Auto-close brackets ("always", "languageDefined", "beforeWhitespace", "never") |
+| `editor.autoClosingQuotes` | string | "always" | Auto-close quotes |
+| `editor.suggestOnTriggerCharacters` | boolean | true | Auto-suggest on trigger characters |
+| `editor.quickSuggestions` | boolean | true | Enable quick suggestions |
+
+### Workbench Settings
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `workbench.colorTheme` | string | "Default Modern Dark" | Active color theme |
+| `workbench.iconTheme` | string | "default" | Active icon theme |
+| `workbench.sideBar.location` | string | "left" | Sidebar position ("left", "right") |
+| `workbench.activityBar.visible` | boolean | true | Show activity bar |
+| `workbench.editor.enablePreview` | boolean | true | Open files as preview |
+| `workbench.panel.defaultLocation` | string | "bottom" | Panel position ("bottom", "right") |
+
+### File Settings
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `files.autoSave` | string | "off" | Auto-save behavior ("off", "afterDelay", "onFocusChange", "onWindowChange") |
+| `files.autoSaveDelay` | number | 1000 | Auto-save delay in ms |
+| `files.exclude` | object | default patterns | Files to hide from Explorer |
+| `files.associations` | object | {} | File extension to language associations |
+| `files.trimTrailingWhitespace` | boolean | false | Trim trailing whitespace on save |
+| `files.insertFinalNewline` | boolean | false | Insert final newline on save |
+| `files.maxMemoryForLargeFiles` | number | 4096 | Memory limit for large files in MB |
+
+### Terminal Settings
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `terminal.integrated.fontSize` | number | undefined | Terminal font size |
+| `terminal.integrated.fontFamily` | string | undefined | Terminal font family |
+| `terminal.integrated.shell.windows` | string | undefined | Default Windows shell path |
+| `terminal.integrated.shell.osx` | string | undefined | Default macOS shell path |
+| `terminal.integrated.shell.linux` | string | undefined | Default Linux shell path |
+| `terminal.integrated.cursorStyle` | string | "block" | Terminal cursor style |
+| `terminal.integrated.cursorBlinking` | boolean | false | Terminal cursor blinking |
+
+### Cursor-Specific Settings
+
+Settings prefixed with `cursor.` or `aipopup.` control AI-specific behavior:
+
+| Setting | Type | Description |
+|---|---|---|
+| `cursor.*` | var | Cursor AI-specific settings |
+| `aipopup.*` | var | AI popup behavior settings |
+| Attribution control | UI-based | **CLI agent**: `~/.cursor/cli-config.json`; **IDE agent**: Cursor Settings > Agent > Attribution |
+
+---
+
+## Common User Requests → Settings Mapping
+
+| User Request | Setting | Value Examples |
+|---|---|---|
+| "bigger/smaller font" | `editor.fontSize` | 14, 16, 18 |
+| "change tab size" | `editor.tabSize` | 2, 4 |
+| "format on save" | `editor.formatOnSave` | true, false |
+| "word wrap" | `editor.wordWrap` | "on", "off", "bounded" |
+| "change theme" | `workbench.colorTheme` | "Default Dark Modern", "Monokai", etc. |
+| "hide minimap" | `editor.minimap.enabled` | false |
+| "auto save" | `files.autoSave` | "afterDelay", "onFocusChange" |
+| "line numbers" | `editor.lineNumbers` | "on", "off", "relative" |
+| "bracket matching" | `editor.bracketPairColorization.enabled` | true, false |
+| "cursor style" | `editor.cursorStyle` | "line", "block", "underline" |
+| "smooth scrolling" | `editor.smoothScrolling` | true, false |
+
+---
+
+## Modification Workflow
+
+### Step 1: Read Current Settings
+
+```
+# Windows
+type %APPDATA%\Cursor\User\settings.json
+
+# macOS
+cat ~/Library/Application\ Support/Cursor/User/settings.json
+
+# Linux
+cat ~/.config/Cursor/User/settings.json
+```
+
+### Step 2: Identify the Setting to Change
+
+Determine which category and specific setting to modify.
+
+### Step 3: Validate JSON Syntax
+
+Ensure the settings file is valid JSON (with comments).
+
+### Step 4: Update the Setting
+
+```json
+{
+  // Preserve existing settings
+  "editor.fontSize": 16,
+  "editor.formatOnSave": true,
+  "workbench.colorTheme": "Default Dark Modern"
+}
+```
+
+### Step 5: Write Back with Proper Formatting
+
+- 2-space indentation
+- Preserve comments if possible
+- Add the requested setting, don't overwrite existing ones
+
+---
+
+## Important Notes
+
+### JSON with Comments
+
+VSCode/Cursor settings.json supports comments (`//` and `/* */`). When reading, be aware comments may exist. When writing, preserve comments if possible.
+
+### Reload Requirements
+
+Some settings take effect immediately, others require reloading the window or restarting Cursor. Inform the user if a reload is needed:
+
+| Setting | Requires Reload |
+|---|---|
+| `editor.fontSize` | No |
+| `editor.tabSize` | No |
+| `editor.formatOnSave` | No |
+| `workbench.colorTheme` | Yes |
+| `workbench.iconTheme` | Yes |
+| `files.autoSave` | No |
+| `terminal.integrated.fontSize` | No (new terminals only) |
+| `cursor.*` | Varies by setting |
+| `aipopup.*` | Varies by setting |
+
+### Commit Attribution
+
+When the user asks about commit attribution:
+- **CLI agent**: Modify `~/.cursor/cli-config.json`
+- **IDE agent**: Controlled from UI at **Cursor Settings > Agent > Attribution** (not settings.json)
+
+### Backup
+
+For significant changes, mention the user can undo via Ctrl/Cmd+Z in the settings file or by reverting git changes if tracked.
+
+---
+
+## Example Modifications
+
+### Changing Font Size
+
+```json
+{
+  "editor.fontSize": 16
+}
+```
+
+### Enabling Format on Save
+
+```json
+{
+  "editor.formatOnSave": true
+}
+```
+
+### Changing Theme
+
+```json
+{
+  "workbench.colorTheme": "Default Dark Modern"
+}
+```
+
+### Comprehensive Editor Configuration
+
+```json
+{
+  "editor.fontSize": 14,
+  "editor.tabSize": 2,
+  "editor.wordWrap": "on",
+  "editor.formatOnSave": true,
+  "editor.minimap.enabled": false,
+  "editor.lineNumbers": "on",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.cursorStyle": "line",
+  "editor.smoothScrolling": true,
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "workbench.colorTheme": "Default Dark Modern",
+  "workbench.sideBar.location": "left"
+}
+```
+
+---
+
+## Related Documents
+
+- [Architecture Overview](01-overview.mdc) -- Settings fit into the editor configuration layer
+- [Agent Settings](19-agent-settings.mdc) -- Agent-specific settings, context windows, custom instructions
+- [Skills System](04-skills-system.mdc) -- update-cursor-settings is a built-in skill
+- [Model Providers](16-model-providers.mdc) -- Provider-specific settings and endpoints
+- [Data Privacy](26-data-privacy.mdc) -- Privacy and telemetry settings
+- [Workspace Trust](31-workspace-trust.mdc) -- Trust-related settings
+- [SOPs](12-sop-operations.mdc) -- Settings change procedure

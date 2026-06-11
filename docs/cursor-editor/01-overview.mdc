@@ -1,0 +1,371 @@
+---
+description: "High-level architecture of the Cursor AI Editor system including layers, workflows, and runtime modes"
+tags: [architecture, overview, system-design, agent, workflow]
+---
+
+# Cursor Editor — Architecture Overview
+
+## What is Cursor
+
+Cursor is an AI-native code editor built on VSCode with a layered agent architecture. It enables developers to interact with AI through multiple interaction modes and provides a programmable surface for automation via its SDK, MCP integration, skills system, and rules engine.
+
+### Interaction Modes
+
+| Mode | Description | Use Case |
+|---|---|---|
+| **Agent Mode** | Full autonomy with access to all tools (file ops, shell, LSP, terminal). Can modify code, run commands, and execute complex multi-step tasks. | Implementation, debugging, refactoring, file operations |
+| **Ask Mode** | Read-only exploration. Can search, read files, and answer questions but cannot modify the codebase. | Research, code understanding, documentation |
+| **Plan Mode** | [Switchable] Collaborative, design-only mode for approaching tasks with complex trade-offs. | Architecture decisions, planning, exploration |
+
+## System Architecture
+
+Cursor consists of six architectural layers, each with distinct responsibilities:
+
+```mermaid
+graph TB
+    subgraph "User Layer"
+        A[Chat Interface]
+        B[Editor UI]
+        C[Command Palette]
+    end
+
+    subgraph "Interaction Layer"
+        D[Agent Mode]
+        E[Ask Mode]
+        F[Plan Mode]
+    end
+
+    subgraph "Agent Engine"
+        G[Main Agent / You]
+        H[Task Tool]
+        I[Subagent Pool]
+        subgraph "Subagent Types"
+            H1[generalPurpose]
+            H2[explore]
+            H3[shell]
+            H4[cursor-guide]
+            H5[ci-investigator]
+            H6[bugbot]
+            H7[security-review]
+            H8[best-of-n-runner]
+        end
+    end
+
+    subgraph "Tool Layer"
+        T1[Shell]
+        T2[Read / Write / Edit]
+        T3[Glob / Grep / RG]
+        T4[Task / TodoWrite]
+        T5[AskQuestion / SwitchMode]
+        T6[WebSearch / WebFetch]
+        T7[EditNotebook / AwaitShell]
+        T8[SemanticSearch]
+    end
+
+    subgraph "Skills System"
+        S1[.cursor/skills/ - Project Skills]
+        S2[~/.cursor/skills/ - Personal Skills]
+        S3[~/.cursor/skills-cursor/ - Built-in Skills]
+        subgraph "Built-in"
+            S3a[canvas]
+            S3a2[create-rule / create-skill]
+            S3a3[review-bugbot / review-security]
+            S3a4[sdk / update-cursor-settings]
+            S3a5[babysit / split-to-prs / statusline / loop / automate]
+        end
+    end
+
+    subgraph "Rules System"
+        R1[.cursor/rules/ - MDC Files]
+        subgraph "Attach Types"
+            R1a[Always Apply]
+            R1b[Auto Attached]
+            R1c[Agent Requested]
+            R1d[Manual]
+        end
+    end
+
+    subgraph "MCP Layer"
+        M1[MCP Servers]
+        M2[Tools - CallMcpTool]
+        M3[Resources - FetchMcpResource]
+    end
+
+    subgraph "SDK Layer"
+        SDK1[TypeScript @cursor/sdk]
+        SDK2[Python cursor-sdk]
+        SDK3[REST API /v1/agents]
+    end
+
+    subgraph "Runtime"
+        RT1[Local - Caller Machine]
+        RT2[Cloud - Cursor VM]
+    end
+
+    A --> D
+    A --> E
+    A --> F
+    B --> D
+    C --> D
+
+    D --> G
+    E --> G
+    F --> G
+
+    G --> H
+    H --> I
+    I --> H1
+    I --> H2
+    I --> H3
+    I --> H4
+    I --> H5
+    I --> H6
+    I --> H7
+    I --> H8
+
+    G --> T1
+    G --> T2
+    G --> T3
+    G --> T4
+    G --> T5
+    G --> T6
+    G --> T7
+    G --> T8
+
+    S1 -.-> G
+    S2 -.-> G
+    S3 -.-> G
+    S3a -.-> G
+    S3a2 -.-> G
+    S3a3 -.-> G
+    S3a4 -.-> G
+    S3a5 -.-> G
+
+    R1 -.-> G
+    R1a -.-> G
+    R1b -.-> G
+    R1c -.-> G
+    R1d -.-> G
+
+    G --> M1
+    M1 --> M2
+    M1 --> M3
+
+    G --> SDK1
+    G --> SDK2
+    G --> SDK3
+
+    SDK1 --> RT1
+    SDK1 --> RT2
+    SDK2 --> RT1
+    SDK2 --> RT2
+    SDK3 --> RT2
+```
+
+## The Agent Workflow
+
+How user input flows through Cursor's processing pipeline:
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as Cursor Engine
+    participant A as Main Agent
+    participant T as Tools
+    participant SA as Subagents
+    participant M as MCP
+
+    U->>C: Type message in chat
+    C->>A: Receive input + system prompt + rules
+    A->>A: Parse intent, check context
+    A->>C: Load relevant rules (via @-references or auto)
+    C->>A: Return matched rules + skills
+    A->>T: Select tools for task
+    T->>T: Execute (read/write/shell/search)
+    A->>A: Evaluate results
+    alt Complex task
+        A->>SA: Launch subagent (Task tool)
+        SA->>SA: Execute specialized work
+        SA->>A: Return results
+    end
+    alt External data needed
+        A->>M: Call MCP tool/resource
+        M->>A: Return data
+    end
+    A->>C: Generate response
+    C->>U: Display answer + file changes
+```
+
+### Workflow Stages
+
+1. **Input Reception** — User message arrives with full conversation history
+2. **Context Resolution** — Engine loads applicable rules (alwaysApply, auto-attached, manual), skills, and MCP servers
+3. **Intent Parsing** — Agent determines task type (code gen, research, review, automation)
+4. **Tool Selection** — Agent picks appropriate tools (read, write, grep, shell, task, etc.)
+5. **Execution** — Tools execute; for complex tasks, subagents are launched via the Task tool
+6. **Result Evaluation** — Agent assesses outcomes and determines next steps
+7. **Response Generation** — Agent produces final output with file changes, explanations, or artifacts
+
+## Integration Points
+
+### MCP (Model Context Protocol)
+
+MCP provides a standardized way for Cursor to connect to external systems:
+
+- **Tools** — `CallMcpTool` invokes MCP server capabilities (e.g., file operations, API calls)
+- **Resources** — `FetchMcpResource` and `ListMcpResources` read external data (schemas, docs, configs)
+- **Servers** — Each MCP server is configured in the project and discovered from `mcps/<name>/` directories
+- **Authentication** — MCP servers may require explicit auth via `mcp_auth`
+
+### SDK (Programmatic Access)
+
+The Cursor SDK provides three ways to interact with Cursor outside the editor:
+
+| Variant | Package | Runtime | Use Case |
+|---|---|---|---|
+| TypeScript | `@cursor/sdk` (npm) | Node.js | CI/CD, scripts, bots |
+| Python | `cursor-sdk` (pip) | Python | Automation, data pipelines |
+| REST API | `/v1/agents/*` | Any HTTP client | Language-agnostic integration |
+
+### Canvas (Visual Artifacts)
+
+Cursor Canvas renders live React applications beside the chat for analytical output:
+
+- **Location** — `~/.cursor/projects/<workspace>/canvases/<name>.canvas.tsx`
+- **Format** — Single `.canvas.tsx` file, import only from `cursor/canvas`
+- **Purpose** — Data visualizations, dashboards, architectural diagrams, billing reports
+
+### Rules (Persistent Context)
+
+`.mdc` files in `.cursor/rules/` provide persistent AI guidance:
+
+- **Always Apply** — Included in every session's context
+- **Auto Attached** — Loaded when matching files are referenced (`@file`, `@folder`)
+- **Agent Requested** — Cursor decides when to load based on description
+- **Manual** — Explicitly loaded via `@rule-name.mdc`
+
+### Hooks (Event-Driven Automation)
+
+`hooks.json` files define event-driven automation:
+
+- Triggered by agent actions (e.g., file save, commit, PR creation)
+- Execute scripts or commands in response
+- Enable custom workflows without manual invocation
+
+## Runtime Architecture
+
+### Local Runtime
+
+```
+┌─────────────────────────────────────────┐
+│  Caller Machine                         │
+│                                         │
+│  ┌──────────────┐    ┌──────────────┐  │
+│  │   Cursor IDE  │    │  Local MCP    │  │
+│  │   (Agent)     │◄──►│  Servers      │  │
+│  └──────┬───────┘    └──────────────┘  │
+│         │                              │
+│  ┌──────┴───────┐    ┌──────────────┐  │
+│  │  @cursor/sdk │    │  Stdio MCP   │  │
+│  │  /cursor-sdk │    │  Servers     │  │
+│  └──────┬───────┘    └──────────────┘  │
+│         │                              │
+│  ┌──────┴───────┐                      │
+│  │  cwd/Repo     │                      │
+│  └──────────────┘                      │
+└─────────────────────────────────────────┘
+```
+
+Local runtime characteristics:
+- Runs on the caller's machine
+- Reuses existing environment and credentials
+- MCP servers use stdio or local HTTP
+- Access to local filesystem, terminal, and tooling
+- Default runtime when `local` is not specified (but explicit is recommended)
+
+### Cloud Runtime
+
+```
+┌─────────────────────────────────────────┐
+│  Cursor Cloud Infrastructure            │
+│                                         │
+│  ┌──────────────┐    ┌──────────────┐  │
+│  │  Cloud VM     │    │  HTTP MCP    │  │
+│  │  (Agent)     │◄──►│  Servers     │  │
+│  └──────┬───────┘    └──────────────┘  │
+│         │                              │
+│  ┌──────┴───────┐    ┌──────────────┐  │
+│  │  Fresh Clone │    │  Cloud MCP   │  │
+│  │  of Repo     │    │  Servers     │  │
+│  └──────────────┘    └──────────────┘  │
+│                                         │
+│  ┌──────────────────────────────────┐  │
+│  │  Auto PR Creation (optional)     │  │
+│  └──────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+Cloud runtime characteristics:
+- Runs on Cursor-hosted VM
+- Fresh clone of the repository
+- HTTP transport for MCP servers (credentials redacted)
+- Longer execution, suitable for CI and fire-and-forget
+- Can auto-create PRs (`autoCreatePR: true` / `auto_create_pr=True`)
+- Agent IDs prefixed with `bc-`
+
+### Runtime Selection
+
+```typescript
+// TypeScript — Local (explicit)
+await Agent.create({
+  apiKey: process.env.CURSOR_API_KEY!,
+  model: { id: "composer-2.5" },
+  local: { cwd: process.cwd() },  // Explicit, not just default
+});
+
+// TypeScript — Cloud
+await Agent.create({
+  apiKey: process.env.CURSOR_API_KEY!,
+  model: { id: "composer-2.5" },
+  cloud: { repos: ["github.com/user/repo"] },
+});
+```
+
+## Model Selection
+
+| Option | Description |
+|---|---|
+| `composer-2.5` | Default for most integrations |
+| `{ id: "auto" }` (TS) / `"auto"` (Py) | Server picks the model |
+| `Cursor.models.list()` | Returns valid IDs, per-model parameter definitions, and presets |
+
+Model is **required for local** in both SDKs. For cloud, TypeScript falls back to a server-resolved default when omitted; Python documents it as required across both runtimes.
+
+## Key Concepts Summary
+
+| Concept | File/Location | Purpose |
+|---|---|---|
+| **Agent** | In-chat / SDK | Primary AI worker that executes tasks |
+| **Subagent** | Task tool | Specialized workers (8 types) for focused tasks |
+| **Rules** | `.cursor/rules/*.mdc` | Persistent AI guidance, loaded by attach type |
+| **Skills** | `~/.cursor/skills/` or `.cursor/skills/` | Teach the agent specialized workflows |
+| **MCP Server** | `mcps/<name>/` | External tool/resource integration |
+| **Canvas** | `canvases/*.canvas.tsx` | Visual analytical artifacts beside chat |
+| **SDK** | `@cursor/sdk` or `cursor-sdk` | Programmatic access to Cursor agents |
+| **Hooks** | `hooks.json` | Event-driven automation |
+
+## Related Documents
+
+- [Agent Hierarchy](02-agent-hierarchy.mdc) — Complete subagent type taxonomy
+- [Rules System](03-rules-system.mdc) — `.mdc` file structure and attach types
+- [Skills System](04-skills-system.mdc) — Authoring and managing skills
+- [MCP Integration](05-mcp-integration.mdc) — External server connections
+- [Canvas System](06-canvas-system.mdc) — Visual artifact generation
+- [SDK Reference](07-sdk-reference.mdc) — TypeScript and Python API
+- [Context Management](10-context-management.mdc) — `@`-references and progressive disclosure
+- [Context Compaction](28-context-compaction.mdc) — Context window mechanics and recovery
+- [Agent Settings](19-agent-settings.mdc) — Per-mode providers, context windows, custom instructions
+- [Plan Mode](29-plan-mode.mdc) — Mode selection and autonomy levels
+- [Secure Agent Behavior](33-secure-agent-behavior.mdc) — Safety guardrails and escalation
+- [Data Privacy](26-data-privacy.mdc) — Local vs cloud processing decisions
+- [SOPs](12-sop-operations.mdc) — Production procedures

@@ -1,0 +1,456 @@
+---
+title: Cursor Editor — Agent Settings & Configuration
+description: Reference for Cursor agent-proprietary settings: mode configuration, per-mode providers, context windows, custom AI instructions, and settings precedence.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, agent-settings, context-window, custom-instructions, provider-per-mode, attribution]
+---
+
+# Cursor Editor — Agent Settings & Configuration
+
+## Overview
+
+Cursor agent settings control how the AI agent behaves, what models it uses, how much context it processes, and what global instructions it follows. These settings are distinct from general editor settings (covered in [08-settings-configuration.mdc](08-settings-configuration.mdc)) and provide fine-grained control over agent capabilities.
+
+Agent settings are configured through:
+
+- **Cursor Settings UI** → Agent tab
+- **User settings.json** with `cursor.` prefixed keys
+- **Workspace settings.json** for team-standardized agent behavior
+- **CLI config** (`~/.cursor/cli-config.json`) for Claude Code CLI behavior
+
+---
+
+## Agent Mode Settings
+
+Cursor supports three interaction modes, each with distinct autonomy levels:
+
+| Mode | Tool Access | File Edits | User Approval | Best For |
+|------|------------|------------|---------------|----------|
+| **Ask** | Read-only tools | No | Always | Research, explanation, exploration |
+| **Agent** | Full tool access | Yes | As needed | Code modification, multi-step tasks |
+| **Plan** | Read-only + analysis | No | All decisions | Strategy, architecture, option analysis |
+
+### Mode Configuration
+
+```json
+{
+  // Default mode when opening Composer
+  "cursor.agent.mode": "agent",
+  
+  // Mode override per prompt (via UI toggle or slash command)
+  "cursor.agent.askMode": true,    // Enable Ask mode
+  "cursor.agent.planMode": true,   // Enable Plan mode
+  "cursor.agent.agentMode": true   // Enable Agent mode
+}
+```
+
+### Mode Behavior Details
+
+#### Ask Mode
+
+```json
+{
+  "cursor.agent.askMode.enabled": true,
+  "cursor.agent.askMode.readOnly": true,
+  "cursor.agent.askMode.allowedTools": ["Read", "Grep", "Glob", "SemanticSearch"]
+}
+```
+
+- **Purpose**: Pure research and explanation
+- **Tools available**: Read files, search code, semantic search
+- **File modifications**: Never permitted
+- **Autonomy**: Answers questions but cannot execute changes
+
+#### Agent Mode
+
+```json
+{
+  "cursor.agent.agentMode.enabled": true,
+  "cursor.agent.agentMode.autoApprove": false,
+  "cursor.agent.agentMode.allowedTools": ["Read", "Write", "StrReplace", "Delete", "Shell", "Task", "Grep", "Glob", "EditNotebook"]
+}
+```
+
+- **Purpose**: Full development assistance
+- **Tools available**: All tools including Write, Shell, Task
+- **File modifications**: Allowed with user confirmation
+- **Autonomy**: Executes tool chains, spawns subagents
+
+#### Plan Mode
+
+```json
+{
+  "cursor.agent.planMode.enabled": true,
+  "cursor.agent.planMode.autoApprove": false,
+  "cursor.agent.planMode.presentOptions": true
+}
+```
+
+- **Purpose**: Collaborative planning and analysis
+- **Tools available**: Read, Grep, SemanticSearch, analysis-focused
+- **File modifications**: Never directly modifies files
+- **Autonomy**: Presents options, recommends approaches, asks user to decide
+
+---
+
+## Provider Per Mode
+
+Each agent mode can use a different provider or model:
+
+```json
+{
+  // Chat mode provider (Conversational Q&A)
+  "cursor.agent.chatProvider": "anthropic",
+  "cursor.agent.chatModel": "claude-sonnet-4-20250514",
+  
+  // Agent mode provider (Code modification, tool execution)
+  "cursor.agent.agentProvider": "anthropic",
+  "cursor.agent.agentModel": "claude-opus-4-20250514",
+  
+  // Tab completion provider (Inline suggestions)
+  "cursor.agent.tabProvider": "openai",
+  "cursor.agent.tabModel": "gpt-3.5-turbo",
+  
+  // Plan mode provider (Analysis, strategy)
+  "cursor.agent.planProvider": "anthropic",
+  "cursor.agent.planModel": "claude-opus-4-20250514"
+}
+```
+
+### Provider Selection Logic
+
+```mermaid
+flowchart TD
+    A[User interacts with Cursor] --> B{Interaction type?}
+    B -->|Chat/Q&A| C[Chat Provider + Model]
+    B -->|Code edit/tool use| D[Agent Provider + Model]
+    B -->|Inline completion| E[Tab Provider + Model]
+    B -->|Planning/strategy| F[Plan Provider + Model]
+    
+    C --> G[Provider makes request]
+    D --> G
+    E --> G
+    F --> G
+    
+    G --> H[Model processes request]
+    H --> I[Response returned]
+```
+
+### Multi-Provider Strategy
+
+Using different providers per mode optimizes for cost, speed, and capability:
+
+| Mode | Recommended Provider | Rationale |
+|------|---------------------|-----------|
+| **Chat** | Anthropic (Sonnet) | Balanced reasoning and conversation |
+| **Agent** | Anthropic (Opus) | Max reasoning for complex code tasks |
+| **Tab** | OpenAI (GPT-3.5) | Speed-critical, lower capability needed |
+| **Plan** | Anthropic (Opus) | Deep analysis requires strong reasoning |
+
+---
+
+## Context Window Settings
+
+The agent context window determines how much conversation history and code context the agent can process at once.
+
+### Context Window Configuration
+
+```json
+{
+  // Context window size (token count)
+  "cursor.agent.contextWindow": 128000,
+  
+  // Maximum tokens per agent response
+  "cursor.agent.maxTokens": 4096,
+  
+  // Context window for Tab completions (separate, smaller)
+  "cursor.agent.tabContextWindow": 8192,
+  
+  // Enable/disable context window management
+  "cursor.agent.contextManagement.enabled": true,
+  
+  // How much context to retain in long sessions
+  "cursor.agent.contextRetention": "balanced" // "minimal", "balanced", "full"
+}
+```
+
+### Context Window Modes
+
+| Mode | Token Limit | Use Case | Performance |
+|------|------------|----------|-------------|
+| **Minimal** | ~8K tokens | Quick edits, focused tasks | Fastest response |
+| **Balanced** | ~128K tokens | Most workflows, good context | Balanced speed/quality |
+| **Full** | ~200K tokens | Large refactors, complex tasks | Slower, more context |
+
+### How Context Is Managed
+
+1. **Fresh context per prompt**: Each agent invocation starts fresh
+2. **Conversation history retained**: Previous turns in the same Composer session are included
+3. **@-references explicitly added**: Content added via `@file`, `@folder`, `@code`
+4. **Open file context**: Current file content is automatically included
+5. **Recent edits**: Recently modified files may be included
+6. **Window limits**: When context exceeds the window, older content is compacted (see [28-context-compaction.mdc](28-context-compaction.mdc))
+
+---
+
+## Custom AI Instructions
+
+Custom AI instructions are global prompts that are injected before every agent interaction. They differ from Rules (03-rules-system.mdc) and Skills (04-skills-system.mdc) in scope and persistence.
+
+### Custom Instructions vs Rules vs Skills
+
+| Feature | Custom Instructions | Rules (`*.mdc`) | Skills (`SKILL.md`) |
+|---------|-------------------|-----------------|-------------------|
+| **Scope** | Global, all agent interactions | File-pattern-based | Task-specific workflows |
+| **Persistence** | Always active | Loaded when applicable | Loaded when triggered |
+| **Precedence** | Base layer (lowest) | Rules layer | Skills layer (highest) |
+| **Purpose** | General preferences, style guidelines | Project standards, conventions | Specialized workflows |
+| **Location** | Cursor Settings > Custom Instructions | `.cursor/rules/*.mdc` | `.cursor/skills/*/SKILL.md` |
+
+### Custom Instructions Configuration
+
+```json
+{
+  // Global custom instructions for all agent interactions
+  "cursor.agent.customInstructions": "You are an expert TypeScript developer.\nAlways use async/await instead of .then().\nWrite JSDoc comments for all public functions.\nPrefer functional patterns over classes.",
+  
+  // Mode-specific instructions
+  "cursor.agent.chatCustomInstructions": "When explaining code, focus on architecture and design patterns.",
+  "cursor.agent.agentCustomInstructions": "When modifying code, ensure backward compatibility with Node.js 18.",
+  
+  // Instructions for plan mode
+  "cursor.agent.planCustomInstructions": "Present multiple options with pros and cons. Recommend the best approach."
+}
+```
+
+### Custom Instructions Best Practices
+
+1. **Be specific**: "Always use TypeScript strict mode" vs "Write good code"
+2. **Use actionable language**: "Validate all inputs" not "Consider security"
+3. **Limit scope**: General style guidelines, not complex workflows (use Skills for that)
+4. **Keep concise**: Instructions should be under 500 characters for optimal performance
+5. **Separate concerns**: Use custom instructions for preferences, Rules for standards, Skills for workflows
+
+### Example Custom Instructions
+
+```markdown
+// For TypeScript projects
+You are a senior TypeScript engineer. Follow these rules:
+- Use strict TypeScript configuration
+- Prefer interfaces over type aliases for object shapes
+- Use const assertions for immutable constants
+- Always handle errors in async functions with try/catch
+- Write unit tests for all new functions
+
+// For security-focused projects
+Security-critical project. Always:
+- Validate and sanitize all user inputs
+- Never trust client-side data
+- Use parameterized queries for all database operations
+- Implement rate limiting for API endpoints
+- Follow OWASP Top 10 guidelines
+```
+
+---
+
+## Settings Locations
+
+### Primary Settings Locations
+
+| Level | Location | Purpose | Scope |
+|-------|----------|---------|-------|
+| **User Settings** | `~/.cursor/settings.json` | Global preferences | All projects |
+| **Workspace Settings** | `.vscode/settings.json` | Project-specific | Current workspace |
+| **CLI Config** | `~/.cursor/cli-config.json` | Claude Code CLI | Terminal usage |
+| **Agent Attribution** | Cursor Settings > Agent > Attribution | Claude Code output attribution | CLI agent only |
+
+### User Settings Example
+
+```json
+{
+  "cursor.agent.mode": "agent",
+  "cursor.agent.chatProvider": "anthropic",
+  "cursor.agent.chatModel": "claude-sonnet-4-20250514",
+  "cursor.agent.agentProvider": "anthropic",
+  "cursor.agent.agentModel": "claude-opus-4-20250514",
+  "cursor.agent.tabProvider": "openai",
+  "cursor.agent.tabModel": "gpt-3.5-turbo",
+  "cursor.agent.contextWindow": 128000,
+  "cursor.agent.maxTokens": 4096,
+  "cursor.agent.customInstructions": "Write clean, well-documented code.",
+  "cursor.agent.attribution.enabled": true
+}
+```
+
+### CLI Config Example
+
+```json
+// ~/.cursor/cli-config.json
+{
+  "apiKey": "cursor_abc123...",
+  "model": "claude-sonnet-4-20250514",
+  "provider": "anthropic",
+  "attribution": {
+    "enabled": true,
+    "footer": "Powered by Cursor AI"
+  }
+}
+```
+
+---
+
+## Settings Precedence
+
+Settings are resolved in this order (highest to lowest priority):
+
+1. **Per-prompt overrides**: Mode specified in slash command (e.g., `--plan`, `--agent`)
+2. **Workspace settings**: `.vscode/settings.json` (overrides user settings)
+3. **User settings**: `settings.json` in Cursor data directory
+4. **Environment variables**: `CURSOR_API_KEY`, `CURSOR_MODEL`, etc.
+5. **Default values**: Built-in defaults
+
+```mermaid
+flowchart LR
+    A[Slash Command Override] --> B{Present?}
+    B -->|Yes| C[Use override]
+    B -->|No| D{Workspace settings?}
+    D -->|Yes| E[Use workspace]
+    D -->|No| F{User settings?}
+    F -->|Yes| G[Use user settings]
+    F -->|No| H{Environment variable?}
+    H -->|Yes| I[Use env var]
+    H -->|No| J[Use defaults]
+```
+
+### Override Examples
+
+```bash
+# Force agent mode for this session
+claude --model claude-opus-4-20250514 "Do complex refactoring"
+
+# Force custom instructions for this prompt
+claude --plan "Analyze the architecture of this service"
+
+# Set provider via environment variable (lowest priority)
+export CURSOR_PROVIDER=anthropic
+export CURSOR_MODEL=claude-sonnet-4-20250514
+```
+
+---
+
+## Attribution Settings
+
+Attribution controls how Claude Code CLI output is credited:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `cursor.agent.attribution.enabled` | Whether to show attribution in CLI output | `true` |
+| `cursor.agent.attribution.footer` | Custom attribution footer text | `"Powered by Cursor"` |
+
+```json
+{
+  "cursor.agent.attribution": {
+    "enabled": true,
+    "footer": "Generated by Cursor AI — cursor.com"
+  }
+}
+```
+
+---
+
+## Agent Settings Reference Table
+
+### Complete Agent Settings Reference
+
+| Setting Key | Type | Default | Description |
+|------------|------|---------|-------------|
+| `cursor.agent.mode` | string | `"agent"` | Default interaction mode (ask, agent, plan) |
+| `cursor.agent.chatProvider` | string | `"anthropic"` | Provider for chat mode |
+| `cursor.agent.chatModel` | string | `"claude-sonnet-4-20250514"` | Model for chat mode |
+| `cursor.agent.agentProvider` | string | `"anthropic"` | Provider for agent mode |
+| `cursor.agent.agentModel` | string | `"claude-opus-4-20250514"` | Model for agent mode |
+| `cursor.agent.tabProvider` | string | `"openai"` | Provider for Tab completions |
+| `cursor.agent.tabModel` | string | `"gpt-3.5-turbo"` | Model for Tab completions |
+| `cursor.agent.contextWindow` | number | `128000` | Context window size in tokens |
+| `cursor.agent.maxTokens` | number | `4096` | Maximum response tokens |
+| `cursor.agent.tabContextWindow` | number | `8192` | Tab completion context window |
+| `cursor.agent.contextRetention` | string | `"balanced"` | Context retention policy |
+| `cursor.agent.customInstructions` | string | `""` | Global custom instructions |
+| `cursor.agent.chatCustomInstructions` | string | `""` | Chat mode-specific instructions |
+| `cursor.agent.agentCustomInstructions` | string | `""` | Agent mode-specific instructions |
+| `cursor.agent.planCustomInstructions` | string | `""` | Plan mode-specific instructions |
+| `cursor.agent.attribution.enabled` | boolean | `true` | Enable CLI attribution |
+| `cursor.agent.attribution.footer` | string | `"Powered by Cursor"` | Attribution footer text |
+| `cursor.agent.askMode.enabled` | boolean | `true` | Enable Ask mode |
+| `cursor.agent.planMode.enabled` | boolean | `true` | Enable Plan mode |
+| `cursor.agent.autoApprove` | boolean | `false` | Auto-approve agent actions |
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Agent uses wrong provider | Settings conflict | Check precedence order; verify workspace settings don't override user |
+| Context window too small | Limited by settings | Increase `cursor.agent.contextWindow`; close unnecessary tabs |
+| Custom instructions not applied | Saved to wrong location | Ensure instructions are in `cursor.agent.customInstructions`, not general editor settings |
+| Agent mode not responding | Disabled in settings | Verify `cursor.agent.mode` is `"agent"` and `askMode.enabled` is `false` |
+| High latency on Tab completions | Wrong model selected | Switch Tab model to faster option (Haiku, GPT-3.5) |
+| Attribution missing in CLI | `attribution.enabled` is false | Set `cursor.agent.attribution.enabled` to `true` |
+
+### Diagnostic Commands
+
+```bash
+# View current CLI agent configuration
+claude --env
+
+# List active sessions with configuration
+claude --list
+
+# Test agent mode with verbose output
+claude --output json "Explain how you're configured"
+```
+
+---
+
+## Best Practices
+
+### Configuration Recommendations
+
+1. **Use different models per mode**: Optimize for cost, speed, and capability
+2. **Set custom instructions for project standards**: General style guidelines, not complex workflows
+3. **Keep context window balanced**: 128K is optimal for most projects
+4. **Disable attribution in CI/CD**: Set `cursor.agent.attribution.enabled` to `false` in pipeline environments
+5. **Use workspace settings for team consistency**: Standardize agent behavior across the team
+
+### Example Production Configuration
+
+```json
+{
+  "cursor.agent.mode": "agent",
+  "cursor.agent.chatModel": "claude-sonnet-4-20250514",
+  "cursor.agent.agentModel": "claude-opus-4-20250514",
+  "cursor.agent.tabModel": "claude-haiku-3-5",
+  "cursor.agent.contextWindow": 128000,
+  "cursor.agent.maxTokens": 4096,
+  "cursor.agent.customInstructions": "TypeScript project. Use strict mode. Write tests.",
+  "cursor.agent.autoApprove": false,
+  "cursor.agent.attribution.enabled": true
+}
+```
+
+---
+
+## Related Documents
+
+- [Settings and Configuration](mdc:08-settings-configuration.mdc) — General settings locations and categories
+- [Rules System](mdc:03-rules-system.mdc) — How rules differ from custom instructions
+- [Skills System](mdc:04-skills-system.mdc) — How skills differ from custom instructions
+- [Model Providers](mdc:16-model-providers.mdc) — Configuring providers and custom endpoints
+- [Context Management](mdc:10-context-management.mdc) — @-references and context efficiency
+- [Composer and Shortcuts](mdc:13-composer-and-shortcuts.mdc) — Modes in Composer
+- [Context Compaction](mdc:28-context-compaction.mdc) — How context windows are managed
+- [Agent Debugging](mdc:22-agent-debugging.mdc) — Debugging agent configuration issues

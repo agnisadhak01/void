@@ -1,0 +1,456 @@
+---
+title: Cursor Editor — Context Windows & Compaction
+description: Reference for how Cursor manages limited context in long conversations, context compaction mechanics, and user strategies to optimize context usage.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, context-window, compaction, context-management, token-limits]
+---
+
+# Cursor Editor — Context Windows & Compaction
+
+## Overview
+
+Cursor's AI agents operate within constrained context windows — finite token limits that determine how much conversation history and code context the agent can process at once. Understanding how context windows work and how Cursor handles compaction (summarizing older content) is essential for maintaining effective agent interactions during long sessions.
+
+```mermaid
+flowchart TD
+    A[New conversation starts] --> B[Fresh context window]
+    B --> C[Agent processes prompt]
+    C --> D[Conversation grows]
+    D --> E{Context window near limit?}
+    E -->|No| F[Continue adding messages]
+    F --> D
+    E -->|Yes| G[Compaction triggered]
+    G --> H[Summarize older messages]
+    H --> I[Create compacted context]
+    I --> J[Agent continues with summary]
+    J --> K{New @-references added?}
+    K -->|Yes| L[Explicit context preserved]
+    K -->|No| M[Only summary available]
+    L --> N[Agent has fresh + summary]
+    M --> N
+    N --> O[Continue conversation]
+```
+
+---
+
+## Context Window Mechanics
+
+### What Gets Included in Context
+
+| Content Source | Inclusion Priority | Behavior |
+|---------------|-------------------|----------|
+| **Recent messages** | Highest | Always included |
+| **Current file** | High | Auto-included when agent reads/edits |
+| **@-references** | Highest | Always preserved, explicit inclusion |
+| **Open editor tabs** | Medium | Recently active tabs included |
+| **Older messages** | Lowest | Compact when window fills |
+| **Rule files** | High | Loaded based on matching globs |
+| **Skill files** | High | Loaded when triggered |
+
+### Context Window Sizes
+
+| Setting | Minimum | Default | Maximum | Use Case |
+|---------|---------|---------|---------|----------|
+| `cursor.agent.contextWindow` | 4,000 | 128,000 | 200,000 | Full conversation |
+| `cursor.agent.tabContextWindow` | 1,000 | 8,192 | 16,384 | Tab completions only |
+
+### Token Budget Allocation
+
+The context window is shared across all sources:
+
+```
+Total context window: 128,000 tokens
+  - System prompt: ~500 tokens (fixed)
+  - Rules: ~2,000 tokens (varies)
+  - Conversation history: ~80,000 tokens (dynamic)
+  - @-references: ~20,000 tokens (dynamic)
+  - Current file: ~10,000 tokens (dynamic)
+  - Buffer/reserve: ~15,500 tokens
+```
+
+### Recency Bias
+
+Cursor exhibits recency bias — newer messages are more likely to be retained than older ones:
+
+| Position | Retention Likelihood | Notes |
+|----------|---------------------|-------|
+| **Last 5 messages** | ~100% | Always retained |
+| **Messages 6-20** | ~80% | High retention, compacted last |
+| **Messages 21-50** | ~50% | Partially summarized |
+| **Messages 50+** | ~20% | Fully summarized or removed |
+
+---
+
+## Compaction Triggers
+
+### When Compaction Occurs
+
+| Trigger | Condition | Effect |
+|---------|-----------|--------|
+| **Context 80% full** | ~100K of 128K tokens | Begin summarizing oldest messages |
+| **Context 95% full** | ~120K of 128K tokens | Aggressive compaction |
+| **Manual compaction** | User request | Force summarize conversation |
+| **Message count limit** | ~100 messages in history | Summarize regardless of token count |
+
+### Compaction Behavior
+
+```mermaid
+flowchart TD
+    A[Context near capacity] --> B{@-references present?}
+    B -->|Yes| C[Preserve @-referenced content]
+    B -->|No| D[Full compaction]
+    
+    C --> E[Summarize non-@ messages]
+    D --> F[Summarize all messages]
+    
+    E --> G[Create summary of removed content]
+    F --> G
+    
+    G --> H{Summary quality?}
+    H -->|Good| I[Keep summary + preserved context]
+    H -->|Poor| J[Ask user for manual review]
+    
+    I --> K[Agent continues with compacted context]
+    J --> L[User provides key context manually]
+    L --> K
+```
+
+### What Gets Summarized
+
+| Content Type | Compaction Action |
+|-------------|------------------|
+| **User messages** | Summarized into key points |
+| **Agent tool calls** | Summarized (removed individual calls) |
+| **Agent tool results** | Summarized into key findings |
+| **Agent final responses** | Preserved verbatim (important) |
+| **Code snippets in messages** | Summarized or removed |
+| **@-references** | Preserved verbatim |
+| **Error messages** | Preserved if actionable |
+
+### What Gets Preserved
+
+| Content | Why Preserved |
+|---------|--------------|
+| **@-references** | Explicit user inclusion |
+| **Recent messages** | High recency score |
+| **Error messages** | Actionable for agent |
+| **User constraints** | Important for context |
+| **Decisions made** | For continuity |
+| **Code snippets in @-references** | Explicitly included |
+
+---
+
+## Compaction Flow Details
+
+### How Compaction Works Step by Step
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant S as System
+    participant M as Model
+    
+    U->>A: Send message (context 85% full)
+    A->>S: Check context size
+    S-->>A: 108,800 / 128,000 tokens
+    A->>M: Request response
+    M->>A: Response starts...
+    Note over S: Context reaches 95%
+    S->>S: Trigger compaction
+    S->>S: Identify @-references to preserve
+    S->>S: Summarize older messages
+    S->>S: Create compacted context
+    S->>A: Notify compaction complete
+    A->>U: Continue with summary context
+```
+
+### Compaction Summary Example
+
+Before compaction (120K tokens):
+```
+Message 1: "Set up Express server with TypeScript" [Agent: full code]
+Message 2: "Add user routes" [Agent: full code]
+Message 3: "Add authentication" [Agent: full code]
+Message 4: "Add rate limiting" [Agent: full code]
+Message 5: "Add error handling" [Agent: full code]
+Message 6: Current conversation...
+Message 7: Latest messages (preserved)
+```
+
+After compaction (45K tokens):
+```
+[Summary of earlier messages]
+- Project: Express + TypeScript server
+- Features added: user routes, auth, rate limiting, error handling
+- Key decisions: JWT auth, express-rate-limit, custom error middleware
+
+[Preserved content]
+Message 6: Current conversation...
+Message 7: Latest messages
+Message 8: @file server.ts (preserved verbatim)
+```
+
+---
+
+## Agent Recovery from Compaction
+
+### How the Agent Uses Summarized Context
+
+When compaction occurs, the agent:
+
+1. **Receives the summary** of older conversation
+2. **Continues with preserved @-references** intact
+3. **Adapts to missing details** — if specific code was summarized, agent reads it fresh
+4. **Maintains task continuity** — understands what was done and what remains
+
+### Agent Recovery Patterns
+
+| Scenario | Agent Behavior |
+|----------|---------------|
+| **Summary present** | Uses summary to understand context |
+| **@-references preserved** | Uses explicit references for current work |
+| **Summarized code removed** | Re-reads files to refresh context |
+| **Decision history summarized** | References summary for constraints |
+| **Error context summarized** | Re-runs commands if needed |
+
+### Handling Compaction in Agent Debugging
+
+When investigating compaction issues:
+
+```bash
+# Check context window usage
+claude --env
+
+# View verbose logs showing compaction events
+# Look for: "Context compaction triggered" in logs
+
+# Test with minimal context
+claude --output json --context-window 8192 "Recap our conversation"
+# If agent can't recap, compaction removed key info
+```
+
+---
+
+## User Strategies to Avoid Compaction
+
+### 1. Structured Prompts
+
+```markdown
+Instead of:
+"Remember we're using JWT and PostgreSQL"
+
+Use:
+Context: JWT auth, PostgreSQL database
+Constraints: No sessions, stateless API
+@file src/auth/jwt.ts
+@file src/db/postgres.ts
+```
+
+Structured prompts are more compact and retain key information.
+
+### 2. Task Segmentation
+
+Break long tasks into independent sessions:
+
+```
+Session 1: "Implement user registration endpoint"
+  - All context is fresh
+  - No compaction needed
+  
+Session 2: "Implement login endpoint"
+  - Reference Session 1 output if needed
+  - Fresh context for new task
+```
+
+### 3. Explicit @-References
+
+```markdown
+# Force important context to survive compaction
+"Implement the logout handler. Consider:
+@file src/auth/middleware.ts
+@code validateToken
+@code refreshSession
+The auth flow uses JWT with 15-minute expiry."
+```
+
+@-referenced content is always preserved during compaction.
+
+### 4. Periodic Recap Requests
+
+```markdown
+"Before we continue, please summarize what we've accomplished so far.
+This will help preserve context if compaction occurs."
+```
+
+### 5. Start Fresh for New Tasks
+
+```bash
+# Close Composer, start new session
+# Instead of continuing a 50+ message thread
+```
+
+### Context Optimization Checklist
+
+- [ ] Use @-references for critical code
+- [ ] Structure prompts with clear context sections
+- [ ] Break tasks into independent sessions
+- [ ] Ask for recap before compaction triggers
+- [ ] Start fresh for unrelated tasks
+- [ ] Use concise prompts (fewer words = more context space)
+- [ ] Avoid pasting large code blocks (use @file instead)
+
+---
+
+## Context Window Settings
+
+### Configuration Options
+
+```json
+{
+  // Primary context window size
+  "cursor.agent.contextWindow": 128000,
+  
+  // Tab completion context window (separate)
+  "cursor.agent.tabContextWindow": 8192,
+  
+  // Maximum tokens per response
+  "cursor.agent.maxTokens": 4096,
+  
+  // Context retention policy
+  "cursor.agent.contextRetention": "balanced",
+  
+  // Enable/disable auto-compaction
+  "cursor.agent.autoCompaction": true,
+  
+  // Minimum messages before compaction
+  "cursor.agent.compactionMinMessages": 50,
+  
+  // Compact when context exceeds percentage
+  "cursor.agent.compactionThreshold": 0.80
+}
+```
+
+### Context Retention Policies
+
+| Policy | Behavior | Best For |
+|--------|----------|----------|
+| `"minimal"` | Aggressive compaction, fewer messages retained | Long conversations, quick responses |
+| `"balanced"` | Moderate compaction, preserves key context | Most workflows (default) |
+| `"full"` | Minimal compaction, retains more context | Complex multi-step tasks |
+
+---
+
+## Relationship to @-References
+
+### How @-References Survive Compaction
+
+```mermaid
+flowchart TD
+    A[User adds @-reference] --> B{@-reference type?}
+    B -->|@file path| C[Add full file to context]
+    B -->|@folder path/| D[Add folder files to context]
+    B -->|@code symbol| E[Add symbol to context]
+    
+    C --> F[Context added to window]
+    D --> F
+    E --> F
+    
+    F --> G{Compaction triggered?}
+    G -->|Yes| H[@-references preserved]
+    G -->|No| I[Continue normally]
+    
+    H --> J[Agent has @-referenced content]
+    I --> J
+```
+
+### @-Reference Priority During Compaction
+
+| Priority | Content | Compaction Behavior |
+|----------|---------|---------------------|
+| **1 (Highest)** | `@code` specific symbols | Always preserved |
+| **2** | `@file` files under 50 lines | Always preserved |
+| **3** | `@folder` directories | Always preserved |
+| **4** | Recent conversation | Preserved if within window |
+| **5** | Older conversation | Summarized/compacted |
+| **6** | Oldest conversation | Removed first |
+
+---
+
+## Context Window Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Agent forgets earlier instructions | Compaction removed context | Use @-references to preserve |
+| Agent repeats work already done | Summary didn't capture decisions | Ask agent to recap before continuing |
+| Long responses truncated | `maxTokens` too low | Increase `cursor.agent.maxTokens` |
+| Slow responses with large context | Window near max | Start fresh session, use task segmentation |
+| @-references not working | File too large for window | Use `@code` instead of `@file` |
+
+### Diagnostic Commands
+
+```bash
+# Check current context window usage
+claude --env
+
+# Test with smaller context to force compaction
+claude --context-window 8192 "Test agent with limited context"
+
+# Verify @-reference survival
+claude --output json "Can you see the code I referenced with @code?"
+
+# Check compaction logs
+# In Agent Output channel, search for "compaction" or "summarize"
+```
+
+---
+
+## Best Practices
+
+### For Long Sessions
+
+1. **Recap periodically**: "Summarize what we've done"
+2. **Preserve key context**: Use @-references for critical code
+3. **Segment tasks**: Break large work into focused sessions
+4. **Start fresh**: New Composer session for unrelated work
+5. **Monitor context**: Check agent Output channel for compaction events
+
+### For Complex Refactors
+
+1. **Document decisions**: Write them in a comment or doc file
+2. **Reference explicitly**: @file the key files at each step
+3. **Verify continuity**: Ask agent to recap after each phase
+4. **Use subagents**: Spawn explore subagent for codebase analysis
+
+### For Multi-Phase Work
+
+```
+Phase 1: "Design the authentication system"
+  → Save output to docs/auth-design.md
+  
+Phase 2: "Implement user registration"
+  → Reference docs/auth-design.md
+  
+Phase 3: "Implement login"
+  → Reference docs/auth-design.md + Phase 2 output
+  
+Phase 4: "Implement password reset"
+  → Reference docs/auth-design.md + Phase 2 output
+```
+
+Each phase starts fresh, avoiding compaction issues.
+
+---
+
+## Related Documents
+
+- [Settings and Configuration](mdc:19-agent-settings.mdc) — Context window settings
+- [Context Management](mdc:10-context-management.mdc) — @-references and context efficiency
+- [Agent Reasoning](mdc:27-agent-reasoning.mdc) — How compaction affects agent planning
+- [Agent Debugging](mdc:22-agent-debugging.mdc) — Debugging context issues
+- [Command Reference](mdc:11-command-reference.mdc) — Tool access for context management
+- [Model Providers](mdc:16-model-providers.mdc) — Provider-specific context limits
+- [Rules System](mdc:03-rules-system.mdc) — How rules fit in context window

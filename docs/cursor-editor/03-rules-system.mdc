@@ -1,0 +1,369 @@
+---
+description: "Complete reference for Cursor Rules system: .mdc file format, attach types, categories, authoring guide, and patterns"
+tags: [rules, mdc, frontmatter, attach-types, coding-standards, conventions]
+---
+
+# Cursor Editor — Rules System
+
+## Overview
+
+Cursor Rules are `.mdc` (Markdown Cursor) files stored in `.cursor/rules/` that provide persistent, structured guidance to the AI agent. Rules encode project standards, coding conventions, security requirements, testing patterns, and domain knowledge.
+
+```
+.cursor/rules/
+├── README.mdc                    # Rules index
+├── init.mdc                      # Entry point / navigation
+├── context.mdc                   # Context and AI usage rules
+├── architecture.mdc              # Architecture principles
+├── stakeholders.mdc              # Stakeholders, goals, use cases
+├── ai/
+│   ├── ai-behavior.mdc           # AI behavior boundaries
+│   ├── prompting-patterns.mdc    # Prompt templates
+│   ├── next-actions.mdc          # Decision tree for next actions
+│   ├── action-execution.mdc      # Implementation standards
+│   └── project-intelligence.mdc  # Adaptive guidance system
+├── compliance/
+│   ├── security-rules.mdc        # Security requirements
+│   └── privacy.mdc               # Privacy and data protection
+├── dev/
+│   ├── conventions.mdc           # Coding standards and naming
+│   ├── testing-standards.mdc     # Unit, integration, E2E testing
+│   ├── deployment-standards.mdc  # CI/CD, deployment procedures
+│   ├── development-checklist.mdc # Development process checklist
+│   ├── checklist-management.mdc  # Checklist system management
+│   ├── onboarding-guide.mdc      # New team member guide
+│   └── checklists/
+│       ├── development-stage.mdc # Development stage checklist
+│       ├── testing-stage.mdc     # Testing stage checklist
+│       └── deployment-stage.mdc  # Deployment stage checklist
+└── meta/
+    ├── changelog.mdc             # Rule change log
+    ├── index-management.mdc      # Index update rules
+    └── deprecations.mdc          # Deprecated rules tracker
+```
+
+---
+
+## File Format
+
+### Frontmatter
+
+Every `.mdc` file requires YAML frontmatter between `---` delimiters:
+
+```yaml
+---
+description: "Brief description of what this rule does (shown in rule picker)"
+alwaysApply: true                    # Include in every session
+globs: ["**/*.ts"]                   # File pattern for auto-attach
+tags: [typescript, coding, standards] # Semantic categorization
+---
+```
+
+### Frontmatter Fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `description` | string | Yes | What the rule does; shown in rule picker |
+| `alwaysApply` | boolean | No | If `true`, rule is included in every session context |
+| `globs` | string[] | No | File pattern array; rule auto-attaches when matching files are referenced |
+| `tags` | string[] | No | Semantic tags for categorization and retrieval |
+
+### Body Format
+
+After frontmatter, the file uses standard Markdown:
+
+```markdown
+# Rule Title
+
+## Purpose
+Clear explanation of what this rule does.
+
+## Guidelines
+- Specific, actionable directives
+- Use clear examples
+- Reference other files: @path/to/file.ts
+
+## Examples
+### Good Practice
+```typescript
+// ✅ Correct implementation
+```
+```
+
+### Example: Complete Rule File
+
+```markdown
+---
+description: "TypeScript coding standards for this project"
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+tags: [typescript, coding, conventions]
+---
+
+# TypeScript Coding Standards
+
+## Error Handling
+
+```typescript
+// ✅ GOOD
+try {
+  await fetchData();
+} catch (e) {
+  logger.error('Failed to fetch', { error: e });
+  throw new DataFetchError('Unable to retrieve data', { cause: e });
+}
+
+// ❌ BAD
+try {
+  await fetchData();
+} catch (e) {}
+```
+
+## Naming Conventions
+
+- **Files**: kebab-case (e.g., `user-profile.ts`)
+- **Classes**: PascalCase (e.g., `UserProfile`)
+- **Functions**: camelCase (e.g., `getUserProfile`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_RETRY_COUNT`)
+```
+
+---
+
+## Attach Types
+
+Cursor supports four attach types that control when rules are loaded into the agent's context:
+
+### 1. Always Apply
+
+Rule is included in **every** session's context, regardless of which files are open.
+
+```yaml
+---
+description: "Core security standards for all code"
+alwaysApply: true
+---
+```
+
+**When to Use**:
+- Project-wide coding standards
+- Security requirements
+- Architecture principles
+- Naming conventions
+- Testing standards
+
+**Trade-offs**:
+- Pros: Always available, no context resolution needed
+- Cons: Increases context window size; keep concise
+
+### 2. Auto Attached
+
+Rule loads automatically when files matching the `globs` pattern are referenced in the conversation.
+
+```yaml
+---
+description: "React component patterns"
+globs: ["**/*.tsx", "**/*.jsx"]
+alwaysApply: false
+---
+```
+
+**When to Use**:
+- File-type-specific conventions (e.g., TypeScript rules for `.ts` files)
+- Framework-specific patterns (e.g., React patterns for `.tsx`)
+- Language-specific testing standards
+
+**Glob Pattern Examples**:
+| Pattern | Matches |
+|---|---|
+| `**/*.ts` | All TypeScript files |
+| `src/components/**/*.tsx` | TSX files under src/components/ |
+| `**/*.py` | All Python files |
+| `tests/**/*.test.ts` | All test files |
+
+### 3. Agent Requested
+
+Rule has a `description` but no `globs`. Cursor's agent decides when to load the rule based on conversation context.
+
+```yaml
+---
+description: "Performance optimization patterns for database queries"
+alwaysApply: false
+---
+```
+
+**When to Use**:
+- Specialized knowledge the agent should access only when relevant
+- Reference guides for complex topics
+- Decision trees or troubleshooting flows
+
+### 4. Manual
+
+No triggers in frontmatter. Rule is only loaded when explicitly referenced via `@rule-name.mdc`.
+
+```markdown
+@performance-optimization.mdc
+```
+
+**When to Use**:
+- Reference documents consulted on-demand
+- Legacy/deprecated rules
+- Deep-dive technical specifications
+- Meeting notes or decision records
+
+---
+
+## Rule Categories
+
+### Core Rules
+
+Foundation rules that apply to all Cursor interactions.
+
+| File | Purpose | Attach Type | Tags |
+|---|---|---|---|
+| [`init.mdc`](mdc:../init.mdc) | Entry point: overview + rule pointers | `alwaysApply` | `routing`, `summary`, `project-start` |
+| [`context.mdc`](mdc:../context.mdc) | Context framing, hallucination prevention | `alwaysApply` | `context`, `mcp`, `ai` |
+| [`stakeholders.mdc`](mdc:../stakeholders.mdc) | Personas, business needs, use case logic | `alwaysApply` | `value`, `gherkin`, `personas` |
+| [`architecture.mdc`](mdc:../architecture.mdc) | Core architecture principles | `alwaysApply` | `architecture`, `design` |
+| [`rules.deepmind.init.mdc`](mdc:../rules.deepmind.init.mdc) | DeepMind initialization rules | `alwaysApply` | `init`, `deepmind` |
+| [`adaptation-guide.mdc`](mdc:../adaptation-guide.mdc) | Guide for adapting rules to any project | `manual` | `adaptation`, `implementation` |
+| [`universal-bootstrap.mdc`](mdc:../universal-bootstrap.mdc) | Instant project assessment | `alwaysApply` | `bootstrap`, `quick-start` |
+| [`optimization-engine.mdc`](mdc:../optimization-engine.mdc) | Unified optimization engine | `alwaysApply` | `optimization`, `efficiency` |
+| [`index-rules.mdc`](mdc:../index-rules.mdc) | Central control panel for all rules | `alwaysApply` | `index`, `map`, `instructor` |
+
+### Development Standards
+
+Rules governing the software development process.
+
+| File | Purpose | Attach Type | Tags |
+|---|---|---|---|
+| [`dev/conventions.mdc`](mdc:../dev/conventions.mdc) | Code and naming conventions | `alwaysApply` | `conventions`, `standards` |
+| [`dev/testing-standards.mdc`](mdc:../dev/testing-standards.mdc) | Unit, integration, E2E testing | `alwaysApply` | `testing`, `quality`, `automation` |
+| [`dev/deployment-standards.mdc`](mdc:../dev/deployment-standards.mdc) | CI/CD and deployment | `alwaysApply` | `deployment`, `ci-cd`, `infrastructure` |
+| [`dev/development-checklist.mdc`](mdc:../dev/development-checklist.mdc) | Development process checklist | `alwaysApply` | `dev`, `process` |
+| [`dev/checklist-management.mdc`](mdc:../dev/checklist-management.mdc) | Checklist system management | `alwaysApply` | `checklist`, `management` |
+| [`dev/onboarding-guide.mdc`](mdc:../dev/onboarding-guide.mdc) | New team member guide | `alwaysApply` | `onboarding`, `guide` |
+| [`dev/checklists/development-stage.mdc`](mdc:../dev/checklists/development-stage.mdc) | Development stage checklists | `alwaysApply` | `checklist`, `development` |
+| [`dev/checklists/testing-stage.mdc`](mdc:../dev/checklists/testing-stage.mdc) | Testing stage checklists | `alwaysApply` | `checklist`, `testing` |
+| [`dev/checklists/deployment-stage.mdc`](mdc:../dev/checklists/deployment-stage.mdc) | Deployment stage checklists | `alwaysApply` | `checklist`, `deployment` |
+
+### AI-Specific Rules
+
+Rules governing AI agent behavior and interactions.
+
+| File | Purpose | Attach Type | Tags |
+|---|---|---|---|
+| [`ai/ai-behavior.mdc`](mdc:../ai/ai-behavior.mdc) | AI behavior boundaries and safety | `alwaysApply` | `ai`, `behavior`, `safety` |
+| [`ai/prompting-patterns.mdc`](mdc:../ai/prompting-patterns.mdc) | Prompt templates and best practices | `alwaysApply` | `ai`, `prompting` |
+| [`ai/next-actions.mdc`](mdc:../ai/next-actions.mdc) | Next action decision tree | `alwaysApply` | `ai`, `process`, `automation` |
+| [`ai/action-execution.mdc`](mdc:../ai/action-execution.mdc) | Implementation and validation standards | `alwaysApply` | `ai`, `process`, `execution` |
+| [`ai/project-intelligence.mdc`](mdc:../ai/project-intelligence.mdc) | Adaptive project assessment | `alwaysApply` | `intelligence`, `assessment`, `adaptive` |
+| [`ai/feedback-loop.mdc`](mdc:../ai/feedback-loop.mdc) | Rule refinement feedback tracking | `alwaysApply` | `ai`, `feedback`, `iteration` |
+
+### Compliance Rules
+
+Security and privacy requirements.
+
+| File | Purpose | Attach Type | Tags |
+|---|---|---|---|
+| [`compliance/security-rules.mdc`](mdc:../compliance/security-rules.mdc) | Security requirements and best practices | `alwaysApply` | `security`, `compliance` |
+| [`compliance/privacy.mdc`](mdc:../compliance/privacy.mdc) | Privacy and data protection | `alwaysApply` | `privacy`, `security` |
+
+### Meta Rules
+
+Rules about maintaining the rules themselves.
+
+| File | Purpose | Attach Type | Tags |
+|---|---|---|---|
+| [`meta/changelog.mdc`](mdc:../meta/changelog.mdc) | Rule change log | `alwaysApply` | `meta`, `changelog` |
+| [`meta/index-management.mdc`](mdc:../meta/index-management.mdc) | Index update rules | `alwaysApply` | `meta`, `index`, `management` |
+| [`meta/deprecations.mdc`](mdc:../meta/deprecations.mdc) | Deprecated rules tracker | `alwaysApply` | `meta`, `deprecations` |
+
+---
+
+## Authoring Guidelines
+
+### Best Practices
+
+1. **Keep under 500 lines** — Split large rules into focused pieces
+2. **One concern per rule** — Each rule should have a single, clear purpose
+3. **Concrete examples** — Include code examples showing good vs. bad patterns
+4. **Proper frontmatter** — Always include `description` and appropriate attach type
+5. **Actionable content** — Write like clear internal docs, not academic essays
+6. **Consistent terminology** — Choose one term and use it throughout
+7. **Use forward references** — Link to related rules: `@path/to/related-rule.mdc`
+
+### File Placement
+
+- All rules live in `.cursor/rules/` (project-level) or `~/.cursor/rules/` (user-level)
+- Use subdirectories to organize by domain (e.g., `ai/`, `compliance/`, `dev/`, `meta/`)
+- Naming: lowercase, kebab-case (e.g., `typescript-standards.mdc`)
+
+### Tagging Strategy
+
+| Tag Type | Examples | Purpose |
+|---|---|---|
+| Domain | `typescript`, `react`, `python`, `security` | What technology/domain |
+| Category | `conventions`, `testing`, `architecture` | What kind of rule |
+| Scope | `alwaysApply`, `project-wide` | How it applies |
+| Purpose | `standards`, `guidelines`, `reference` | Authority level |
+
+### Anti-Patterns
+
+| Anti-Pattern | Bad Example | Fix |
+|---|---|---|
+| Too many concerns | One rule covering coding style, security, testing, and deployment | Split into separate rules |
+| No examples | "Always handle errors properly" | Show error handling code examples |
+| Vague description | "General rules" | "TypeScript error handling patterns for API services" |
+| Time-sensitive content | "Use v1 API until August 2025" | Put legacy info in a `## Deprecated` section |
+| Inconsistent terms | Mixing "endpoint", "route", and "URL" | Choose one and use consistently |
+
+---
+
+## Rule Resolution Order
+
+When multiple rules could apply to a given context, Cursor loads them in this order:
+
+1. **Always Apply rules** — Loaded first, in every session
+2. **Auto-attached rules** — Loaded when matching files are referenced
+3. **Agent-requested rules** — Loaded when the agent determines relevance
+4. **Manual rules** — Loaded only when explicitly referenced
+
+Within each category, rules are loaded based on relevance scoring:
+- Direct file pattern match > broad pattern match
+- More specific tags > generic tags
+- Recently referenced rules are prioritized
+
+---
+
+## Rule Update Process
+
+### Adding a New Rule
+
+1. Create the `.mdc` file in the appropriate subdirectory
+2. Write frontmatter with `description`, `alwaysApply`, and optional `globs`
+3. Add content with examples and guidelines
+4. Update the index file (`index-rules.mdc` or `init.mdc`) with the new entry
+5. Update the changelog (`meta/changelog.mdc`) with the change
+
+### Modifying an Existing Rule
+
+1. Edit the `.mdc` file
+2. Update frontmatter if attach type or scope changes
+3. Update the changelog with the modification date and reason
+4. Notify the team of significant changes
+
+### Deprecating a Rule
+
+1. Move the rule to `meta/deprecations.mdc`
+2. Create a replacement rule if applicable
+3. Add deprecation warnings in the old rule pointing to the replacement
+4. Update the index to reflect the deprecation
+
+---
+
+## Related Documents
+
+- [Index Rules](mdc:../index-rules.mdc) — Complete rule directory and navigation
+- [Context Rules](mdc:../context.mdc) — AI context and hallucination prevention
+- [AI Behavior](mdc:../ai/ai-behavior.mdc) — AI autonomy boundaries
+- [Command Reference](11-command-reference.mdc) — How rules are referenced in chat

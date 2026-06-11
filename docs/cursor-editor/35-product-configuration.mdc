@@ -1,0 +1,797 @@
+---
+title: Cursor Product Configuration & Installation Architecture
+description: Complete reference for Cursor's product.json configuration, extension replacement map, trusted domains, AI feature flags, helper binaries, and licensing — the internal installation configuration that powers Cursor's behavior.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [product-config, product-json, extension-replacement, feature-flags, statsig, licensing, eula, installation]
+---
+
+# Cursor Product Configuration & Installation Architecture
+
+## Overview
+
+Cursor v3.7.21 is a fork of **VS Code 1.105.1** built by **Anysphere, Inc.** with extensive AI/agent features layered on top. This document covers the internal configuration that governs Cursor's behavior — the product.json configuration, extension replacement mechanism, AI feature flags, trusted domains, helper binaries, and licensing.
+
+```
+X:\Void\cursor\extracted\3.7.21\app-resources\
+├── package.json                  # App manifest (name, version, main entry)
+├── product.json                  # Full product configuration (56KB, 2400+ lines)
+├── LICENSE.txt                   # EULA (18KB, 52 sections)
+├── ThirdPartyNotices.txt         # Third-party license notices (185KB)
+├── node_modules.asar             # Bundled dependencies (ASAR archive)
+├── bin/
+│   ├── cursor                    # Main CLI entry point
+│   ├── cursor.cmd                # Windows batch wrapper
+│   ├── cursor-tunnel.exe         # Tunnel service for remote connections
+│   └── code-tunnel.exe           # Legacy code tunnel binary
+├── codeBin/
+│   ├── code                      # VS Code shim binary
+│   └── code.cmd                  # Windows batch wrapper
+├── extensions/
+│   ├── cursor-*/                 # 18 custom Cursor extensions
+│   ├── bat/                      # VS Code bundled extensions (~100 total)
+│   ├── cpp/
+│   ├── css-language-features/
+│   ├── ...
+├── out/
+│   ├── main.js                   # Electron main process entry
+│   ├── bootstrap-fork.js         # Fork process spawner
+│   ├── vscode-dts/               # 21,000+ lines DTS API definitions
+│   ├── vs/
+│   │   ├── base/                 # Core VS Code base library
+│   │   ├── code/                 # VS Code code layer
+│   │   ├── editor/               # Monaco Editor
+│   │   ├── glass/                # Cursor Glass UI (custom layer)
+│   │   ├── platform/             # Platform abstractions
+│   │   └── workbench/            # Workbench code
+│   └── media/
+│       ├── codicon.ttf           # VS Code codicons
+│       ├── cursor-icons-outline.woff2 # Cursor custom icons
+│       ├── jetbrains-mono-regular.ttf # Bundled font
+│       ├── loading.svg           # Loading animations
+│       └── logo.png              # Cursor logo
+├── resources/
+│   └── helpers/
+│       ├── crepectl.exe          # Chrome DevTools Protocol controller
+│       ├── cursorsandbox.exe     # Sandboxed execution environment
+│       └── node.exe              # Bundled Node.js runtime
+└── resources/win32/
+    ├── code.ico                  # App icons
+    ├── *.ico                     # Language-specific file icons (29 files)
+    └── *.png                     # System tray icons
+```
+
+---
+
+## Cursor Package Information
+
+| Property | Value |
+|----------|-------|
+| **Name** | Cursor |
+| **Version** | 3.7.21 |
+| **Distro Hash** | `d5c0e77a0214208f36b56b42e8e787de88d02ea4` |
+| **Author** | Anysphere, Inc. |
+| **Package Manager** | npm@1.10.4 |
+| **Main Entry** | `./out/main.js` |
+| **Module Type** | ES Module (`"type": "module"`) |
+| **VS Code Base** | 1.105.1 |
+| **Git Commit** | `517f696d8ab6c53eb04fbfdaae705cd146bf3460` (real: `...346e`) |
+| **Build Date** | 2026-06-07T21:46:09.237Z |
+| **Repository** | https://github.com/microsoft/vscode.git |
+| **Target** | system |
+| **macOS Bundle ID** | `com.todesktop.230313mzl4w4u92` (ToDesktop wrapper) |
+| **URL Protocol** | `cursor:` (deep links) |
+| **Win32 Mutex** | `cursor` |
+| **Win32 App User Model ID** | `Anysphere.Cursor` |
+| **Linux Icon** | `co.anysphere.cursor` |
+| **Data Folder** | `.cursor` |
+| **Server Data Folder** | `.cursor-server` |
+
+---
+
+## product.json: Complete Configuration Reference
+
+`product.json` (56KB, 2400+ lines) is the single source of truth for Cursor's branding, cloud URLs, extension system, AI configuration, telemetry, and recommendation engine.
+
+### 1. Branding & Identity
+
+| Field | Value | Description |
+|-------|-------|-------------|
+| `nameShort` | `"Cursor"` | Short application name |
+| `nameLong` | `"Cursor"` | Full application name |
+| `applicationName` | `"cursor"` | Internal app identifier |
+| `quality` | `"stable"` | Release quality channel |
+| `target` | `"system"` | Installation target |
+| `vscodeVersion` | `"1.105.1"` | Base VS Code version |
+| `serverApplicationName` | `"cursor-server"` | Remote server executable name |
+| `tunnelApplicationName` | `"cursor-tunnel"` | Tunnel service executable name |
+| `serverDataFolderName` | `".cursor-server"` | Server data directory |
+| `licenseName` | `"MIT"` | Shown in About dialog (misleading — actual license is EULA) |
+| `licenseUrl` | `https://cursor.com/license.txt` | Link to EULA |
+| `licenseFileName` | `"LICENSE.txt"` | Local EULA file |
+| `win32x64AppId` | `{{D7D7D7D7-...}}` | Windows CLSID (placeholder) |
+| `win32arm64AppId` | `{{D8D8D8D8-...}}` | Windows ARM64 CLSID (placeholder) |
+| `win32x64UserAppId` | `{{DADADADA-...}}` | Windows user CLSID (placeholder) |
+| `win32arm64UserAppId` | `{{DBDBDBDB-...}}` | Windows ARM64 user CLSID (placeholder) |
+| `win32TunnelMutex` | `"cursor-tunnel-mutex"` | Tunnel service mutex |
+| `win32TunnelServiceMutex` | `"cursor-tunnel-service"` | Tunnel service mutex |
+| `darwinBundleIdentifier` | `"com.todesktop.230313mzl4w4u92"` | macOS bundle ID (ToDesktop) |
+| `darwinProfileUUID` | `"A54CAD6F-..."` | macOS profile UUID |
+| `darwinProfilePayloadUUID` | `"CDDDF49A-..."` | macOS profile payload UUID |
+| `linuxIconName` | `"co.anysphere.cursor"` | Linux icon name |
+| `urlProtocol` | `"cursor"` | Deep link protocol scheme |
+| `reportIssueUrl` | `https://github.com/getcursor/cursor/issues/new` | Report issue link |
+
+### 2. Cloud & Update Infrastructure
+
+| Field | Value | Description |
+|-------|-------|-------------|
+| `updateUrl` | `https://api2.cursor.sh/updates` | Primary update server |
+| `backupUpdateUrl` | `http://cursorapi.com/updates` | Backup update server (HTTP, not HTTPS) |
+| `downloadUrl` | `https://cursor.com/downloads` | Download page |
+| `releaseNotesUrl` | `https://www.cursor.com/changelog` | Changelog page |
+| `serverDownloadUrlTemplate` | `https://cursor.blob.core.windows.net/remote-releases/${commit}/vscode-reh-${os}-${arch}.tar.gz` | Remote server download (Azure Blob) |
+| `webviewContentExternalBaseUrlTemplate` | `https://{{uuid}}.vscode-cdn.net/insider/ef65ac1ba57f57f2a3961bfe94aa20481caca4c6/out/vs/workbench/contrib/webview/browser/pre/` | Webview CDN |
+
+### 3. Extension Marketplace
+
+| Field | Value | Description |
+|-------|-------|-------------|
+| `extensionsGallery.serviceUrl` | `https://marketplace.cursorapi.com/_apis/public/gallery` | Cursor marketplace API |
+| `extensionsGallery.itemUrl` | `https://marketplace.cursorapi.com/items` | Extension item API |
+| `extensionsGallery.resourceUrlTemplate` | `https://marketplace.cursorapi.com/{publisher}/{name}/{version}/{path}` | Extension resource URL |
+| `extensionsGallery.controlUrl` | `https://api2.cursor.sh/extensions-control` | Extension control API |
+| `extensionsGallery.recommendationsUrl` | `""` | (Empty) |
+| `extensionsGallery.nlsBaseUrl` | `""` | (Empty) |
+| `extensionsGallery.publisherUrl` | `""` | (Empty) |
+| `extensionsGallery.galleryId` | `"cursor"` | Marketplace gallery ID |
+
+### 4. Trusted Extension Publishers
+
+Cursor trusts extensions from these publishers to access sensitive APIs:
+
+```json
+"trustedExtensionPublishers": [
+  "microsoft",
+  "github",
+  "anysphere",
+  "ms-toolsai",
+  "ms-python",
+  "ms-dotnettools",
+  "ms-azuretools",
+  "ms-vscode",
+  "ms-vsliveshare"
+]
+```
+
+### 5. Extension Replacement Map
+
+Cursor replaces official VS Code extensions with Anysphere-published forks. This ensures Cursor controls the remote development tooling:
+
+| Original Extension | Cursor Replacement | Purpose |
+|-------------------|-------------------|---------|
+| `ms-vscode-remote.remote-ssh` | `anysphere.remote-ssh` | SSH remote development |
+| `ms-vscode-remote.remote-containers` | `anysphere.remote-containers` | Dev container support |
+| `ms-vscode-remote.remote-wsl` | `anysphere.remote-wsl` | WSL remote development |
+| `jeanp413.open-remote-ssh` | `anysphere.remote-ssh` | Alternative SSH extension |
+| `jeanp413.open-remote-wsl` | `anysphere.remote-wsl` | Alternative WSL extension |
+| `ms-python.vscode-pylance` | `anysphere.cursorpyright` | Python type checking |
+| `ms-vscode.cpptools` | `anysphere.cpptools` | C/C++ language support |
+| `ms-dotnettools.csharp` | `anysphere.csharp` | C# language support |
+
+**API Proposals Enabled by Replacements**:
+| Replacement Extension | Enabled API Proposals |
+|----------------------|----------------------|
+| `anysphere.remote-ssh` | `resolvers`, `tunnels`, `terminalDataWriteEvent`, `contribRemoteHelp`, `contribViewsRemote`, `telemetry`, `cursorTracing`, `cursorNoDeps` |
+| `anysphere.remote-containers` | `resolvers`, `tunnels`, `terminalDataWriteEvent`, `contribRemoteHelp`, `contribViewsRemote`, `telemetry`, `cursorTracing` |
+| `anysphere.remote-wsl` | `resolvers`, `tunnels`, `terminalDataWriteEvent`, `contribRemoteHelp`, `contribViewsRemote`, `telemetry`, `cursorTracing` |
+| `anysphere.remote-tunnels` | `resolvers`, `tunnels`, `terminalDataWriteEvent`, `contribRemoteHelp`, `contribViewsRemote`, `telemetry`, `cursorTracing` |
+| `anysphere.cpptools` | `cursorTracing` |
+| `anysphere.cursorpyright` | `cursorTracing` |
+
+### 6. Extension Max Versions
+
+Cursor restricts the maximum version of certain extensions to prevent compatibility issues:
+
+| Extension | Max Version | Min Version | Reason |
+|-----------|------------|-------------|--------|
+| `ms-vscode.cpptools` | 1.23.6 | 1.20.5 | C/C++ tools |
+| `ms-python.vscode-pylance` | 2024.8.1 | 2024.4.1 | Python type checking |
+| `ms-vscode-remote.remote-containers` | 0.394.0 | 0.394.0 | Dev containers (exact version) |
+| `ms-vscode-remote.remote-wsl` | 0.81.8 | 0.81.8 | WSL (exact version) |
+| `ms-vscode-remote.remote-ssh` | 0.113.1 | 0.113.1 | SSH (exact version) |
+| `ms-vscode-remote.remote-server` | 1.5.1 | 1.5.1 | Remote server (exact version) |
+| `ms-dotnettools.csharp` | 2.63.32 | — | C# support |
+| `ms-dotnettools.csdevkit` | 1.16.6 | — | C# dev kit |
+| `snowflake.snowflake-vsc` | — | 1.20.1 | Snowflake (min only) |
+
+### 7. Extension Overrides for AWS Toolkits
+
+When AWS toolkits are installed, they use Cursor's replacements:
+
+| Base Extension | Override Target |
+|---------------|----------------|
+| `amazonwebservices.aws-toolkit-vscode` | `anysphere.remote-ssh` (for SSH operations) |
+| `amazonwebservices.amazon-q-vscode` | `anysphere.remote-ssh` (for SSH operations) |
+
+### 8. Extension Restrictions
+
+```json
+"skipPackagingLocalExtensions": ["cursor-context-ast-typescript"],
+"cannotImportExtensions": [
+  "github.copilot-chat",
+  "github.copilot",
+  "ms-vscode.remote-explorer"
+]
+```
+
+- `cursor-context-ast-typescript` is not packaged locally (loaded dynamically)
+- GitHub Copilot extensions cannot be imported (Cursor provides its own AI)
+- Remote explorer cannot be imported (Cursor has its own remote infrastructure)
+
+### 9. Trusted Extension Protocol Handlers
+
+These extensions are allowed to handle custom protocol handlers:
+
+```json
+"trustedExtensionProtocolHandlers": [
+  "vscode.git",
+  "vscode.github-authentication",
+  "vscode.microsoft-authentication",
+  "anysphere.cursor-deeplink",
+  "anysphere.cursor-mcp"
+]
+```
+
+| Protocol Handler | Extension | Purpose |
+|-----------------|-----------|---------|
+| `vscode.git` | `git` | Git URI scheme |
+| `vscode.github-authentication` | `github-authentication` | GitHub OAuth deep links |
+| `vscode.microsoft-authentication` | `microsoft-authentication` | Microsoft OAuth deep links |
+| `anysphere.cursor-deeplink` | `cursor-deeplink` | Cursor deep link handling (`cursor://`) |
+| `anysphere.cursor-mcp` | `cursor-mcp` | MCP server deep links |
+
+### 10. Trusted Extension Auth Access
+
+These extensions can access authentication tokens from trusted providers:
+
+| Auth Provider | Allowed Extensions |
+|--------------|-------------------|
+| `github` | vscode.github, github.remotehub, ms-vscode.remote-server, github.vscode-pull-request-github, github.codespaces, github.copilot, github.copilot-chat, ms-vsliveshare.vsliveshare, ms-azuretools.vscode-azure-github-copilot |
+| `github-enterprise` | Same as `github` |
+| `microsoft` | ms-vscode.azure-repos, ms-vscode.remote-server, ms-vsliveshare.vsliveshare, ms-azuretools.vscode-azure-github-copilot, ms-azuretools.vscode-azureresourcegroups, ms-edu.vscode-learning, ms-toolsai.vscode-ai, ms-toolsai.vscode-ai-remote |
+| `microsoft-sovereign-cloud` | Same as `microsoft` |
+| `__GitHub.copilot-chat` | ms-azuretools.vscode-azure-github-copilot |
+| Cursor Trusted | anysphere.cursor-retrieval, anysphere.cursor-commits |
+
+### 11. Link Protection Trusted Domains (50+ domains)
+
+Cursor allows links to these domains without user confirmation or protection warnings:
+
+| Domain | Purpose |
+|--------|---------|
+| **Cursor Infrastructure** | cursor.com, cursorapi.com, cursor-cdn.com, cursor-marketplace.com, cursor.so, cursor.sh, review.cursor.com, docs.cursor.sh, changelog.cursor.sh |
+| **VS Code Marketplace** | marketplace.visualstudio.com, open-vsx.org |
+| **GitHub** | github.com, www.github.com, docs.github.com, raw.githubusercontent.com, private-user-images.githubusercontent.com, avatars.githubusercontent.com |
+| **Azure** | portal.azure.com |
+| **MCP Servers** | mcp.notion.com, mcp.sentry.dev, mcp.atlassian.com, mcp.intercom.com, mcp.asana.com, mcp.linear.app, mcp.squareup.com, mcp.figma.com, mcp.context7.com, mcp.prisma.io |
+| **Other Tools** | app.graphite.com, app.graphite.dev, api.dashboard.plaid.com, app.datadoghq.com/, playwright.dev |
+
+### 12. AI Configuration
+
+```json
+"aiConfig": {
+  "ariaKey": "control-key"
+}
+```
+
+**Default Chat Agent**: GitHub Copilot (`GitHub.copilot` + `GitHub.copilot-chat`)
+
+The `defaultChatAgent` section configures GitHub Copilot integration with 30+ settings covering:
+- Documentation URLs, terms statements, privacy statements
+- SKU/plan documentation, upgrade, and management URLs
+- Provider IDs (github, github-enterprise)
+- OAuth scopes (user:email, read:user, repo, workflow)
+- Entitlement URLs for Copilot access
+- Chat quota and completion quota tracking
+- Walkthrough and status menu commands
+- Token refresh and enablement settings
+- Next edit suggestions configuration
+
+### 13. Statsig Feature Flags
+
+| Field | Value | Description |
+|-------|-------|-------------|
+| `statsigClientKey` | `client-Bm4HJ0aDjXHQVsoACMREyLNxm5p6zzuzhO50MgtoT5D` | Statsig SDK client key |
+| `statsigLogEventProxyUrl` | `https://api3.cursor.sh/tev1/v1` | Statsig event log proxy |
+
+Statsig is Cursor's feature flag and A/B testing service. The client key gates 60+ compile-time AI features.
+
+### 14. Compile-Time AI Feature Flags
+
+Cursor has **45 compile-time flags** that control which AI features are enabled. These are detected at build time by searching source code for lines containing `__GULPFILE_REMOVE_LINE_BEFORE_COMPILING____disable_...__`:
+
+| Flag Name | Feature Controlled |
+|-----------|-------------------|
+| `disable_ai_debugger` | AI-powered debugger |
+| `disable_multi_file_applies` | Multi-file code edits |
+| `disable_shadow_workspace_debugging` | Shadow workspace debug tools |
+| `disable_cpp_eval` | C++ code evaluation |
+| `disable_cursoreval` | Cursor-specific evaluation |
+| `disable_ai_assert` | AI assertion checking |
+| `disable_cpp_this_is_set_in_prod_and_nightly` | C++ production/nightly settings |
+| `disable_context_ast_typescript_fork` | TypeScript AST fork |
+| `disable_dev_flush_logs` | Dev log flushing |
+| `disable_embedding_model_switch` | Embedding model switching |
+| `disable_cursor_prediction_options` | Cursor prediction settings |
+| `disable_ttft_logging` | Time-to-first-token logging |
+| `disable_always_on_fast_apply_chunk_speculation` | Always-on fast apply speculation |
+| `disable_runnable_code_blocks` | Runnable code block support |
+| `disable_auto_import_experiments` | Auto-import features |
+| `disable_warning_on_too_many_update_locks` | Update lock warnings |
+| `disable_dev_only_prompt_quality_link` | Dev prompt quality link |
+| `disable_menubar_debugging` | Menu bar debugging |
+| `disable_multiple_embeddings` | Multiple embedding models |
+| `disable_hmr` | Hot module replacement |
+| `disable_resume` | Session resume functionality |
+| `disable_console_error` | Console error suppression |
+| `disable_composer_migration_warning` | Composer migration warnings |
+| `disable_rcp_server` | RCP server |
+| `disable_agent_cli_formatter` | Agent CLI formatter |
+| `disable_performance_events` | Performance event tracking |
+| `allow_skip_privacy_mode_grace_period` | Privacy mode grace period skip |
+| `disable_kill_all_modes_and_surface_bg` | Mode kill switches |
+| `disable_statsig` | Statsig feature flags |
+| `disable_dev_backend_and_login_argv_args` | Dev backend/argv args |
+| `disable_fill_screen` | Fill screen mode |
+| `disable_user_intent_agents` | User intent agents |
+| `disable_local_mode` | Local-only mode |
+
+### 15. Extension Virtual Workspace Support
+
+These extensions are marked as **not supporting virtual workspaces** (e.g., github.dev, codespaces):
+
+| Extension | Default (virtual workspace) |
+|-----------|---------------------------|
+| `esbenp.prettier-vscode` | false |
+| `msjsdiag.debugger-for-chrome` | false |
+| `redhat.java` | false |
+| `HookyQR.beautify` | false |
+| `ritwickdey.LiveServer` | false |
+| `VisualStudioExptTeam.vscodeintellicode` | false |
+| `octref.vetur` | false |
+| `formulahendry.code-runner` | false |
+| `xdebug.php-debug` | false |
+| `ms-mssql.mssql` | false |
+| `christian-kohler.path-intellisense` | false |
+| `eg2.tslint` | false |
+| `eg2.vscode-npm-script` | false |
+| `donjayamanne.githistory` | false |
+| `Dart-Code.flutter` | false |
+| `streetsidesoftware.code-spell-checker` | false |
+| `rebornix.Ruby` | false |
+| `ms-vscode.sublime-keybindings` | false |
+| `mitaki28.vscode-clang` | false |
+| `steoates.autoimport` | false |
+| `donjayamanne.python-extension-pack` | false |
+| `shd101wyy.markdown-preview-enhanced` | false |
+| `mikestead.dotenv` | false |
+| `pranaygp.vscode-css-peek` | false |
+| `ikappas.phpcs` | false |
+| `platformio.platformio-ide` | false |
+| `jchannon.csharpextensions` | false |
+| `gruntfuggly.todo-tree` | false |
+
+### 16. Extension Kind (UI vs Workspace)
+
+These extensions are forced to run in the **UI process** (not workspace):
+
+| Extension | Kind |
+|-----------|------|
+| `Shan.code-settings-sync` | ui |
+| `shalldie.background` | ui |
+| `techer.open-in-browser` | ui |
+| `CoenraadS.bracket-pair-colorizer-2` | ui |
+| `CoenraadS.bracket-pair-colorizer` | ui + workspace |
+| `hiro-sun.vscode-emacs` | ui + workspace |
+| `hnw.vscode-auto-open-markdown-preview` | ui + workspace |
+| `wayou.vscode-todo-highlight` | ui + workspace |
+| `aaron-bond.better-comments` | ui + workspace |
+| `vscodevim.vim` | ui |
+| `ollyhayes.colmak-vim` | ui |
+
+### 17. Telemetry Configuration
+
+| Field | Value |
+|-------|-------|
+| `enableTelemetry` | `true` |
+| `removeTelemetryMachineId` | `true` |
+| `enabledTelemetryLevels` | `{ "error": true, "usage": true }` |
+| `simulateProdOnDev` | `false` |
+| `openToWelcomeMainPage` | `true` |
+
+### 18. Extension Recommendations Engine
+
+Cursor has a **massive recommendation engine** that suggests extensions based on:
+- **On file open**: `extensionRecommendations` — 35+ extensions recommended when specific file types are opened
+- **Config-based**: `configBasedExtensionTips` — Extensions suggested based on config files (pyproject.toml, pom.xml, Dockerfile, etc.)
+- **Executable-based**: `exeBasedExtensionTips` — Extensions suggested based on installed CLI tools
+- **Keymap**: `keymapExtensionTips` — Alternative editor keybindings
+- **Language**: `languageExtensionTips` — Language-specific extensions
+- **Web**: `webExtensionTips` — Web-only extensions
+- **Commonly Used Settings**: `commonlyUsedSettings` — Settings search suggestions
+
+### 19. Extension API Proposals Enabled
+
+| Extension | Enabled API Proposals |
+|-----------|---------------------|
+| `GitHub.copilot-chat` | 50+ proposals including `interactive`, `chatParticipantAdditions`, `chatEditing`, `chatProvider`, `languageModelSystem`, `languageModelCapabilities`, `languageModelDataPart`, `inlineEdit`, `lmTools`, `textSearchProvider2`, and more |
+| `GitHub.copilot` | `inlineCompletionsAdditions` |
+| `anysphere.remote-ssh` | `cursorTracing`, `cursorNoDeps` |
+| `anysphere.cpptools` | `cursorTracing`, `chatParticipantAdditions` |
+| `vscjava.vscode-java-pack` | `lmTools` |
+| `TeamsDevApp.ms-teams-vscode-extension` | `chatParticipantAdditions`, `languageModelSystem` |
+| `anysphere.cursorpyright` | `cursorTracing` |
+
+---
+
+## Helper Binaries
+
+Cursor ships 3 helper binaries in `resources/helpers/`:
+
+| Binary | Size | Purpose |
+|--------|------|---------|
+| `crepectl.exe` | ~10MB | Chrome DevTools Protocol controller — how Cursor controls the Chromium browser engine for webviews |
+| `cursorsandbox.exe` | ~5MB | Sandboxed execution environment — provides process isolation for sensitive operations |
+| `node.exe` | ~40MB | Bundled Node.js runtime — Cursor's own Node.js build, not system-installed |
+
+### crepectl.exe
+
+Controls Chrome DevTools Protocol connections for webview management. Used by:
+- Webview content rendering
+- CDP-based debugging
+- Browser automation
+- Webview lifecycle management
+
+### cursorsandbox.exe
+
+Provides an isolated execution environment. Used for:
+- Running untrusted code in isolated processes
+- Sandboxed terminal sessions
+- Agent command execution isolation
+
+### node.exe
+
+Cursor bundles its own Node.js runtime (typically a specific version) rather than relying on system Node.js. This ensures:
+- Consistent behavior across environments
+- No version conflicts with user-installed Node.js
+- Bundled with specific dependencies needed by Cursor's extensions
+
+---
+
+## Fonts & Media Assets
+
+### Fonts (out/media/)
+
+| Font | Format | Purpose |
+|------|--------|---------|
+| `codicon.ttf` | TTF | VS Code codicons (icon font) |
+| `cursor-icons-outline.woff2` | WOFF2 | Cursor-specific custom icons |
+| `jetbrains-mono-regular.ttf` | TTF | JetBrains Mono — bundled editor font |
+
+### Loading Animations (out/media/)
+
+| File | Purpose |
+|------|---------|
+| `loading.svg` | Light theme loading animation |
+| `loading-dark.svg` | Dark theme loading animation |
+| `loading-hc.svg` | High contrast loading animation |
+
+### Icons (resources/win32/)
+
+| Category | Files |
+|----------|-------|
+| **App Icons** | `code.ico`, `code_150x150.png`, `code_70x70.png` |
+| **System Tray** | `trayNotifyDark.ico`, `trayNotifyWhite.ico`, `trayTemplate.ico`, `trayTemplateDark.ico` |
+| **Language Icons** (29 files) | `.bat`, `.clojure`, `.cpp`, `.csharp`, `.css`, `.go`, `.html`, `.java`, `.javascript`, `.json`, `.less`, `.markdown`, `.php`, `.powershell`, `.python`, `.react`, `.ruby`, `.sass`, `.shell`, `.sql`, `.typescript`, `.vue`, `.xml`, `.yaml`, `.bower`, `.jade`, `default` |
+
+### Agent UI Icons
+
+| File | Purpose |
+|------|---------|
+| `agents-toggle-filled.svg` | Agent toggle icon (filled state) |
+| `agents-toggle-outline.svg` | Agent toggle icon (outline state) |
+| `code-icon.svg` | Code editor icon |
+
+---
+
+## Glass UI Module (`out/vs/glass/`)
+
+Cursor ships a custom UI layer called **Glass UI** at `out/vs/glass/`. This is Cursor's unique visual layer built on top of the Monaco Editor and VS Code workbench.
+
+**Purpose**: The Glass module provides Cursor's custom theming, UI components, and visual effects that differentiate Cursor from vanilla VS Code. It handles:
+- Custom UI components specific to Cursor's AI features
+- Theming integration with the `theme-cursor` extension
+- Visual effects for the Composer UI
+- Custom workbench contributions
+
+**Relationship to VS Code UI**: Glass UI runs in parallel with VS Code's default workbench, providing additional UI components without modifying the base VS Code UI code.
+
+---
+
+## Webview Preload Architecture
+
+Cursor's Composer UI runs as a webview with custom preload scripts. Key files:
+
+### Preload Files (`out/vs/workbench/contrib/webview/browser/pre/`)
+
+| File | Purpose |
+|------|---------|
+| `index.html` | Standard webview preloader |
+| `index-no-csp.html` | Webview without CSP (debugging) |
+| `fake.html` | Fake webview template |
+| `service-worker.js` | Webview service worker |
+
+### Composer Preload (`out/vs/workbench/contrib/composer/browser/preload-webview-browser.js`)
+
+The Composer webview preload provides:
+
+1. **WebAuthn Polyfill**: Overrides `navigator.credentials.create` and `navigator.credentials.get` for passkey login
+2. **Local Network Access Polyfill**: Patches `navigator.permissions.query` for local-network-access permissions
+3. **cursorBrowser Bridge**: IPC channel between webview and Electron main via `ipcRenderer.sendToHost`
+
+**Keyboard Shortcuts Mapped**:
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+R` | Reload page |
+| `Cmd+L` | Focus URL bar |
+| `Cmd+T` | New browser tab |
+| `Cmd+I` | Focus composer |
+| `Cmd+F` | Find in page |
+| `Cmd+Shift+I` | Open DevTools |
+| `F12` | Open DevTools |
+
+**IPC Messages Sent to Host**:
+`focus-url-bar`, `element-selected`, `element-updated`, `element-picked`, `element-hovered`, `area-screenshot-selected`, `css-inspector-style-change`, `open-url-side-group`, `open-url-new-tab`, `focus-composer-input`, `show-dialog`, `passkey-request-stalled`, `browser-error-action`, `keyboard-shortcut`, `did-keydown`
+
+**Native Dialog Overrides**: `alert()`, `confirm()`, `prompt()` are all intercepted and non-blocking in the webview.
+
+---
+
+## Patch Files
+
+Cursor patches several third-party dependencies:
+
+| Patch File | Purpose |
+|-----------|---------|
+| `patches/@modelcontextprotocol+sdk+1.25.1.patch` | MCP SDK version override (both `cursor-agent-exec` and `cursor-mcp`) |
+| `installed-client/node_modules/@sentry/node/build/cjs/integrations/trace*` | Sentry tracing patches (CJS) |
+| `installed-client/node_modules/@sentry/node/build/esm/integrations/trace*` | Sentry tracing patches (ESM) |
+
+---
+
+## ASAR Archive
+
+Cursor bundles all Node.js dependencies into an ASAR archive:
+
+| File | Size | Purpose |
+|------|------|---------|
+| `node_modules.asar` | 28 bytes (metadata) | Bundled dependencies in ASAR format |
+
+The ASAR archive contains all `node_modules` dependencies bundled into a single archive file for:
+- Faster startup (fewer files to stat)
+- Reduced disk I/O
+- Simplified distribution
+
+Dependencies packed in the ASAR include:
+- `@connectrpc/connect` (gRPC-Web for agent communication)
+- `@modelcontextprotocol/sdk` v1.25.1 (MCP protocol)
+- `better-sqlite3` (agent state store)
+- `tree-sitter` (syntax-aware code analysis)
+- `@anysphere/tree-chunk-napi` (Rust code chunking)
+- `esbuild` / `esbuild-wasm` (bundler)
+- `zod` v4 (validation schemas)
+- `node-ignore` (.gitignore parsing)
+- `dompurify` (HTML sanitization)
+- And thousands of transitive dependencies
+
+---
+
+## VS Code DTS API (21,000+ lines)
+
+Cursor ships a custom `vscode-dts` directory at `out/vscode-dts/` with **21,000+ lines** of TypeScript type definitions that extend the VS Code extension API.
+
+**Purpose**: These `.d.ts` files define Cursor's custom API surface for extension developers:
+- `cursorVersion` constant
+- Custom Cursor-specific types and interfaces
+- Extensions to the `vscode` namespace
+- API proposal types for Cursor's custom APIs
+
+**Custom Cursor API Proposals Available**:
+- `control` — Cursor control API
+- `cursor` — Core Cursor API
+- `cursorTracing` — Cursor tracing/telemetry
+- `cursorNoDeps` — Cursor without dependencies
+- `cursorPseudoterminal` — Pseudo-terminal support
+- `textSearchProvider2` — Text search provider v2
+- `resolvers` — Remote resolver API
+- `externalUriOpener` — External URI opener
+- `contribSourceControlInputBoxMenu` — SCM input box menu
+- `lmTools` — Language model tools
+
+---
+
+## Onboarding System
+
+Cursor ships with a first-run onboarding experience:
+
+| Asset | Purpose |
+|-------|---------|
+| `tour-agent.png` | AI agent tour screenshot |
+| `tour-inline.png` | Inline AI tour screenshot |
+| `tour-tab.png` | Tab AI tour screenshot |
+| `theme-dark.png` | Dark theme preview |
+| `theme-dark-hc.png` | Dark high contrast preview |
+| `theme-dark-midnight.png` | Midnight theme preview |
+| `logo.png`, `logo.svg` | Cursor logo |
+
+**Workflow**: First-run onboarding guides users through:
+1. AI agent features tour
+2. Inline editing demo
+3. Tab completion showcase
+4. Theme selection
+5. Welcome screen
+
+---
+
+## Licensing: Cursor EULA
+
+Cursor is distributed under a **proprietary EULA** (not MIT like VS Code). Key terms:
+
+| Section | Summary |
+|---------|---------|
+| **License Grant** | Limited, non-exclusive, non-transferable, freely revocable license |
+| **Restrictions** | No copying, modifying, reverse engineering, decompiling, or creating derivative works |
+| **Termination** | Cursor may terminate at any time for any reason |
+| **Ownership** | All IP rights remain with Anysphere, Inc. |
+| **Feedback** | Non-confidential; users grant perpetual, worldwide license to all feedback |
+| **No Warranty** | "AS IS" and "AS AVAILABLE" basis; no warranties of any kind |
+| **Liability Cap** | Maximum liability limited to $50.00 |
+| **Arbitration** | **Mandatory individual arbitration** via JAMS (unless opted out within 30 days) |
+| **Class Action Waiver** | No class actions, collective actions, or jury trials |
+| **Governing Law** | California, USA |
+| **Indemnification** | Users must defend and indemnify Cursor against claims arising from their use |
+| **Export** | Subject to US export control laws |
+
+**Opt-Out**: New users can reject the arbitration agreement within 30 days by emailing `legal@cursor.sh` with their full legal name.
+
+**Contrast with VS Code**: VS Code is MIT-licensed (allowing modification, redistribution, derivative works). Cursor's EULA prohibits all of these — the code is closed-source and cannot be legally forked.
+
+---
+
+## Security & Privacy
+
+### Telemetry
+
+| Setting | Value |
+|---------|-------|
+| Telemetry enabled | `true` |
+| Machine ID removed | `true` |
+| Error telemetry | enabled |
+| Usage telemetry | enabled |
+
+### Content Security Policy (Workbench)
+
+Cursor's workbench HTML defines strict CSP:
+
+```
+script-src: 'self', 'unsafe-eval', blob:
+style-src: 'self', 'unsafe-inline'
+connect-src: cursor-rpc-devtools (custom Cursor RPC endpoint)
+trusted-types: 18+ custom policies
+frame-src: vscode-webview:, http://localhost:*, http://127.0.0.1:*
+```
+
+**Custom Trusted Types (18+)**:
+`dompurify#anysphere-ui`, `anysphereUiPolicy`, `aibubble`, `aibubble2`, `aibubbleSearch`, `ProseMirrorClipboard`, `shikiWorkerFactory`, `editorCppGhostText`, `solidjs`
+
+---
+
+## Architecture Diagram
+
+```mermaid
+flowchart TD
+    subgraph electron [Electron App]
+        A[main.js] --> B[Bootstrap Fork]
+        B --> C[Extension Host]
+        B --> D[Search Process]
+        B --> E[Child Forks]
+    end
+    
+    subgraph cursor_extensions [18 Cursor Extensions]
+        F[cursor-agent-exec]
+        G[cursor-agent-worker]
+        H[cursor-retrieval]
+        I[cursor-mcp]
+        J[cursor-socket]
+        K[cursor-resolver]
+        L[cursor-checkout]
+        M[cursor-commits]
+        N[cursor-browser-automation]
+        O[cursor-explorer]
+        P[cursor-always-local]
+        Q[cursor-deeplink]
+        R[cursor-ndjson-ingest]
+        S[cursor-shadow-workspace]
+        T[cursor-polyfills-remote]
+        U[cursor-worktree-textmate]
+        V[cursor-file-service]
+        W[cursor-resolver-helper]
+    end
+    
+    subgraph vscode_extensions [100+ VS Code Bundled Extensions]
+        X[Syntax Grammars]
+        Y[Language Features]
+        Z[Themes]
+        AA[Git]
+        AB[Debugging]
+        AC[Task Runners]
+        AD[Editor Utils]
+        AE[Notebooks]
+    end
+    
+    subgraph cloud [Cursor Cloud]
+        BB[api2.cursor.sh]
+        CC[marketplace.cursorapi.com]
+        DD[cursor.blob.core.windows.net]
+        EE[api3.cursor.sh/statsig]
+        FF[cursor.com]
+    end
+    
+    subgraph helpers [Helper Binaries]
+        GG[crepectl.exe CDP]
+        HH[cursorsandbox.exe]
+        II[node.exe]
+    end
+    
+    subgraph ui [Glass UI + Composer Webview]
+        JJ[out/vs/glass/]
+        KK[Composer Webview]
+        LL[preload-webview-browser.js]
+    end
+    
+    A --> cursor_extensions
+    A --> vscode_extensions
+    A --> helpers
+    A --> ui
+    A --> cloud
+    
+    F --> G
+    G --> F
+    H --> I
+    J --> K
+    K --> W
+    L --> M
+    I --> N
+    C --> cursor_extensions
+    C --> vscode_extensions
+    E --> helpers
+    KK --> LL
+    JJ --> KK
+    BB --> AA
+    DD --> AA
+    EE --> F
+    FF --> AA
+```
+
+---
+
+## Related Documents
+
+- [Extension Architecture](34-vscode-extension-architecture.mdc) — All 18 custom + 100+ bundled extensions
+- [Agent Settings](19-agent-settings.mdc) — Per-mode provider configuration
+- [Settings & Configuration](08-settings-configuration.mdc) — User/workspace settings
+- [Data Privacy](26-data-privacy.mdc) — Telemetry and data handling
+- [Cloud Agent](20-cursor-cloud.mdc) — Cursor cloud infrastructure
+- [Model Providers](16-model-providers.mdc) — LLM provider configuration
+- [Context Management](10-context-management.mdc) — @-references and progressive disclosure

@@ -1,0 +1,1133 @@
+---
+title: Cursor Editor — VS Code Extension Architecture
+description: Deep dive into all 18 custom Cursor extensions, their source code behavior, inter-extension dependencies, network connections, and the 8-layer architecture that makes Cursor an agentic coding platform.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, vscode-extensions, extension-architecture, agentic, vscode-integration, native-deps]
+---
+
+# Cursor Editor — VS Code Extension Architecture
+
+## Overview
+
+Cursor is built on VS Code and extends it with **18 custom extensions** (published by `anysphere`) that transform it from a standard code editor into a full agentic coding platform. These extensions add 8 architectural layers on top of VS Code's ~130 bundled extensions.
+
+```
+Cursor Extension Architecture (v3.7.21)
+
+Cursor/resources/app/extensions/
+├── cursor-agent-exec           # Layer 1: Agent executor (9 MB, native deps)
+├── cursor-agent-worker         # Layer 1: Agent launcher (2 MB)
+├── cursor-always-local         # Layer 6: Local experiments + SCM
+├── cursor-browser-automation   # Layer 4: Browser MCP server
+├── cursor-checkout             # Layer 5: Git branch checkout
+├── cursor-commits              # Layer 5: Commit tracking (dep: vscode.git)
+├── cursor-deeplink             # Layer 2: URI deep-link handler
+├── cursor-explorer             # Layer 5: Workspace tree view
+├── cursor-file-service         # Layer 3: File indexing facade
+├── cursor-mcp                  # Layer 4: MCP protocol integration
+├── cursor-ndjson-ingest        # Layer 7: Debug HTTP server (port 7242-7942)
+├── cursor-polyfills-remote     # Layer 6: Web host polyfills
+├── cursor-resolver             # Layer 2: Cloud remote authority resolver
+├── cursor-resolver-helper      # Layer 2: Connection token provider
+├── cursor-retrieval            # Layer 3: Codebase indexing & search
+├── cursor-shadow-workspace     # Layer 6: Virtual workspace abstraction
+├── cursor-socket               # Layer 2: TCP/TLS transport layer
+├── cursor-worktree-textmate    # Layer 8: Syntax highlighting (32 langs)
+│
+├── bat                         # VS Code built-in
+├── clojure                     # VS Code built-in
+├── coffeescript                # VS Code built-in
+├── configuration-editing       # VS Code built-in
+├── cpp                         # VS Code built-in
+├── csharp                      # VS Code built-in
+├── css                         # VS Code built-in
+├── css-language-features       # VS Code built-in
+├── dart                        # VS Code built-in
+├── debug-auto-launch           # VS Code built-in
+├── debug-server-ready          # VS Code built-in
+├── diff                        # VS Code built-in
+├── docker                      # VS Code built-in
+├── emmet                       # VS Code built-in
+├── git                         # VS Code built-in
+├── git-base                    # VS Code built-in
+├── github                      # VS Code built-in
+├── github-authentication       # VS Code built-in
+├── ... and ~100 more bundled VS Code extensions
+```
+
+## Architecture Overview: 8 Extension Layers
+
+Cursor's extensions are organized into 8 architectural layers:
+
+```mermaid
+flowchart TD
+    subgraph layer1 [Layer 1: Agent Runtime]
+        A[cursor-agent-exec<br/>AI executor, tool runner]
+        B[cursor-agent-worker<br/>Agent binary launcher]
+    end
+    
+    subgraph layer2 [Layer 2: Cloud Connectivity]
+        C[cursor-socket<br/>TCP/TLS transport]
+        D[cursor-resolver<br/>Remote authority resolver]
+        E[cursor-resolver-helper<br/>Auth token provider]
+        F[cursor-deeplink<br/>URI handler]
+    end
+    
+    subgraph layer3 [Layer 3: Codebase Intelligence]
+        G[cursor-retrieval<br/>Code indexing & search]
+        H[cursor-file-service<br/>File indexing facade]
+    end
+    
+    subgraph layer4 [Layer 4: MCP & External Tools]
+        I[cursor-mcp<br/>MCP protocol]
+        J[cursor-browser-automation<br/>Browser MCP server]
+    end
+    
+    subgraph layer5 [Layer 5: Workspace Features]
+        K[cursor-explorer<br/>Workspace tree view]
+        L[cursor-checkout<br/>Git branch ops]
+        M[cursor-commits<br/>Commit tracking]
+    end
+    
+    subgraph layer6 [Layer 6: Cloud Agent Infra]
+        N[cursor-always-local<br/>Local experiments]
+        O[cursor-shadow-workspace<br/>Virtual workspace]
+        P[cursor-polyfills-remote<br/>Web polyfills]
+    end
+    
+    subgraph layer7 [Layer 7: Debugging Tools]
+        Q[cursor-ndjson-ingest<br/>Debug HTTP server]
+    end
+    
+    subgraph layer8 [Layer 8: Editor Support]
+        R[cursor-worktree-textmate<br/>Syntax highlighting]
+    end
+    
+    A --> C
+    A --> G
+    A --> I
+    B --> A
+    D --> C
+    D --> E
+    G --> H
+    I --> J
+```
+
+---
+
+## Layer 1: Agent Runtime (Core AI Execution)
+
+### 1.1 cursor-agent-exec — Primary Agent Executor
+
+**Description**: Provides agent execution capabilities for Cursor, enabling agents to run commands, interact with files, and use tools with user permissions and approvals.
+
+| Property | Value |
+|----------|-------|
+| **Path** | `Cursor/resources/app/extensions/cursor-agent-exec` |
+| **Main Entry** | `./dist/main` (~9 MB webpack bundle) |
+| **Activation** | `*` (on-demand, whenever any command is run) |
+| **Publisher** | anysphere |
+| **Extension Kind** | Workspace |
+| **API Proposals** | `control`, `cursor`, `cursorTracing`, `cursorPseudoterminal` |
+| **Native Deps** | `better-sqlite3`, `tree-sitter`, `@anysphere/tree-chunk-napi` |
+
+**Commands Contributed** (all gated behind `cursor.agentStoreSyncHarnessEnabled && isDevUser`):
+- `cursor-agent-exec.revealAgentStoreDir`
+- `cursor-agent-exec.forceAgentStoreSync`
+- `cursor-agent-exec.rebootstrapAgentStoreFromServer`
+- `cursor-agent-exec.mountAgentStore`
+- `cursor-agent-exec.detachAgentStoreMount`
+- `cursor-agent-exec.listAgentStoreMounts`
+
+**What It Actually Does**:
+- Implements `vscode.AgentExecutor` class with methods:
+  - `executeAgentTool()` — Executes tools (shell, readFiles, writeFiles, etc.)
+  - `executeAgentCommand()` — Runs agent-level commands
+  - `executeAgentQuickFix()` — Applies quick fixes
+  - `executeAgentEdit()` — Performs text edits
+  - `executeAgentTerminal()` — Executes in a terminal
+- Manages **agent stores** — persistent storage for agent state (SQLite via `better-sqlite3`)
+- Uses `tree-sitter` for syntax-aware code analysis
+- Uses `@anysphere/tree-chunk-napi` (native Rust extension) for code chunking/tree analysis
+- Uses `json-schema` validation for tool schemas
+- Communicates with Cursor's cloud backend via WebSocket/HTTP for agent tool execution
+
+**Native Dependencies Explained**:
+```
+better-sqlite3     → Persistent SQLite agent state store
+tree-sitter        → Syntax-aware AST parsing for code analysis
+@anysphere/tree-chunk-napi → Custom Rust-based code chunking/tree analysis
+```
+
+### 1.2 cursor-agent-worker — Agent Installer & Launcher
+
+**Description**: Installs and runs the Cursor agent worker from extension startup.
+
+| Property | Value |
+|----------|-------|
+| **Path** | `Cursor/resources/app/extensions/cursor-agent-worker` |
+| **Main Entry** | `./dist/main` (~2 MB webpack bundle) |
+| **Activation** | `onStartupFinished` |
+| **Publisher** | anysphere |
+| **API Proposals** | `cursor`, `cursorNoDeps` |
+| **Native Deps** | None (bootstrap only) |
+
+**What It Does**:
+- Handles the **agent worker lifecycle** — installs and runs the background agent process
+- This is a **bootstrap/launcher** for the actual agent runtime, not the agent itself
+- Uses `@connectrpc/connect` for gRPC-Web communication with the backend
+- Uses Protocol Buffers with `google.protobuf.*` message types
+- Responsible for downloading/verifying the agent binary and spawning it
+- Delegates actual AI execution to `cursor-agent-exec`
+
+**Architecture**:
+```
+cursor-agent-worker (bootstrap)
+    ↓ downloads & spawns
+agent process (cursor-agent-exec implements vsCode.AgentExecutor)
+    ↓ executes tools via
+cursor-socket, cursor-file-service, cursor-retrieval, etc.
+```
+
+---
+
+## Layer 2: Cloud Connectivity
+
+### 2.1 cursor-socket — TCP/TLS Transport Layer
+
+**Description**: TCP/TLS socket provider for Cursor extensions.
+
+| Property | Value |
+|----------|-------|
+| **Main Entry** | `./dist/main` (~103 KB) |
+| **Activation** | `onResolveRemoteAuthority:background-composer`, `onStartupFinished` |
+| **API Proposals** | `cursor`, `cursorNoDeps` |
+
+**What It Actually Does**:
+- Registers a **socket connection provider**: `r.cursor.registerSocketConnectionProvider({provideConnection})`
+- Registers a **socket server provider**: `r.cursor.registerSocketServerProvider({provideServer})`
+- Creates raw TCP and TLS socket connections to remote Cursor servers
+- Implements managed TCP servers with lease-based connection management
+- Handles port allocation with automatic fallback (ephemeral ports)
+- Port range: auto-allocates in ephemeral range
+- Has a `CursorSocketTransient` error code for transient connection failures
+- Supports server reuse with configurable grace period shutdown
+- Provides `inject-failure` developer command for testing socket failures
+
+**Key Classes**:
+```javascript
+ManagedTcpServer  // Manages lifecycle of shared TCP server instances
+SocketConnection   // Wraps raw TCP/TLS with data events and close handling
+```
+
+### 2.2 cursor-resolver — Cloud Remote Authority Resolver
+
+**Description**: Background composer remote authority resolver for Cursor.
+
+| Property | Value |
+|----------|-------|
+| **Browser Entry** | `./dist/browser/main` (web extension host support) |
+| **Activation** | `onResolveRemoteAuthority:background-composer` |
+| **API Proposals** | `cursor`, `cursorNoDeps`, `resolvers` |
+| **Extension Kind** | UI |
+| **Dependencies** | `cursor-resolver-helper`, `cursor-socket` |
+
+**What It Actually Does**:
+- Implements `vscode.workspace.registerRemoteAuthorityResolver("background-composer", ...)`
+- Resolves `background-composer://` URIs — Cursor's **remote development infrastructure**
+- Authority format: `background-composer+{bcId}` where bcId is a backend ID
+- Accepts inline JSON URLs in the authority as well
+- Uses `cursor-resolver-helper` for authentication tokens
+- Uses `cursor-socket` for TCP connection establishment
+- Creates **managed resolved authorities** via `r.cursor.createManagedResolvedAuthority()`
+- Establishes **socket consumer tunnels** via `r.cursor.createSocketConsumerTunnelFactory()`
+- Implements retry logic with exponential backoff: 5s, 5s, 10s, 10s, 10s, 30s, 30s, 60s (max: 180s)
+- Has gRPC-style error codes mapped to `RemoteAuthorityResolverError`
+- Resource label formatter: `vscode-remote://background-composer+{id}/{path}`
+
+**Key Architecture**: This extension provides **Cursor Cloud Agent** support — the ability to run agents in a cloud-hosted VS Code environment and access it remotely.
+
+### 2.3 cursor-resolver-helper — Connection Token Provider
+
+**Description**: Provides connection tokens for the `cursor-resolver`.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `onResolveRemoteAuthority:background-composer`, `onStartupFinished` |
+| **API Proposals** | `cursor`, `cursorNoDeps` |
+| **Dependencies** | None (provides tokens to `cursor-resolver`) |
+
+**What It Does**:
+- Provides connection tokens for the `cursor-resolver`
+- Implements `vscode.cursor.connectionTokenProvider` via `registerConnectionTokenProvider`
+- Handles authentication with Cursor's cloud backend
+- Manages OAuth/github login flow for cloud agent access
+
+### 2.4 cursor-deeplink — Deep Link Handler
+
+**Description**: Handles deep-link URIs.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `onStartupFinished`, `onUri` |
+| **API Proposals** | `cursor`, `control`, `externalUriOpener` |
+| **Extension Kind** | UI |
+
+**What It Actually Does**:
+- Registers as a URI handler for custom Cursor protocols (e.g., `cursor://...`)
+- Uses `vscode.window.registerUriHandler` for deep link handling
+- Has a debug command: `cursor-deeplink.debug.triggerDeeplink`
+- Uses WebSocket internals (shared module 25 with multiple cursor-* extensions)
+- Implements `externalUriOpener` for opening external URIs in Cursor
+
+**Use Cases**:
+- Slack deep links to open PR comments in Cursor
+- GitHub deep links to open files at specific lines
+- Browser deep links to open documentation in agent chat
+- CLI `claude --deeplink "prompt"` integration
+
+---
+
+## Layer 3: Codebase Intelligence
+
+### 3.1 cursor-retrieval — Code Indexing & Search
+
+**Description**: Handles indexing and retrieval for Cursor.
+
+| Property | Value |
+|----------|-------|
+| **Main Entry** | `./dist/main` |
+| **Activation** | `onStartupFinished` |
+| **API Proposals** | `control`, `cursor`, `cursorTracing`, `textSearchProvider2` |
+| **Extension Kind** | Workspace |
+| **SDK Deps** | `@modelcontextprotocol/sdk` (overridden to v1.25.1) |
+
+**What It Actually Does**:
+- Implements **codebase indexing and retrieval** — the "brain" behind AI code search
+- Uses `textSearchProvider2` — a custom VS Code API proposal for advanced text search
+- Registers commands:
+  - `cursor.grepClient.debug` (debug mode only)
+  - `cursor.codebaseTelemetry.triggerSnapshot` (dev only)
+- Configuration: `cursor-retrieval.canAttemptGithubLogin` (boolean, default true) — allows GitHub login to augment retrieval results
+- Registers new language IDs:
+  - `ignore` language with filename patterns `.cursorignore` and `.cursorindexingignore`
+- Handles codebase telemetry and snapshot triggering
+
+**Key Architecture**: This is the **code indexing pipeline** — it scans workspace files, builds search indexes, and provides results to the AI agent via the `Search` tool (Grep, Glob, SemanticSearch).
+
+### 3.2 cursor-file-service — File Indexing Facade
+
+**Description**: Handles indexing and retrieval for Cursor.
+
+| Property | Value |
+|----------|-------|
+| **Version** | 1.0.0 (highest among cursor-* extensions) |
+| **Main Entry** | `./dist/main` (367 bytes) |
+
+**What It Actually Does**:
+- A minimal package.json and dist/main.js (367 bytes) — this is a **thin wrapper or pass-through**
+- Likely delegates to `cursor-retrieval` for actual indexing work
+- Serves as an API facade or versioning layer
+
+---
+
+## Layer 4: MCP & External Tools
+
+### 4.1 cursor-mcp — MCP Protocol Integration
+
+**Description**: Handles MCP for Cursor.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `onStartupFinished`, `onUri` |
+| **API Proposals** | `control`, `cursor`, `cursorTracing` |
+| **SDK Deps** | `@modelcontextprotocol/sdk` (overridden to v1.25.1) |
+| **Extension Kind** | Workspace |
+
+**What It Actually Does**:
+- Integrates the **Model Context Protocol** (MCP) into Cursor
+- Handles MCP server connections and tool registration
+- The `onUri` activation suggests it can handle MCP-related deep links
+- Empty contributes block — purely provides API services to other extensions
+- MCP servers communicate via stdio, SSE, or HTTP
+
+**Key Architecture**: MCP is the standard protocol for connecting AI models to external tools/data sources. This extension is Cursor's MCP implementation, allowing agents to use external MCP servers like Git, GitHub, Linear, Datadog, etc.
+
+### 4.2 cursor-browser-automation — Browser MCP Server
+
+**Description**: MCP server for browser automation in Cursor.
+
+| Property | Value |
+|----------|-------|
+| **Publisher** | cursor (not anysphere!) |
+| **Browser Entry** | `./dist/browser/extension` |
+| **Activation** | `onStartupFinished` |
+| **Bundler** | esbuild v0.25.9 |
+
+**What It Actually Does**:
+- A **standalone MCP server** for browser automation
+- Likely provides browser control capabilities to Cursor's AI agent via the MCP protocol
+- Uses esbuild override (v0.25.9)
+- Has no commands, keybindings, menus, or configuration contributed
+
+---
+
+## Layer 5: Workspace Features
+
+### 5.1 cursor-explorer — Workspace Tree View
+
+**Description**: Workspace extension for Cursor Explorer.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `onStartupFinished` |
+| **API Proposals** | `cursor` |
+| **Extension Kind** | Workspace |
+| **Node Deps** | `node-ignore` (.gitignore parsing) |
+
+**What It Actually Does**:
+- Registers a workspace explorer provider via `s.cursor.registerExplorerProvider()`
+- Scans directories for git repositories
+- Uses `node-ignore` (node-ignore library) for `.gitignore` parsing
+- Implements a **concurrent directory scanner** with configurable `maxConcurrency` and `maxDepth`
+- Skips common directories: `.git`, `node_modules`, `venv`, `.venv`
+- Handles macOS TCC-protected directories (Library, CloudDocs, etc.)
+- Scans for git repositories (regular, bare, worktrees, submodules)
+- Discovers git remotes and extracts fetch/push URLs
+- Produces a stream of file/directory objects with paths and remotes
+- Supports abort controller for cancellation
+
+**Key Classes**:
+```javascript
+DirectoryScanner              // Concurrent directory traversal with git discovery
+WorkspaceExplorerProvider     // VS Code API provider for workspace tree view
+```
+
+### 5.2 cursor-checkout — Git Branch Operations
+
+**Description**: Checkout provider for branch migration operations.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `*` (on-demand) |
+| **API Proposals** | `cursor` |
+| **Node Deps** | `child_process` (git CLI) |
+
+**What It Actually Does**:
+- Implements a full-featured **Git branch checkout provider**
+- Class `CheckoutService` with methods:
+
+| Method | Purpose |
+|--------|---------|
+| `checkoutBranch(name, options, cancellation)` | Checks out git branches with conflict resolution |
+| `warmCheckoutBranch(name, cancellation)` | Pre-fetches branch refs for speed (30s TTL cache) |
+| `commitExistsLocally(ref, cancellation)` | Checks if a commit exists locally |
+| `fetchCommitSha(ref, cancellation)` | Fetches a specific commit SHA |
+| `snapshotAndPushCurrentBranch(options, cancellation)` | Snapshots local changes to a cloud branch |
+| `ensureCurrentBranchPushed(options, cancellation)` | Ensures current branch is pushed |
+| `hasDirtyWorkingTree(cancellation)` | Checks for uncommitted changes |
+
+**Conflict Resolution**: stash, commit, or discard local changes before checkout
+**Branch Naming Convention**: `cursor/cloud-agent-{timestamp}-{random}` for cloud snapshots
+**Implementation**: Uses `child_process.execFile("git", ...)` for git operations
+
+### 5.3 cursor-commits — Commit Tracking & Metrics
+
+**Description**: Tracks requests and commits for Cursor online metrics.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `onStartupFinished` |
+| **API Proposals** | `control`, `cursor`, `cursorTracing`, `cursorNoDeps` |
+| **Extension Kind** | Workspace |
+| **Dependencies** | `vscode.git` (required) |
+| **Repository** | `https://github.com/getcursor/cursor` |
+
+**What It Does**:
+- Tracks usage metrics for Cursor's analytics
+- Depends on `vscode.git` — uses Git extension APIs to monitor commits
+- Uses `cursorTracing` API for distributed tracing of AI interactions
+- Empty contributes block — purely telemetry
+
+---
+
+## Layer 6: Cloud Agent Infrastructure
+
+### 6.1 cursor-always-local — Local Processing + SCM Integration
+
+**Description**: Implements experimentation features for Cursor.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `onStartupFinished`, `onResolveRemoteAuthority:background-composer` |
+| **API Proposals** | `cursor`, `control`, `externalUriOpener`, `contribSourceControlInputBoxMenu` |
+| **Extension Kind** | UI |
+| **Optional Deps** | `@vscode/windows-ca-certs` (Windows certificate authority) |
+
+**What It Actually Does**:
+- Contributes to **Source Control input box menus** — adds git commit message generation
+- Command: `cursor.generateGitCommitMessage` appears in the SCM input box menu
+- Validates `.cursor/environment.json` and `.cursor/permissions.json` against schemas
+- The "always-local" name suggests it keeps agent processing local rather than cloud-based
+
+**Configuration**:
+- `.cursor/environment.json` schema validation
+- `.cursor/permissions.json` schema validation
+
+### 6.2 cursor-shadow-workspace — Virtual Workspace Abstraction
+
+**Description**: Virtual workspace abstraction for Cursor.
+
+| Property | Value |
+|----------|-------|
+| **Browser Entry** | `./dist/browser/extension` |
+| **Activation** | `onStartupFinished` |
+| **API Proposals** | `cursor` |
+| **Extension Kind** | Workspace |
+
+**What It Does**:
+- Implements a **shadow workspace** — a virtual file system layer
+- Has an AI key embedded: `0c6ae279ed8443289764825290e4f9e2` (likely an API key for analytics or model routing)
+- Icon: `media/icon.png`
+- Supports virtual workspaces (disabled) but supports untrusted workspaces
+- Likely provides a sandboxed view of the workspace for the agent
+- Has both Node.js and browser entry points
+
+### 6.3 cursor-polyfills-remote — Web Host Polyfills
+
+**Description**: Polyfills for workspace extension host.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `*` (always active) |
+| **Extension Kind** | Workspace |
+| **Repository** | `https://github.com/anysphere/everysphere` |
+
+**What It Does**:
+- Provides Node.js/Chrome polyfills for the web-based extension host
+- Needed when Cursor runs extensions in a browser/remote context (not Node.js)
+- Polyfills: `require`, `module`, `exports`, Node.js modules (`node:fs`, `node:path`, `node:os`, `net`, `tls`, `crypto`, `child_process`, etc.)
+- Activated on-demand (`*`) because any workspace extension might need it
+
+---
+
+## Layer 7: Debugging Tools
+
+### 7.1 cursor-ndjson-ingest — Debug HTTP Server
+
+**Description**: HTTP server for ingesting NDJSON logs to workspace/.cursor/debug.log.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `onCommand:cursor.ndjsonIngest.start`, `onCommand:cursor.ndjsonIngest.reassignPort` |
+
+**What It Actually Does**:
+- Runs a local **HTTP server** for NDJSON (Newline Delimited JSON) log ingestion
+- Port range: **7242-7942** (auto-allocated, sticky to workspace)
+- Default bind: `127.0.0.1` (localhost only for security)
+
+**Commands**:
+| Command | Purpose |
+|---------|---------|
+| `cursor.ndjsonIngest.start` | Start the server |
+| `cursor.ndjsonIngest.stop` | Stop the server |
+| `cursor.ndjsonIngest.copyCurl` | Copy a curl command for testing |
+| `cursor.ndjsonIngest.reassignPort` | Pick a new port and restart |
+| `cursor.ndjsonIngest.showStatus` | Show server URL |
+
+**Configuration**:
+| Property | Default | Description |
+|----------|---------|-------------|
+| `ndjson.port` | 0 (auto) | Port number |
+| `ndjson.bindAddress` | "127.0.0.1" | Bind address |
+
+**HTTP API**:
+```
+POST /ingest/{ingestPathId}
+Headers: X-Debug-Session-Id: {sessionId}
+Body: NDJSON structured logs
+```
+- CORS-enabled (allows `*` origin)
+- Logs written to `.cursor/debug-{sessionId}.log` in workspace
+- Supports "classic" and "glass" surface types for different logging channels
+- Window output channel: "NDJSON Ingest"
+
+**Security Warning**: The package.json explicitly warns that binding to non-localhost exposes the endpoint to the network.
+
+---
+
+## Layer 8: Editor Support
+
+### 8.1 cursor-worktree-textmate — Syntax Highlighting
+
+**Description**: Provides TextMate-only syntax highlighting for `.cursor/worktrees` files without activating language servers.
+
+| Property | Value |
+|----------|-------|
+| **Activation** | `*` (always active) |
+| **Publisher** | everysphere (not anysphere!) |
+| **Extension Kind** | UI |
+
+**What It Does**:
+- Provides **syntax highlighting** for files under `.cursor/worktrees/`
+- Registers **32 language definitions**: TypeScript, TSX, JavaScript, JSX, Python, Go, Rust, Java, C, C++, PHP, Ruby, HTML, CSS, JSON, YAML, SQL, Swift, Shell Script, Protobuf, HCL/Terraform (8 variants)
+- Uses TextMate grammars only — **NO language servers activated** (fast, lightweight)
+- Disables semantic highlighting for all worktree languages (`editor.semanticHighlighting.enabled: false`)
+- Grammar files delegate to VS Code's built-in language grammars (e.g., `source.ts`, `source.python`)
+
+---
+
+## Extension Dependency Graph
+
+```mermaid
+flowchart TD
+    VSCode["VS Code Core APIs"]
+    
+    subgraph agent [Agent Runtime]
+        Worker[cursor-agent-worker<br/>installs & launches agent]
+        Exec[cursor-agent-exec<br/>implements vscode.AgentExecutor]
+    end
+    
+    subgraph cloud [Cloud Connectivity]
+        Socket[cursor-socket<br/>TCP/TLS transport]
+        Resolver[cursor-resolver<br/>remote authority resolver]
+        Helper[cursor-resolver-helper<br/>auth token provider]
+        Deeplink[cursor-deeplink<br/>URI handler]
+    end
+    
+    subgraph intelligence [Codebase Intelligence]
+        Retrieval[cursor-retrieval<br/>code indexing & search]
+        FileSvc[cursor-file-service<br/>indexing facade]
+    end
+    
+    subgraph mcp [MCP & External Tools]
+        Mcp[cursor-mcp<br/>MCP protocol]
+        Browser[cursor-browser-automation<br/>browser MCP server]
+    end
+    
+    subgraph workspace [Workspace Features]
+        Explorer[cursor-explorer<br/>workspace tree view]
+        Checkout[cursor-checkout<br/>git branch ops]
+        Commits[cursor-commits<br/>commit tracking]
+    end
+    
+    subgraph infra [Cloud Agent Infra]
+        AlwaysLocal[cursor-always-local<br/>local experiments + SCM]
+        Shadow[cursor-shadow-workspace<br/>virtual workspace]
+        Polyfills[cursor-polyfills-remote<br/>web polyfills]
+    end
+    
+    subgraph debug [Debugging Tools]
+        NDJSON[cursor-ndjson-ingest<br/>debug HTTP server]
+    end
+    
+    subgraph editor [Editor Support]
+        Textmate[cursor-worktree-textmate<br/>syntax highlighting]
+    end
+    
+    VSCode --> Worker
+    VSCode --> Exec
+    VSCode --> Socket
+    VSCode --> Retrieval
+    VSCode --> Mcp
+    VSCode --> Explorer
+    VSCode --> Checkout
+    VSCode --> AlwaysLocal
+    VSCode --> Shadow
+    VSCode --> NDJSON
+    VSCode --> Textmate
+    
+    Worker --> Exec
+    Exec --> Socket
+    Exec --> Retrieval
+    Exec --> Mcp
+    Exec --> Browser
+    
+    Resolver --> Socket
+    Resolver --> Helper
+    Mcp --> Browser
+    
+    Commits --> VSCodegit["vscode.git (builtin)"]
+    
+    Explorer --> gitignore["node-ignore"]
+    Checkout --> gitcli["child_process git"]
+    Exec --> sqlite["better-sqlite3"]
+    Exec --> treesitter["tree-sitter"]
+    Exec --> rustchunk["@anysphere/tree-chunk-napi"]
+```
+
+### Explicit Dependencies Matrix
+
+| Extension | Depends On |
+|-----------|-----------|
+| `cursor-agent-exec` | None (uses vscode core APIs directly) |
+| `cursor-agent-worker` | None (bootstrap) |
+| `cursor-commits` | `vscode.git` (VS Code built-in) |
+| `cursor-resolver` | `cursor-resolver-helper` (tokens), `cursor-socket` (TCP) |
+| `cursor-resolver-helper` | None (provides tokens to resolver) |
+| `cursor-browser-automation` | None (MCP server, consumed by `cursor-mcp`) |
+| `cursor-always-local` | None (optional: `@vscode/windows-ca-certs`) |
+| `cursor-ndjson-ingest` | None (independent HTTP server) |
+| `cursor-polyfills-remote` | None (polyfill layer) |
+| `cursor-shadow-workspace` | None (virtual workspace) |
+| `cursor-worktree-textmate` | None (delegates to VS Code built-in grammars) |
+
+### Implicit Dependencies (via shared APIs)
+
+| Dependency | Details |
+|------------|---------|
+| `cursor-resolver` → `cursor-socket` | Creates TCP connections for cloud agents |
+| `cursor-resolver` → `cursor-resolver-helper` | Gets auth tokens for cloud connections |
+| `cursor-mcp` → `cursor-browser-automation` | Consumes browser MCP server |
+| `cursor-file-service` → `cursor-retrieval` | Delegates to retrieval for actual indexing |
+| `cursor-agent-exec` → `cursor-polyfills-remote` | Uses polyfills in web/remote contexts |
+
+---
+
+## How Cursor Becomes an Agentic Coder
+
+### The Extension Synergy
+
+Cursor's 18 extensions work together to create a full agentic coding experience through a layered pipeline:
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant S as cursor-socket<br/>(TCP transport)
+    participant W as cursor-agent-worker<br/>(agent launcher)
+    participant E as cursor-agent-exec<br/>(AI executor)
+    participant R as cursor-retrieval<br/>(code search)
+    participant F as cursor-file-service<br/>(file ops)
+    participant C as cursor-checkout<br/>(git ops)
+    participant A as Cursor Cloud<br/>(backend API)
+    
+    U->>W: Type prompt in Composer
+    W->>E: Spawn agent process
+    E->>A: Send prompt to AI model
+    A->>E: Return tool call request
+    
+    alt "Read code"
+        E->>R: search / grep / semantic
+        R->>E: Return matching code
+    else "Write code"
+        E->>F: read / write / edit
+        F->>E: File operations complete
+    else "Run command"
+        E->>E: Execute via agent store
+        E->>E: better-sqlite3 for state
+    else "Git operation"
+        E->>C: checkout / commit
+        C->>E: Git result
+    end
+    
+    E->>A: Send tool result to model
+    A->>E: Final response
+    E->>S: Return via socket
+    S->>U: Display in Composer
+```
+
+### Agent Workflow Through Extensions
+
+```
+1. User Input (Composer UI)
+   → cursor-socket receives message
+   → cursor-agent-worker processes
+   → cursor-agent-exec executes
+
+2. Context Loading (AI Needs Code Context)
+   → cursor-resolver loads settings
+   → cursor-retrieval finds relevant files
+      → Grep (text patterns via ripgrep)
+      → Glob (file patterns)
+      → SemanticSearch (vector embeddings)
+   → Rules and skills loaded via agent-worker
+
+3. Agent Processing (AI Decides Tools)
+   → cursor-agent-worker runs agent loop
+   → Tool selection based on task type
+
+4. Tool Execution (Running the Tools)
+   → cursor-file-service for file reads/writes
+   → cursor-agent-exec for shell commands
+   → cursor-retrieval for searches (Grep/Glob/SemanticSearch)
+   → cursor-mcp + cursor-browser-automation for MCP tools
+   → cursor-checkout for Git branch operations
+
+5. Result Integration
+   → Results fed back to agent-exec
+   → Agent evaluates and continues loop
+
+6. User Feedback (Displayed in Editor)
+   → Results sent via cursor-socket
+   → Displayed in Composer UI
+   → File changes shown in explorer
+   → Git operations reflected in SCM view
+```
+
+### Native Dependencies: Why Cursor Needs Rust
+
+Cursor uses 3 native extensions compiled to Node.js add-ons:
+
+| Native Extension | Purpose | Used By |
+|-----------------|---------|---------|
+| `better-sqlite3` | Fast, synchronous SQLite for agent state persistence | `cursor-agent-exec` |
+| `tree-sitter` | C-based incremental parser for code AST analysis | `cursor-agent-exec` |
+| `@anysphere/tree-chunk-napi` | Rust-based custom code chunking/tree analysis | `cursor-agent-exec` |
+
+These provide the raw performance needed for:
+- Parsing source code ASTs in real-time during agent execution
+- Chunking code into context-window-sized pieces for AI prompts
+- Persisting agent state atomically via SQLite
+
+---
+
+## Configuration Reference
+
+### Per-Extension Settings
+
+| Extension | Settings | Default | Description |
+|-----------|----------|---------|-------------|
+| `cursor-retrieval` | `cursor-retrieval.canAttemptGithubLogin` | `true` | Allow GitHub login to augment retrieval |
+| `cursor-ndjson-ingest` | `ndjson.port` | `0` (auto) | HTTP server port (7242-7942 range) |
+| `cursor-ndjson-ingest` | `ndjson.bindAddress` | `"127.0.0.1"` | Bind address (localhost only) |
+| `cursor-always-local` | (None in settings) | — | Validates `.cursor/environment.json` |
+| `cursor-always-local` | (None in settings) | — | Validates `.cursor/permissions.json` |
+
+### Extension Manifest Pattern
+
+Each Cursor extension follows this structure:
+
+```json
+{
+  "name": "cursor-extension-name",
+  "displayName": "Cursor Extension Name",
+  "description": "What this extension does",
+  "publisher": "anysphere",
+  "version": "1.0.0",
+  "engines": { "vscode": "^1.85.0" },
+  "activationEvents": ["onStartupFinished", "onCommand:..."],
+  "main": "./dist/main",
+  "browser": "./dist/browser/main",
+  "contributes": {
+    "commands": [...],
+    "configuration": {...}
+  },
+  "dependencies": {
+    "@connectrpc/connect": "...",
+    "@modelcontextprotocol/sdk": "1.25.1",
+    "better-sqlite3": "...",
+    "tree-sitter": "..."
+  }
+}
+```
+
+---
+
+## Security Model
+
+### Extension Permissions Matrix
+
+| Extension | File System | Shell | Network | Deep Links | MCP | SCM |
+|-----------|------------|-------|---------|-----------|-----|-----|
+| `cursor-agent-exec` | Read/Write | Execute | WebSocket | No | No | No |
+| `cursor-agent-worker` | Read | Via exec | gRPC-Web | No | No | No |
+| `cursor-retrieval` | Read (scan) | No | Limited | No | No | No |
+| `cursor-file-service` | Read/Write | No | No | No | No | No |
+| `cursor-mcp` | Read (via MCP) | Via MCP | stdio/SSE/HTTP | Via URI | Yes | No |
+| `cursor-browser-automation` | Read (via MCP) | Via MCP | Browser/CDP | Via URI | Yes | No |
+| `cursor-socket` | No | No | TCP/TLS | No | No | No |
+| `cursor-resolver` | No | No | TCP/TLS | No | No | No |
+| `cursor-checkout` | No | git CLI | git remote | No | No | Yes |
+| `cursor-explorer` | Read (scan) | No | No | No | No | Yes |
+| `cursor-commits` | No | No | Telemetry | No | No | Yes |
+| `cursor-always-local` | No | No | Limited | No | No | SCM menu |
+| `cursor-deeplink` | No | No | WebSocket | Yes | No | No |
+| `cursor-ndjson-ingest` | Write (logs) | No | HTTP (local) | No | No | No |
+| `cursor-shadow-workspace` | Virtual | No | No | No | No | No |
+| `cursor-polyfills-remote` | No | No | No | No | No | No |
+| `cursor-worktree-textmate` | No | No | No | No | No | No |
+
+### Workspace Trust Enforcement
+
+| Trust Level | File Write | Shell | MCP | Agent | Git Checkout |
+|------------|-----------|-------|-----|-------|-------------|
+| **Trusted** | Full | Allowed | Allowed | Full | Allowed |
+| **Untrusted** | Blocked | Blocked | Blocked | Read-only | Blocked |
+
+---
+
+## Troubleshooting
+
+### Common Extension Issues
+
+| Issue | Likely Cause | Diagnostic |
+|-------|-------------|-----------|
+| Agent not responding | `cursor-agent-worker` failed to spawn `cursor-agent-exec` | Check agent worker logs |
+| File operations slow | Large file size or indexing bottleneck | Check `cursor-file-service` + `cursor-retrieval` |
+| MCP servers not found | `cursor-mcp` not connected | Check MCP server directory exists |
+| Extensions not loading | Corrupted extension cache | Clear VS Code cache, restart Cursor |
+| Shell commands blocked | Workspace untrusted | Trust workspace via settings |
+| Cloud agent disconnected | `cursor-resolver` retry exhausted (180s) | Check network + `cursor-socket` |
+| Deep links not working | `cursor-deeplink` URI handler not registered | Check OS protocol registration |
+| Debug logs missing | `cursor-ndjson-ingest` HTTP server not started | Check port 7242-7942 |
+
+### Diagnostic Commands
+
+```bash
+# Check extension status
+# Command Palette → "Developer: Show Running Extensions"
+
+# View agent worker logs
+# View → Output → "Cursor: Agent"
+
+# View NDJSON ingest server status
+# Command Palette → "NDJSON Ingest: Show Status"
+
+# Test NDJSON ingest endpoint
+curl -X POST http://127.0.0.1:{port}/ingest/{pathId} \
+  -H "X-Debug-Session-Id: test" \
+  -d '{"type":"test","message":"hello"}'
+
+# Clear extension cache
+rm -rf ~/.cursor/extensionCache
+
+# View NDJSON server logs
+# View → Output → "NDJSON Ingest"
+```
+
+---
+
+## Bundled VS Code Extensions
+
+Cursor ships with **100+ VS Code bundled extensions** alongside the 18 custom `cursor-*` extensions. These provide core editor capabilities that the agent extensions build upon. This section catalogs every bundled extension and explains how they integrate with Cursor's AI layer.
+
+### B1: Programming Language Syntax Grammars (31 extensions)
+
+These extensions provide TextMate-based syntax highlighting for their respective languages. They activate immediately when a file of the matching type is opened and contribute zero language server intelligence — they only colorize tokens.
+
+| # | Extension | Files Covered | Activation |
+|---|-----------|--------------|------------|
+| 1 | `bat` | `.bat`, `.cmd` | `onLanguage:bat` |
+| 2 | `clojure` | `.clj`, `.cljs`, `.cljc`, `.edn` | `onLanguage:clojure` |
+| 3 | `coffeescript` | `.coffee`, `.cson`, `.iced` | `onLanguage:coffeescript` |
+| 4 | `cpp` | `.c`, `.cpp`, `.hpp`, `.cu` | `onLanguage:cpp` |
+| 5 | `csharp` | `.cs`, `.csx`, `.cake` | `onLanguage:csharp` |
+| 6 | `css` | `.css`, `.scss`, `.sass` | `onLanguage:css` |
+| 7 | `dart` | `.dart` | `onLanguage:dart` |
+| 8 | `diff` | `.diff`, `.patch`, `.rej` | `onLanguage:diff` |
+| 9 | `fsharp` | `.fs`, `.fsi`, `.fsx` | `onLanguage:fsharp` |
+| 10 | `go` | `.go` | `onLanguage:go` |
+| 11 | `groovy` | `.groovy`, `.gradle`, `Jenkinsfile` | `onLanguage:groovy` |
+| 12 | `handlebars` | `.handlebars`, `.hbs` | `onLanguage:handlebars` |
+| 13 | `hlsl` | `.hlsl`, `.hlsli`, `.fx` | `onLanguage:hlsl` |
+| 14 | `html` | `.html`, `.htm`, `.xhtml` | `onLanguage:html` |
+| 15 | `ini` | `.ini`, `.conf`, `.properties` | `onLanguage:ini` |
+| 16 | `java` | `.java` | `onLanguage:java` |
+| 17 | `javascript` | `.js`, `.jsx`, `.mjs`, `.cjs` | `onLanguage:javascript` |
+| 18 | `json` | `.json`, `.jsonc`, `.code-snippets` | `onLanguage:json` |
+| 19 | `julia` | `.jl`, `.jmd` | `onLanguage:julia` |
+| 20 | `latex` | `.tex`, `.bib`, `.sty` | `onLanguage:latex` |
+| 21 | `less` | `.less` | `onLanguage:less` |
+| 22 | `log` | `.log` | `onLanguage:log` |
+| 23 | `lua` | `.lua` | `onLanguage:lua` |
+| 24 | `make` | `Makefile`, `.mak` | `onLanguage:make` |
+| 25 | `markdown-basics` | `.md`, `.mdc`, `.mkd` | `onLanguage:markdown` |
+| 26 | `objective-c` | `.m`, `.mm` | `onLanguage:objective-c` |
+| 27 | `ocaml` | `.ml` | `onLanguage:ocaml` |
+| 28 | `perl` | `.pl`, `.pm` | `onLanguage:perl` |
+| 29 | `php` | `.php`, `.phtml` | `onLanguage:php` |
+| 30 | `powershell` | `.ps1`, `.psm1` | `onLanguage:powershell` |
+| 31 | `pug` | `.pug`, `.jade` | `onLanguage:pug` |
+| 32 | `python` | `.py`, `.ipy` | `onLanguage:python` |
+| 33 | `r` | `.r`, `.rhistory` | `onLanguage:r` |
+| 34 | `razor` | `.cshtml`, `.razor` | `onLanguage:razor` |
+| 35 | `restructuredtext` | `.rst` | `onLanguage:restructuredtext` |
+| 36 | `ruby` | `.rb`, `.erb`, `Gemfile` | `onLanguage:ruby` |
+| 37 | `rust` | `.rs` | `onLanguage:rust` |
+| 38 | `scss` | `.scss` | `onLanguage:scss` |
+| 39 | `shaderlab` | `.shader` | `onLanguage:shaderlab` |
+| 40 | `shellscript` | `.sh`, `.bash`, `.zsh` | `onLanguage:bash` |
+| 41 | `sql` | `.sql`, `.dsql` | `onLanguage:sql` |
+| 42 | `swift` | `.swift` | `onLanguage:swift` |
+| 43 | `vb` | `.vb` | `onLanguage:vb` |
+| 44 | `xml` | `.xml`, `.xsd`, `.xsl` | `onLanguage:xml` |
+| 45 | `yaml` | `.yaml`, `.yml` | `onLanguage:yaml` |
+
+**Integration with Cursor's AI**: These grammars feed into `cursor-agent-exec`'s `tree-sitter` and `@anysphere/tree-chunk-napi` modules, which use AST-based parsing to chunk code intelligently for the AI model's context window. Syntax highlighting extensions also power `cursor-worktree-textmate` (Layer 8), which provides lightweight tokenization for files under `.cursor/worktrees/` without activating full language servers.
+
+### B2: Language Features with IntelliSense (6 extensions)
+
+These go beyond syntax highlighting to provide autocompletion, hover information, validation, and navigation.
+
+| # | Extension | Capabilities | Activation |
+|---|-----------|-------------|------------|
+| 46 | `typescript-language-features` | TS/JS IntelliSense, type checking, go-to-definition, references, diagnostics. Bundles TypeScript compiler v5.9.2 and esbuild wasm. | `onLanguage:typescript`, `onLanguage:javascript` |
+| 47 | `html-language-features` | HTML IntelliSense, tag closing, attribute completion, hover, formatting. | `onLanguage:html` |
+| 48 | `css-language-features` | CSS/SCSS/Less IntelliSense, validation, hover, formatting. | `onLanguage:css`, `onLanguage:scss` |
+| 49 | `json-language-features` | JSON IntelliSense, schema validation via `@vscode/json-schema`, formatting. | `onLanguage:json` |
+| 50 | `markdown-language-features` | Markdown preview, editing, link validation, custom CSS injection. | `onLanguage:markdown` |
+| 51 | `php-language-features` | PHP validation, basic suggestions, composer.json schema. | `onLanguage:php` |
+
+**Integration with Cursor's AI**: These language servers are **disabled or bypassed** when the Cursor agent operates in `textSearchProvider2` mode (used by `cursor-retrieval`). Instead of relying on LSP for code search and edits, the agent uses its own indexing pipeline. However, the language server's hover, completion, and navigation features remain available to the user in the standard editor UI — they simply run in parallel with Cursor's AI extensions.
+
+### B3: Themes (11 extensions)
+
+| # | Extension | Theme Type | Description |
+|---|-----------|-----------|-------------|
+| 52 | `theme-defaults` | Dark+ / Light+ / Dark Modern / Light Modern / VS Dark / VS Light / HC Black / HC Light / vs-minimal icon theme | Default VS Code themes |
+| 53 | `theme-abyss` | Dark | Deep blue/teal dark theme |
+| 54 | `theme-cursor` | Dark | **Cursor's default dark theme** (custom branded) |
+| 55 | `theme-kimbie-dark` | Dark | Warm brown/orange dark theme |
+| 56 | `theme-monokai` | Dark | Classic monokai dark theme |
+| 57 | `theme-monokai-dimmed` | Dark | Dimmed monokai variant |
+| 58 | `theme-quietlight` | Light | Soft gray light theme |
+| 59 | `theme-red` | Dark | Red accent dark theme |
+| 60 | `theme-solarized-dark` | Dark | Solarized dark palette |
+| 61 | `theme-solarized-light` | Light | Solarized light palette |
+| 62 | `theme-tomorrow-night-blue` | Dark | Tomorrow Night Blue |
+
+### B4: Git & Version Control (4 extensions)
+
+| # | Extension | Capabilities |
+|---|-----------|-------------|
+| 63 | `git` | Full Git SCM provider: source control view, diff editor, staging, branching, merging, worktrees, stash, blame, timeline, merge editor |
+| 64 | `git-base` | Git grammar for commit/rebase files, `.gitignore` syntax (dependency of `git`) |
+| 65 | `github` | GitHub integration: publish to GitHub, copy vscode.dev links, open PRs, timeline integration |
+| 66 | `github-authentication` | GitHub OAuth authentication — GitHub, GitHub (Cursor), GitHub Enterprise providers |
+
+**Integration with Cursor's AI**: These are the **foundation** for Cursor's Git capabilities. The `cursor-commits` extension (Layer 5) explicitly depends on `vscode.git` APIs and uses `github-authentication` for GitHub login. `cursor-checkout` uses `child_process.execFile("git", ...)` and works alongside these extensions for branch operations. `cursor-always-local` contributes the git commit message generation command (`cursor.generateGitCommitMessage`) to the SCM input box menu via `contribSourceControlInputBoxMenu`.
+
+### B5: Debugging (2 extensions)
+
+| # | Extension | Capabilities |
+|---|-----------|-------------|
+| 67 | `debug-auto-launch` | Auto-attach to running Node.js processes during debug sessions |
+| 68 | `debug-server-ready` | Automatically open browser, start debugging, or launch external tools when a debug server is ready |
+
+**Integration with Cursor's AI**: The agent's `cursor-agent-exec` executes shell commands including debug commands (e.g., `npm run debug`, `node --inspect`). These extensions handle the debug adapter protocol (DAP) connections that result from agent-executed commands.
+
+### B6: Authentication & Identity (1 extension)
+
+| # | Extension | Capabilities |
+|---|-----------|-------------|
+| 69 | `microsoft-authentication` | Microsoft account authentication (Azure, Microsoft Sovereign Cloud support) |
+
+### B7: Task Runners (4 extensions)
+
+| # | Extension | Capabilities |
+|---|-----------|-------------|
+| 70 | `npm` | NPM script runner, debugger, package manager selection, script explorer, auto-detect |
+| 71 | `grunt` | Grunt task runner integration |
+| 72 | `gulp` | Gulp task runner integration |
+| 73 | `jake` | Jake task runner integration |
+
+**Integration with Cursor's AI**: When the agent executes commands like `npm install`, `npm test`, or `npm run build`, these extensions provide the task runner discovery and script auto-detection. The `cursor-agent-exec` shell commands trigger these integrations through their associated language server protocols.
+
+### B8: Editor Utilities & Tools (7 extensions)
+
+| # | Extension | Capabilities |
+|---|-----------|-------------|
+| 74 | `emmet` | Emmet abbreviations, snippet expansion for HTML/CSS |
+| 75 | `extension-editing` | Extension development: package.json, theme, icon, language-configuration validation |
+| 76 | `configuration-editing` | Settings, keybindings, profiles, devcontainer.json JSON schema validation |
+| 77 | `merge-conflict` | Navigate, accept/reject merge conflicts directly from editor |
+| 78 | `references-view` | Dedicated sidebar for references, implementations, call hierarchy, type hierarchy |
+| 79 | `search-result` | Syntax highlighting and navigation for search result files (`.code-search`) |
+| 80 | `terminal-suggest` | Terminal shell completions/suggestions |
+
+**Integration with Cursor's AI**: `cursor-retrieval`'s search results appear as `.code-search` files that get syntax highlighting via `search-result`. `cursor-agent-exec` uses terminal execution capabilities, and `terminal-suggest` provides shell completions within the agent's pseudo-terminal (`cursorPseudoterminal` API). `merge-conflict` assists when the agent applies code changes that conflict with existing files. `references-view` is the sidebar component the agent populates when running "find references" searches.
+
+### B9: Notebooks & Webviews (4 extensions)
+
+| # | Extension | Capabilities |
+|---|-----------|-------------|
+| 81 | `ipynb` | Jupyter notebook support: open, create, serialize/deserialize `.ipynb` files, cell output rendering |
+| 82 | `markdown-math` | Math notation in Markdown via KaTeX (LaTeX inline/block equations) |
+| 83 | `media-preview` | Built-in image, audio, and video file preview |
+| 84 | `simple-browser` | Simple web view for opening local/remote URLs within VS Code |
+
+**Integration with Cursor's AI**: The `EditNotebook` tool (used for Jupyter notebooks) relies on `ipynb` for parsing notebook structure. `simple-browser` powers the `WebFetch` tool, which opens URLs in a VS Code webview panel. `media-preview` allows agents to display generated images during analysis.
+
+### B10: Networking & Tunneling (1 extension)
+
+| # | Extension | Capabilities |
+|---|-----------|-------------|
+| 85 | `tunnel-forwarding` | Forward local ports for remote development (e.g., `localhost:3000` accessible externally) |
+
+**Integration with Cursor's AI**: Used by `cursor-socket` (Layer 2) when the agent needs to expose local development servers to cloud VMs or other developers. The `cursor-resolver` uses tunnel forwarding when establishing remote authority connections for cloud agents.
+
+### B11: Language Keys (1 extension)
+
+| # | Extension | Capabilities |
+|---|-----------|-------------|
+| 86 | `vscode-jupyter-keymap` | Jupyter-style keyboard shortcuts for VS Code |
+
+### B12: Bundled Node Modules (Runtime Dependencies)
+
+These are not extensions but runtime dependencies bundled inside extension folders:
+
+| # | Package | Version | Purpose | Bundled In |
+|---|---------|---------|---------|-----------|
+| 87 | `typescript` | 5.9.2 | TypeScript compiler | `typescript-language-features` |
+| 88 | `esbuild-wasm` | 0.25.9 | WebAssembly esbuild binary | `browser-automation`, `typescript-language-features` |
+
+---
+
+## Complete Extension Ecosystem Summary
+
+### By Publisher
+
+| Publisher | Extensions | Purpose |
+|-----------|-----------|---------|
+| **anysphere** (Cursor) | 16 | Custom AI extensions (`cursor-*`) |
+| **cursor** | 1 | Browser automation MCP server |
+| **everysphere** | 1 | TextMate grammar for worktrees |
+| **vscode** | 99 | Standard VS Code bundled extensions |
+| **Total** | **117** | |
+
+### By Role in the Agentic Platform
+
+| Role | Extensions | How It Works |
+|------|-----------|-------------|
+| **AI Execution** | `cursor-agent-exec`, `cursor-agent-worker` | Agent reads code via syntax grammars, writes via file-service, executes commands via agent-exec |
+| **Code Understanding** | `cursor-retrieval`, `cursor-file-service` | Indexes files, runs Grep/Glob/SemanticSearch using textSearchProvider2 |
+| **Git Operations** | `cursor-commits`, `cursor-checkout`, `git`, `github`, `github-authentication` | Agent uses git CLI + vscode.git APIs + GitHub auth |
+| **MCP Integration** | `cursor-mcp`, `cursor-browser-automation` | Agent connects to MCP servers for external tools |
+| **Cloud Agent** | `cursor-resolver`, `cursor-resolver-helper`, `cursor-socket`, `cursor-deeplink` | Remote VM connections for cloud-based agent execution |
+| **Editor Capabilities** | 99 VS Code bundled extensions | Syntax, IntelliSense, themes, debugging, notebooks, terminals — all available to agent via tools |
+| **Workspace Intelligence** | `cursor-explorer`, `cursor-shadow-workspace`, `cursor-worktree-textmate` | File tree view, sandboxed workspaces, lightweight highlighting |
+
+### How Agent Tools Map to Extensions
+
+| Agent Tool | Underlying Extension(s) |
+|-----------|------------------------|
+| `Read` | `cursor-file-service` → `cursor-retrieval` → `vscode` file API |
+| `Write` | `cursor-file-service` → `vscode` workspace edits |
+| `StrReplace` | `cursor-file-service` → `vscode` workspace edits |
+| `EditNotebook` | `ipynb` + `cursor-file-service` |
+| `Shell` | `cursor-agent-exec` → `cursor-socket` → OS shell |
+| `Task` | `cursor-agent-exec` → `npm`/`grunt`/`gulp`/`jake` |
+| `Grep` | `cursor-retrieval` → ripgrep |
+| `Glob` | `cursor-retrieval` → path matching |
+| `SemanticSearch` | `cursor-retrieval` → vector index |
+| `ReadLints` | `vscode` diagnostics API → language servers |
+| `WebSearch` | `cursor-browser-automation` → browser MCP |
+| `WebFetch` | `simple-browser` → VS Code webview |
+| `CallMcpTool` | `cursor-mcp` → MCP server |
+| `FetchMcpResource` | `cursor-mcp` → MCP server |
+| `Task (subagent)` | `cursor-agent-exec` → worker pool |
+
+---
+
+## Related Documents
+
+- [Architecture Overview](01-overview.mdc) — High-level system architecture
+- [Agent Hierarchy](02-agent-hierarchy.mdc) — Agent subtypes and launch modes
+- [Command Reference](11-command-reference.mdc) — Tools executed by extensions
+- [MCP Integration](05-mcp-integration.mdc) — MCP server configuration
+- [Settings & Configuration](08-settings-configuration.mdc) — Extension settings
+- [Workspace Trust](31-workspace-trust.mdc) — Trust and extension permissions
+- [Secure Agent Behavior](33-secure-agent-behavior.mdc) — Safety enforcement
+- [Data Privacy](26-data-privacy.mdc) — Local vs cloud data handling
+- [Agent Settings](19-agent-settings.mdc) — Per-mode provider configuration

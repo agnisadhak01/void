@@ -1,0 +1,522 @@
+---
+title: Cursor Editor — Agent Reasoning & Tool Selection
+description: Deep dive into how Cursor's AI agent reasons through tasks, selects tools, plans multi-step work, self-corrects, and interacts with rules and subagents.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, agent-reasoning, tool-selection, multi-step-planning, self-correction, autonomy]
+---
+
+# Cursor Editor — Agent Reasoning & Tool Selection
+
+## Overview
+
+Cursor's agent doesn't just execute tools randomly — it follows a structured reasoning process to understand the task, select appropriate tools, plan multi-step work, and self-correct when things go wrong. Understanding this process helps you guide the agent more effectively and diagnose issues.
+
+```mermaid
+flowchart TD
+    A[User Prompt Received] --> B[Task Analysis]
+    B --> C{What type of task?}
+    C -->|Simple edit| D[Direct execution]
+    C -->|Complex task| E[Multi-step planning]
+    C -->|Research task| F[Exploration mode]
+    C -->|Planning task| G[Plan mode analysis]
+    
+    E --> H[Break into sub-tasks]
+    H --> I[Tool selection for each step]
+    I --> J[Execute tool]
+    J --> K{Tool result?}
+    K -->|Success| L{More steps?}
+    K -->|Failure| M[Self-correction]
+    M --> N[Adjust approach]
+    N --> I
+    
+    L -->|Yes| I
+    L -->|No| O[Generate response]
+    
+    F --> P[Read, Grep, Search]
+    P --> Q[Synthesize findings]
+    Q --> O
+    
+    G --> R[Analyze options]
+    R --> S[Presentation to user]
+    S --> O
+```
+
+---
+
+## Chain of Thought
+
+Cursor agents process tasks through an internal reasoning chain. This reasoning is not visible to the user in normal mode but can be observed through debug tools.
+
+### Reasoning Stages
+
+| Stage | Description | Visible in Debug? |
+|-------|-------------|-------------------|
+| **1. Understanding** | Parse user intent, identify scope, determine constraints | No (hidden thoughts) |
+| **2. Context Gathering** | Select tools to gather necessary information | Yes (tool calls) |
+| **3. Planning** | Determine sequence of actions needed | Partial (thoughts in verbose) |
+| **4. Execution** | Carry out planned actions step by step | Yes (tool calls + results) |
+| **5. Validation** | Check results, self-correct if needed | Yes (tool calls) |
+| **6. Response** | Generate final answer or changes | Yes (final response) |
+
+### Example Reasoning Flow
+
+```
+User: "Refactor the authentication module to use JWT instead of sessions"
+
+Agent Internal Reasoning:
+  [Understanding] User wants to replace session-based auth with JWT.
+    - This involves: middleware changes, login handler, token generation, token validation
+    - Scope: src/auth/ directory
+    - Constraints: Must maintain backward compatibility during migration
+    
+  [Context Gathering] Need to understand current implementation first
+    - Read src/auth/middleware.ts
+    - Read src/auth/login.ts
+    - Grep for "session" references
+    
+  [Planning] Steps:
+    1. Understand current auth flow
+    2. Design JWT structure
+    3. Update middleware to validate JWT
+    4. Update login to generate JWT
+    5. Update logout to clear JWT (or use token expiry)
+    6. Add tests
+    7. Update documentation
+    
+  [Execution] Begin step 1: Read files...
+  [Validation] Check results...
+  [Response] Present plan and changes
+```
+
+---
+
+## Tool Selection Logic
+
+The agent decides which tool to use based on the task type, context, and available information. This is not random — it follows patterns based on task semantics.
+
+### Decision Matrix
+
+| Task Type | Primary Tool | Secondary Tools | Why |
+|-----------|-------------|-----------------|-----|
+| **Read specific content** | `Read` | `Grep`, `Glob` | Exact content needed |
+| **Find files by name** | `Glob` | `Grep`, `Shell` | File pattern matching |
+| **Search code content** | `Grep` | `Read`, `SemanticSearch` | Text pattern matching |
+| **Semantic search** | `SemanticSearch` | `Grep` | Meaning-based, not text-match |
+| **Execute command** | `Shell` | `Task` | System-level operations |
+| **Create/overwrite file** | `Write` | `StrReplace` | New file or complete replacement |
+| **Edit specific lines** | `StrReplace` | `EditNotebook` | Targeted in-place modification |
+| **Complex multi-step task** | `Task` (subagent) | `Shell`, `Read` | Parallel or isolated work |
+| **Code review** | `Read`, `Grep` | `SemanticSearch` | Comprehensive understanding |
+| **Debugging** | `Shell`, `Read` | `Grep` | Run code, inspect output |
+
+### Tool Selection Factors
+
+The agent considers these factors when choosing tools:
+
+```mermaid
+flowchart TD
+    A[User Request] --> B{Task characteristics}
+    
+    B --> C[Need to find file?]
+    C -->|By name| D[Use Glob]
+    C -->|By content pattern| E[Use Grep]
+    C -->|By meaning/semantics| F[Use SemanticSearch]
+    
+    B --> G[Need to read content?]
+    G -->|Specific file+location| H[Use Read]
+    G -->|File content search| E
+    
+    B --> I[Need to modify?]
+    I -->|Whole file| J[Use Write]
+    I -->|Specific text| K[Use StrReplace]
+    I -->|Jupyter cell| L[Use EditNotebook]
+    
+    B --> M[Need to execute?]
+    M -->|Simple command| N[Use Shell]
+    M -->|Complex task| O[Use Task subagent]
+    
+    D --> P[Execute tool]
+    E --> P
+    F --> P
+    H --> P
+    J --> P
+    K --> P
+    L --> P
+    N --> P
+    O --> P
+```
+
+### Context-Aware Tool Selection
+
+| Context Factor | Tool Preference | Example |
+|---------------|----------------|---------|
+| **Large codebase** | `Grep` over `Read` | Search for pattern instead of reading entire file |
+| **Specific function needed** | `SemanticSearch` over `Grep` | Find "login validation" not just "login" text |
+| **Build/test operation** | `Shell` over manual | Run `npm test` instead of reading test output |
+| **Multi-file refactor** | `Task` subagent over sequential | Parallel subagent for each module |
+| **Quick edit** | `StrReplace` over `Write` | Change 3 lines in existing file |
+
+---
+
+## Multi-Step Planning
+
+### How Agents Break Down Complex Tasks
+
+When a task requires multiple steps, the agent creates an implicit plan:
+
+```
+User: "Migrate this project from Express 4 to Express 5"
+
+Agent Planning Process:
+  Step 1: Identify current Express version and usage
+    → Glob "*.js", "package.json"
+    → Read package.json
+    → Grep "require.*express"
+  
+  Step 2: Check Express 5 migration guide requirements
+    → SemanticSearch "Express 5 migration"
+    → Read migration docs (if available locally)
+  
+  Step 3: Identify breaking changes in the codebase
+    → Grep deprecated patterns
+    → Read affected files
+  
+  Step 4: Apply changes systematically
+    → StrReplace deprecated imports
+    → StrReplace new API calls
+    → Read files to verify changes
+  
+  Step 5: Run tests and fix failures
+    → Shell "npm test"
+    → Read test failures
+    → Fix issues
+  
+  Step 6: Update dependencies
+    → StrReplace package.json versions
+    → Shell "npm install"
+```
+
+### Implicit vs Explicit Planning
+
+| Type | Description | Example |
+|------|-------------|---------|
+| **Implicit** | Agent creates plan internally | Most multi-step tasks |
+| **Explicit** | Agent presents plan to user first | Complex refactors, architecture changes |
+| **Structured** | User provides plan in prompt | "First do X, then Y, then Z" |
+
+### When Agents Ask for Confirmation
+
+| Task Complexity | Agent Behavior |
+|----------------|---------------|
+| **Low** (single file, small change) | Executes directly |
+| **Medium** (few files, moderate impact) | Executes, shows Output channel |
+| **High** (many files, breaking changes) | May ask for confirmation |
+| **Critical** (security, infrastructure) | Always asks for confirmation |
+
+---
+
+## Self-Correction
+
+### How Agents Detect and Fix Mistakes
+
+Cursor agents have built-in self-correction mechanisms:
+
+```mermaid
+flowchart TD
+    A[Execute tool] --> B{Result success?}
+    B -->|Yes| C[Continue to next step]
+    B -->|No| D[Analyze failure]
+    
+    D --> E{Error type?}
+    E -->|Tool error| F[Retry with different parameters]
+    E -->|Content error| G[Read correct section]
+    E -->|Logic error| H[Re-plan approach]
+    E -->|Permission error| I[Ask user for approval]
+    
+    F --> J[Retry]
+    G --> J
+    H --> K[New plan]
+    I --> L[Wait for user]
+    
+    J --> M{Second attempt success?}
+    M -->|Yes| C
+    M -->|No| N[Report error to user]
+    L --> C
+```
+
+### Self-Correction Patterns
+
+| Pattern | When Used | Example |
+|---------|-----------|---------|
+| **Retry with different params** | Tool call failed | Grep failed → try broader pattern |
+| **Read before edit** | Uncertain content | StrReplace failed → Read file → correct edit |
+| **Backtrack** | Change caused error | Undo last change → try different approach |
+| **Simplify** | Complex approach failing | Break into smaller steps |
+| **Alternative tool** | Primary tool insufficient | Grep not enough → use SemanticSearch |
+
+### Debugging Self-Correction (Verbose Mode)
+
+```json
+{
+  "cursor.agent.logLevel": "verbose",
+  "cursor.agent.debugLogging": true
+}
+```
+
+With verbose logging, self-correction is visible:
+
+```
+[DEBUG] Tool: Read(file="src/auth.ts")
+[DEBUG] Result: 45 lines read
+[DEBUG] Thought: Need to verify middleware import exists...
+[DEBUG] Tool: Grep(pattern="import.*authMiddleware", path="src/auth.ts")
+[DEBUG] Result: 0 matches found
+[DEBUG] Thought: Import not found, adding it...
+[DEBUG] Tool: StrReplace(file="src/auth.ts", old="...", new="...")
+[DEBUG] Result: 1 replacement made
+[DEBUG] Tool: Read(file="src/auth.ts", offset=1, limit=10)
+[DEBUG] Result: Verified import added at line 2
+[DEBUG] Thought: Import confirmed, continuing...
+```
+
+---
+
+## Context-Aware Tool Selection Examples
+
+### When to Use Each Search Tool
+
+| Scenario | Recommended Tool | Reason |
+|----------|-----------------|--------|
+| Find all `UserService` references | `Grep` | Exact text match |
+| Find authentication-related code | `SemanticSearch` | Meaning-based, not text |
+| Find all test files | `Glob` | File pattern matching |
+| Read a specific function | `@code` reference | Surgical precision |
+| Read entire file | `Read` + `@file` | Complete context |
+| Find "error handling" patterns | `SemanticSearch` → `Grep` | Semantic first, text second |
+
+### Agent Decision Flow for Code Understanding
+
+```mermaid
+flowchart LR
+    A["User: Find error handling"] --> B{Specific text known?}
+    B -->|Yes| C[Grep exact pattern]
+    B -->|No| D{File location known?}
+    D -->|Yes| E[Read file + @file ref]
+    D -->|No| F{Meaning-based search?}
+    F -->|Yes| G[SemanticSearch]
+    F -->|No| H[Grep with broad pattern]
+```
+
+---
+
+## Agent Autonomy Levels
+
+### What Agents Can Do Without Confirmation
+
+| Action | Auto-Execute | Review Needed | Approval Needed |
+|--------|-------------|---------------|----------------|
+| **Read files** | ✅ Yes | ❌ No | ❌ No |
+| **Grep/Search** | ✅ Yes | ❌ No | ❌ No |
+| **Edit single file** | ✅ Yes | ⚠️ Output visible | ❌ No |
+| **Write new file** | ✅ Yes | ⚠️ Output visible | ❌ No |
+| **Shell (read-only)** | ✅ Yes | ⚠️ Output visible | ❌ No |
+| **Shell (build/test)** | ✅ Yes | ⚠️ Output visible | ❌ No |
+| **Shell (install)** | ⚠️ May ask | ✅ Recommended | ❌ No |
+| **Multiple file edits** | ⚠️ May ask | ✅ Recommended | ❌ No |
+| **Security changes** | ❌ No | ✅ Required | ✅ Required |
+| **Infrastructure changes** | ❌ No | ✅ Required | ✅ Required |
+| **Delete files** | ❌ No | ✅ Required | ⚠️ Sometimes |
+
+### Configuring Autonomy
+
+```json
+{
+  // Auto-approve agent actions
+  "cursor.agent.autoApprove": false,
+  
+  // Minimum approval level for actions
+  "cursor.agent.minApprovalLevel": "medium", // "low", "medium", "high"
+  
+  // Actions that always require approval
+  "cursor.agent.approvalRequired": [
+    "Shell(command: *install*)",
+    "Shell(command: *rm*)",
+    "Shell(command: *sudo*)",
+    "Delete",
+    "StrReplace(pattern: *security*)"
+  ]
+}
+```
+
+---
+
+## Prompting the Agent Effectively
+
+### Structuring Instructions for Better Reasoning
+
+| Prompt Quality | Structure | Result |
+|---------------|-----------|--------|
+| **Poor** | "Fix the auth module" | Agent guesses what to fix |
+| **Good** | "Fix the auth module - add rate limiting" | Agent targets rate limiting |
+| **Great** | "Add rate limiting to src/auth/middleware.ts using express-rate-limit. Configure: max 100 requests per 15 minutes. Add to login and register endpoints." | Agent executes precisely |
+
+### Prompt Patterns for Effective Reasoning
+
+#### 1. Context-First Prompting
+
+```
+Context: src/auth/middleware.ts
+Task: Add rate limiting
+Constraints: Must use express-rate-limit, max 100 req/15min
+Endpoints: /login, /register
+```
+
+#### 2. Step-by-Step Prompting
+
+```
+Step 1: Read src/auth/middleware.ts to understand current structure
+Step 2: Check package.json for existing rate-limit dependencies
+Step 3: Add rate limiting to login and register routes
+Step 4: Write unit tests for the rate limiter
+Step 5: Run tests to verify
+```
+
+#### 3. Decision-Point Prompting
+
+```
+Before modifying the auth module:
+1. First, understand the current architecture
+2. Present your plan for adding rate limiting
+3. Wait for my approval before making changes
+```
+
+#### 4. Scope-Bound Prompting
+
+```
+Working only on: src/auth/
+Do NOT modify: tests/, docs/, config/
+Focus on: middleware.ts, login.ts
+```
+
+---
+
+## Relationship to Subagents
+
+### When Agent Spawns Subagent vs Doing Work Itself
+
+```mermaid
+flowchart TD
+    A[Main Agent receives task] --> B{Task complexity?}
+    B -->|Simple, single file| C[Agent handles directly]
+    B -->|Complex, multi-domain| D[Spawn subagent]
+    
+    D --> E{Task type?}
+    E -->|Code exploration| F[explore subagent]
+    E -->|Code quality review| G[bugbot subagent]
+    E -->|Security review| H[security-review subagent]
+    E -->|CI failure analysis| I[ci-investigator subagent]
+    E -->|Parallel implementation| J[best-of-n-runner]
+    E -->|General complex task| K[generalPurpose subagent]
+    
+    C --> L[Direct execution]
+    F --> M[Results returned to main agent]
+    G --> M
+    H --> M
+    I --> M
+    J --> M
+    K --> M
+```
+
+### Subagent Decision Matrix
+
+| Task | Direct Agent | Subagent |
+|------|-------------|----------|
+| Edit 1-2 files | ✅ | ❌ |
+| Research a codebase area | ⚠️ | ✅ explore subagent |
+| Security review | ⚠️ | ✅ security-review subagent |
+| Code quality review | ⚠️ | ✅ bugbot subagent |
+| Parallel implementations | ❌ | ✅ best-of-n-runner |
+| Multi-domain expertise | ⚠️ | ✅ generalPurpose subagent |
+
+---
+
+## Relationship to Rules
+
+### How Rules Influence Agent Reasoning
+
+Rules act as constraints and guidance for agent decision-making:
+
+```mermaid
+flowchart TD
+    A[Agent receives prompt] --> B[Load applicable rules]
+    B --> C{Rule matches context?}
+    C -->|No rules| D[Agent uses default reasoning]
+    C -->|Rules match| E[Apply rule constraints]
+    
+    E --> F{Any constraints?}
+    F -->|Yes| G[Reasoning guided by rules]
+    F -->|No constraints| H[Agent uses default reasoning]
+    
+    G --> I[Execute with rule guidance]
+    H --> I
+    D --> I
+```
+
+### Rule Influence Examples
+
+| Rule Type | Agent Behavior Impact |
+|-----------|---------------------|
+| **Always-on rules** (`alwaysApply: true`) | Always present in context, guide all decisions |
+| **Auto-attached rules** (`globs: ["*.ts"]`) | Loaded when matching files are in context |
+| **Agent-requested rules** (`description: "..."`) | Agent decides when to fetch and apply |
+| **Manual rules** (`@rule-name`) | Explicitly invoked by user |
+
+### Rules as Reasoning Anchors
+
+```markdown
+Rule: "Never hardcode API keys"
+
+Agent reasoning with rule:
+  [Context] User wants to add database connection
+  [Check rules] Rule says: never hardcode keys
+  [Plan] Use process.env.DB_URL instead of literal string
+  [Execute] Generate: const dbUrl = process.env.DB_URL
+```
+
+---
+
+## Agent Reasoning Best Practices
+
+### For Prompting
+
+1. **Provide context first**: Files, constraints, scope
+2. **Specify decision points**: When to ask for approval
+3. **Define success criteria**: How to verify completion
+4. **Set boundaries**: What not to touch
+
+### For Agent Configuration
+
+1. **Set appropriate autonomy level**: Balance speed vs safety
+2. **Configure approval rules**: Critical operations always require confirmation
+3. **Use verbose logging**: For understanding agent decisions
+4. **Leverage subagents**: For complex, multi-domain tasks
+
+### For Debugging
+
+1. **Check output channel**: See tool selection and execution flow
+2. **Enable debug logging**: See agent thoughts and self-correction
+3. **Review decision patterns**: Identify systematic issues
+4. **Adjust rules**: Guide future agent reasoning
+
+---
+
+## Related Documents
+
+- [Agent Hierarchy](mdc:02-agent-hierarchy.mdc) — Subagent types and when to use them
+- [Rules System](mdc:03-rules-system.mdc) — How rules guide agent reasoning
+- [Skills System](mdc:04-skills-system.mdc) — How skills influence agent workflow
+- [Command Reference](mdc:11-command-reference.mdc) — Tool access by mode
+- [Agent Debugging](mdc:22-agent-debugging.mdc) — Debugging agent reasoning
+- [Agent Settings](mdc:19-agent-settings.mdc) — Configuring autonomy levels
+- [Context Management](mdc:10-context-management.mdc) — Context for agent reasoning

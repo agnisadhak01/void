@@ -1,0 +1,499 @@
+---
+title: Cursor Editor — Claude Code CLI Tool
+description: Reference for Cursor's standalone Claude Code CLI tool — installation, commands, session management, Git integration, CI/CD usage, and differences from the editor agent.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, claude-code, cli, terminal, command-line, devops, ci-cd, headless]
+---
+
+# Cursor Editor — Claude Code CLI Tool
+
+## Overview
+
+Claude Code is Cursor's standalone CLI tool that runs AI agent sessions from the terminal. It provides the same agent capabilities as the Cursor editor — code generation, refactoring, debugging, file operations — but in a headless, terminal-first environment. This makes it suitable for DevOps pipelines, CI/CD automation, remote servers, and developers who prefer terminal workflows.
+
+### How It Differs from the Editor Agent
+
+| Aspect | Editor Agent | Claude Code CLI |
+|--------|-------------|-----------------|
+| **Interface** | GUI (Composer panel, side bar) | Terminal (stdin/stdout) |
+| **File interaction** | Editor with live diff views | File system operations via tools |
+| **Context** | Open files, selected code, tabs | Working directory, explicitly passed files |
+| **Input** | Click and type in UI | Terminal input, pipe, or script |
+| **Output** | Rendered in Composer | Text output to terminal |
+| **Best for** | Interactive development | Automation, CI/CD, remote servers |
+| **Persistence** | Sessions saved in editor | Sessions managed via `--resume` |
+
+```mermaid
+flowchart TD
+    A[Developer] --> B{Where are you?}
+    B -->|In Cursor Editor| C[Use Composer Cmd+K/L]
+    B -->|In Terminal| D[Use Claude Code CLI]
+    B -->|In CI/CD Pipeline| E[Use Claude Code CLI --headless]
+    
+    C --> F[GUI interactions]
+    F --> G[Live editor feedback]
+    
+    D --> H[Terminal interactions]
+    H --> I[Stdout/stderr output]
+    
+    E --> J[Non-interactive mode]
+    J --> K[Exit codes for automation]
+    
+    G --> L[Same AI capabilities]
+    I --> L
+    K --> L
+```
+
+---
+
+## Installation
+
+### Prerequisites
+
+- Node.js 18 or later
+- npm or yarn package manager
+- Cursor API key (`CURSOR_API_KEY` environment variable)
+
+### Install via npm
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+### Verify Installation
+
+```bash
+claude --version
+# Output: claude-code/1.x.x node-x.x.x win32-x64
+```
+
+### Authentication
+
+```bash
+# Set API key as environment variable
+export CURSOR_API_KEY="cursor_abc123..."
+
+# Or use cursor.com dashboard to generate a key
+# Navigate to: https://cursor.com/dashboard/integrations
+```
+
+---
+
+## Core Commands
+
+### Interactive Mode
+
+```bash
+# Start interactive session
+claude
+
+# With a specific prompt
+claude "Refactor src/auth.ts to use JWT tokens"
+
+# Plan-only mode (no file edits, just analysis)
+claude --plan "How should I migrate this database schema?"
+
+# With a file as context
+claude src/auth.ts "Review this authentication module"
+
+# With multiple files
+claude src/auth.ts src/middleware.ts "Analyze the auth flow"
+```
+
+### One-Shot Mode
+
+```bash
+# Generate output and exit
+claude "Write a function that validates email addresses" > output.txt
+
+# Pipe input
+echo "Fix the bug in src/utils.ts line 42" | claude
+
+# Generate a file
+claude "Create a README.md for this project"
+```
+
+### Session Management
+
+```bash
+# Resume a previous session
+claude --resume <agent-id>
+
+# List active sessions
+claude --list
+
+# Force a new session (no resume)
+claude --no-resume "Start a fresh task"
+
+# Set a session timeout (hours)
+claude --session-timeout 2
+```
+
+---
+
+## Command Flags Reference
+
+### General Flags
+
+| Flag | Description | Example |
+|------|-------------|---------|
+| `--plan` | Plan-only mode, no file edits | `claude --plan "Analyze code quality"` |
+| `--resume` | Resume a previous agent session | `claude --resume bc-abc123` |
+| `--no-resume` | Start a fresh session, don't resume | `claude --no-resume "New task"` |
+| `--list` | List active agent sessions | `claude --list` |
+| `--output` | Output format | `claude --output json "Query the database"` |
+| `--log` | Log file path | `claude --log /tmp/claude.log "Fix bug"` |
+| `--session-timeout` | Session duration in hours | `claude --session-timeout 4` |
+
+### Git Integration Flags
+
+| Flag | Description | Example |
+|------|-------------|---------|
+| `--edit` | Edit files with agent assistance | `claude --edit src/index.ts` |
+| `--review` | Review staged changes | `claude --review` |
+| `--commit` | Generate and apply commit message | `claude --commit "fix: resolve auth bug"` |
+| `--amend` | Amend last commit with agent help | `claude --amend` |
+
+### CI/CD Flags
+
+| Flag | Description | Example |
+|------|-------------|---------|
+| `--headless` | Non-interactive mode for CI | `claude --headless "Run tests and fix failures"` |
+| `--yes` | Auto-accept all changes | `claude --yes --headless "Fix lint errors"` |
+| `--dry-run` | Show changes without applying | `claude --dry-run --headless "Refactor utils"` |
+| `--max-turns` | Limit conversation turns | `claude --max-turns 10 --headless "Debug"` |
+
+---
+
+## Git Integration
+
+### Code Review
+
+```bash
+# Review uncommitted changes
+claude --review
+
+# Review specific file
+claude --review src/auth.ts
+
+# Review staged changes
+claude --staged --review
+
+# Review with specific focus areas
+claude --review "Focus on security vulnerabilities and error handling"
+```
+
+### Automated Commit Messages
+
+```bash
+# Generate commit message from staged changes
+claude --commit
+
+# Generate and apply
+git add .
+claude --commit -m "$(claude --commit-message)"
+
+# Conventional commits format
+claude --commit --conventional
+```
+
+### Edit Mode
+
+```bash
+# Open a file for agent-assisted editing
+claude --edit src/user-service.ts
+
+# Edit with a specific task
+claude --edit src/auth.ts "Add rate limiting to login endpoint"
+
+# Edit multiple files
+claude --edit src/auth.ts src/middleware.ts "Standardize error handling"
+```
+
+### Amend Commits
+
+```bash
+# Review last commit and suggest improvements
+claude --amend
+
+# Amend with agent-generated changes
+claude --amend "Also fix the import order"
+```
+
+---
+
+## CI/CD Usage
+
+### Non-Interactive (Headless) Mode
+
+Headless mode is designed for CI/CD pipelines where no interactive input is available:
+
+```yaml
+# GitHub Actions example
+name: AI Code Review
+on: [pull_request]
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Run AI review
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: |
+          claude --headless --yes "Review this PR for security issues and code quality"
+```
+
+### Exit Codes
+
+| Exit Code | Meaning | CI Handling |
+|-----------|---------|-------------|
+| `0` | Success — task completed | Pipeline passes |
+| `1` | Startup failure (auth, config, network) | Fail fast, check credentials |
+| `2` | Run completed with errors | Review output, may need manual action |
+| `124` | Timeout (session exceeded --max-turns) | Increase timeout or reduce scope |
+| `137` | OOM / killed by system | Increase CI runner resources |
+
+### Best Practices for CI/CD
+
+1. **Always use `--headless --yes`** to avoid interactive prompts
+2. **Set `--max-turns`** to prevent runaway sessions
+3. **Use `--dry-run`** in CI to inspect changes before applying
+4. **Log output to a file** for audit trails: `claude --headless --log /tmp/claude.log "Task"`
+5. **Always pass `apiKey` explicitly** in shared-infrastructure code
+6. **Distinguish exit code 1 (startup) from 2 (run failure)** for proper CI reporting
+
+### Example CI Workflow
+
+```bash
+#!/bin/bash
+# CI pipeline step
+
+claude --headless \
+  --yes \
+  --max-turns 20 \
+  --log /tmp/claude-ci.log \
+  "Run all tests. If any fail, diagnose the root cause and fix the code. Do not modify test files."
+
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 0 ]; then
+  echo "All tests passed or were fixed successfully."
+elif [ $EXIT_CODE -eq 2 ]; then
+  echo "Tests failed after diagnosis. Check /tmp/claude-ci.log for details."
+  cat /tmp/claude-ci.log
+  exit 2
+else
+  echo "Claude Code startup failed (exit code $EXIT_CODE). Check API key and network."
+  exit 1
+fi
+```
+
+---
+
+## Model and Provider Configuration
+
+### CLI Provider Selection
+
+```bash
+# Use a specific model
+claude --model claude-sonnet-4-20250514 "Fix the bug"
+
+# Use a specific provider
+claude --provider anthropic "Analyze the code"
+
+# Use a custom endpoint
+claude --base-url http://localhost:11434/v1 --model codellama:7b "Explain this code"
+
+# Use auto-selected model
+claude --model auto "Refactor the module"
+```
+
+### Settings Precedence
+
+Model/provider settings are resolved in this order (highest to lowest priority):
+
+1. Command-line flags (`--model`, `--provider`, `--base-url`)
+2. Environment variables (`CURSOR_API_KEY`, `CURSOR_MODEL`)
+3. Cursor Settings (same as editor)
+4. Default built-in model (`composer-2.5`)
+
+### Environment Variables
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `CURSOR_API_KEY` | Authentication for Cursor API | `CURSOR_API_KEY=cursor_abc123` |
+| `CURSOR_MODEL` | Default model for all runs | `CURSOR_MODEL=claude-sonnet-4-20250514` |
+| `CURSOR_PROVIDER` | Default provider | `CURSOR_PROVIDER=anthropic` |
+| `CURSOR_BASE_URL` | Custom API endpoint | `CURSOR_BASE_URL=http://localhost:11434/v1` |
+| `CURSOR_MAX_TURNS` | Default max conversation turns | `CURSOR_MAX_TURNS=50` |
+
+---
+
+## Comparison: Editor Agent vs CLI Agent
+
+### When to Use Each
+
+```mermaid
+flowchart TD
+    A[Need AI assistance] --> B{Where is the agent running?}
+    B -->|Editor/IDE| C[Use Composer in Cursor]
+    B -->|Terminal/Server| D[Use Claude Code CLI]
+    B -->|CI/CD Pipeline| E[Use Claude Code CLI --headless]
+    B -->|Remote SSH session| F[Use Claude Code CLI]
+    
+    C --> G[Best for: interactive development]
+    G --> H[Live diff views, file picker, shortcuts]
+    
+    D --> I[Best for: terminal workflows]
+    I --> J[Full agent capabilities in CLI]
+    
+    E --> K[Best for: automation]
+    K --> L[Non-interactive, exit codes, scripting]
+    
+    F --> M[Best for: remote servers]
+    M --> N[No GUI needed, pipe-based input]
+```
+
+### Feature Parity
+
+| Feature | Editor Agent | Claude Code CLI |
+|---------|-------------|-----------------|
+| File read/write | Full editor diff views | Direct file system operations |
+| Shell execution | Terminal tool | Shell tool (same) |
+| Agent subtasks | Task subagents | Task subagents (same types) |
+| MCP integration | Full MCP server access | MCP via CLI flags |
+| Context management | @-references, open files | Explicit file passing |
+| Session persistence | Auto-saved in editor | `--resume` with agent ID |
+| Rules loading | `.cursor/rules/*.mdc` | `.cursor/rules/*.mdc` (same) |
+| Skills loading | `.cursor/skills/` | `.cursor/skills/` (same) |
+| Custom subagents | `.cursor/agents/` | `.cursor/agents/` (same) |
+
+---
+
+## Session Management
+
+### Agent Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Running: claude [prompt]
+    Running --> Streaming: Agent sends messages
+    Streaming --> Completing: All turns done
+    Completing --> Idle: Exit code 0
+    Running --> Error: Agent exception
+    Error --> Idle: Exit code 1 or 2
+    
+    state Running {
+        [*] --> Initializing
+        Initializing --> Executing: Context loaded
+        Executing --> ToolUse: Agent calls tool
+        ToolUse --> Executing: Tool returns
+        Executing --> Completing: No more work
+        Executing --> Error: Max turns exceeded
+    }
+```
+
+### Resume Mechanism
+
+```bash
+# Start a long-running task
+claude --model claude-sonnet-4-20250514 "Analyze the codebase and create a refactoring plan"
+
+# Agent returns an ID (e.g., bc-abc123)
+# Continue later with:
+claude --resume bc-abc123 "Also add documentation for each refactored module"
+```
+
+### Session Timeouts
+
+```bash
+# Set a 2-hour session timeout
+claude --session-timeout 2 "Long-running analysis"
+
+# Default timeout is 1 hour
+# After timeout, session is terminated and must be resumed
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `CURSOR_API_KEY not set` | Missing authentication | Set `CURSOR_API_KEY` environment variable |
+| `Model not found` | Invalid model ID | Use `claude --model auto` or check available models |
+| `Exit code 1` | Startup failure (auth/config/network) | Verify API key, check network connectivity |
+| `Exit code 2` | Run failed mid-execution | Check log file, review tool outputs |
+| `Interactive prompt in CI` | Missing `--headless` flag | Add `--headless --yes` flags |
+| `Too many turns` | Session exceeded `--max-turns` | Increase `--max-turns` or scope the task |
+| `Slow completions` | Large context or network latency | Close irrelevant files, use faster model |
+| `File not found` | Wrong working directory | Run from the project root or pass explicit file paths |
+
+### Diagnostic Commands
+
+```bash
+# Check version and environment
+claude --version
+claude --env
+
+# List active sessions
+claude --list
+
+# Test API connectivity
+claude --dry-run "Explain who you are"
+
+# View last session logs
+cat /tmp/claude-ci.log
+```
+
+### Log Locations
+
+| Platform | Default Log Location |
+|----------|---------------------|
+| Linux | `~/.cursor/claude-code/logs/` |
+| macOS | `~/Library/Logs/claude-code/` |
+| Windows | `%APPDATA%\claude-code\logs\` |
+
+---
+
+## Security Considerations
+
+### API Key Management
+
+- **Never commit API keys** to version control
+- **Use environment variables** in CI/CD: `CURSOR_API_KEY=${{ secrets.CURSOR_API_KEY }}`
+- **Use service-account keys** for shared infrastructure
+- **Rotate keys** if exposed
+
+### Headless Mode Safety
+
+| Concern | Mitigation |
+|---------|-----------|
+| Auto-accepting changes | Use `--dry-run` to preview before `--yes` |
+| Unlimited turns | Set `--max-turns` to limit scope |
+| File access scope | Run CLI from a restricted working directory |
+| Shell command execution | Use `--headless --yes` only for trusted prompts |
+
+### CI/CD Security
+
+- Run Claude Code in isolated CI jobs
+- Use short-lived API keys for CI
+- Audit all file changes made by the agent
+- Prefer `--dry-run` in CI; apply changes locally after review
+
+---
+
+## Related Documents
+
+- [SDK Reference](mdc:07-sdk-reference.mdc) — Programmatic agent access via SDK
+- [Architecture Overview](mdc:01-overview.mdc) — Local vs cloud runtime
+- [Hooks and Automation](mdc:09-hooks-and-automation.mdc) — CLI as an automation target
+- [Model Providers](mdc:16-model-providers.mdc) — Configuring CLI model and provider
+- [Settings and Configuration](mdc:08-settings-configuration.mdc) — Settings file locations

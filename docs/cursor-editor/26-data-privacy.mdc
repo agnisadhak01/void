@@ -1,0 +1,501 @@
+---
+title: Cursor Editor — Data Privacy & Local vs Cloud Decisions
+description: Reference for Cursor's data handling, local vs cloud processing, telemetry, compliance considerations, and enterprise privacy controls.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, data-privacy, local-processing, cloud-processing, telemetry, compliance, gdpr, enterprise]
+---
+
+# Cursor Editor — Data Privacy & Local vs Cloud Decisions
+
+## Overview
+
+Understanding Cursor's data flow is critical for developers and organizations handling sensitive code. Cursor operates across multiple environments: your local machine, Cursor's cloud infrastructure, and third-party model providers (Anthropic, OpenAI, etc.). This document explains where data flows, what is retained, and how to control privacy settings.
+
+```mermaid
+flowchart TD
+    subgraph local [Local Environment]
+        A[Cursor IDE] --> B[Local Agent Runtime]
+        B --> C[Your Machine]
+    end
+    
+    subgraph cloud [Cursor Cloud]
+        D[cursor.com] --> E[Cloud VM Runtime]
+        E --> F[Cloud Agent Runs]
+    end
+    
+    subgraph provider [Model Providers]
+        G[Anthropic API] --> H[Claude Models]
+        I[OpenAI API] --> J[GPT Models]
+        K[Custom Endpoint] --> L[Local/Own Models]
+    end
+    
+    A -->|"API calls with code"| G
+    A -->|"API calls with code"| I
+    A -->|"API calls with code"| K
+    
+    B -->|"Local code stays local"| C
+    E -->|"Code in VM"| F
+    F -->|"API calls with code"| G
+    F -->|"API calls with code"| I
+    
+    A -->|"Telemetry"| D
+    A -->|"Session transcripts"| D
+    D -->|"Analytics"| M[Cursor Analytics]
+```
+
+---
+
+## Local Processing
+
+### When Code Stays on Your Machine
+
+The agent processes code locally in these scenarios:
+
+| Scenario | Processing Location | Data Leaves Machine? |
+|----------|-------------------|---------------------|
+| **Tab Completions (local model)** | Your machine | No (if using local model) |
+| **Ask Mode (read-only)** | Your machine (for file reads) | No (files are sent to provider for generation) |
+| **Custom/local model endpoints** | Your configured endpoint | Depends on endpoint |
+| **Ollama/vLLM local inference** | Your machine | No |
+| **File operations (Read, Write, Shell)** | Your machine | No (except for API calls to model providers) |
+
+### Local-Only Configurations
+
+To ensure code stays on your machine, use local or self-hosted models:
+
+```json
+{
+  // Local model for Tab completions (zero data egress)
+  "cursor.agent.tabProvider": "custom",
+  "cursor.agent.tabModel": "codegemma:7b",
+  "cursor.agent.tabBaseUrl": "http://localhost:11434/v1",
+  
+  // Self-hosted inference server
+  "cursor.agent.agentProvider": "custom",
+  "cursor.agent.agentModel": "your-local-model",
+  "cursor.agent.agentBaseUrl": "http://inference-server.internal/v1",
+  
+  // Disable telemetry
+  "telemetry.telemetryLevel": "off",
+  "cursor.telemetry.enabled": false
+}
+```
+
+### Supported Local Processing Providers
+
+| Provider | Type | Data Leaves Machine? |
+|----------|------|---------------------|
+| **Ollama** | Local GPU inference | No |
+| **vLLM** | Local/self-hosted serving | No (if self-hosted) |
+| **LM Studio** | Local inference | No |
+| **LocalAI** | Self-hosted OpenAI-compatible | No (if self-hosted) |
+| **Together AI** | Cloud-hosted | Yes (to Together) |
+| **Anthropic** | Cloud-hosted | Yes (to Anthropic) |
+| **OpenAI** | Cloud-hosted | Yes (to OpenAI) |
+
+---
+
+## Cloud Processing
+
+### What Data Goes to Cursor Cloud
+
+When using Cursor's cloud features (cloud agent, cloud automation):
+
+| Data Type | Stored By | Retention | Purpose |
+|-----------|-----------|-----------|---------|
+| **Cloud VM code** | Cursor cloud | Ephemeral (VM destroyed after run) | Agent execution |
+| **Agent runs** | cursor.com | 30 days (configurable) | Session replay, debugging |
+| **Transcripts** | cursor.com | 30 days (configurable) | Session review, analytics |
+| **API requests** | Provider (Anthropic/OpenAI) | Per provider policy | Code generation |
+| **Telemetry** | Cursor | Aggregated, anonymized | Product improvement |
+
+### What Data Goes to Model Providers
+
+| Provider | Data Retention | Policy |
+|----------|---------------|--------|
+| **Anthropic** | Does not retain training data | Review [Anthropic privacy policy](https://www.anthropic.com/privacy) |
+| **OpenAI** | Does not retain training data for paid tiers | Review [OpenAI privacy policy](https://openai.com/policies/privacy-policy) |
+| **Custom endpoints** | Per your own policy | Your organization's data retention |
+
+### Cloud-Only Operations
+
+These operations require data to leave your machine:
+
+| Operation | Data Sent | Reason |
+|-----------|-----------|--------|
+| **Cloud Agent runs** | Full repo clone | Agent executes in cloud VM |
+| **PR creation (cloud)** | Full diff + context | Agent creates PR on your behalf |
+| **Automations (cloud)** | Triggered repo state | Scheduled agent runs |
+| **Cursor.com dashboard** | Usage metrics, agent IDs | Analytics and management |
+
+---
+
+## Telemetry
+
+### What Cursor Collects
+
+| Category | Data Points | PII? | Anonymized? |
+|----------|------------|------|-------------|
+| **Usage metrics** | Feature usage, session counts | No | Yes |
+| **Performance data** | Response times, error rates | No | Yes |
+| **Agent behavior** | Tool selection frequency, decision patterns | No | Yes |
+| **Crash reports** | Stack traces, error messages | No (code snippets may appear) | Partially |
+| **System info** | OS, Cursor version, architecture | No | Yes |
+
+### Crash Report Examples
+
+```json
+// Anonymized crash report
+{
+  "timestamp": "2026-06-11T10:00:00Z",
+  "cursorVersion": "1.0.0",
+  "os": "windows",
+  "agentId": "bc_abc123",
+  "errorType": "APIError",
+  "errorMessage": "Rate limit exceeded",
+  "toolCall": "Shell",
+  "stackTrace": "Error: Rate limit exceeded... (truncated)"
+}
+
+// Note: Code content in error messages may be included
+// but is stripped of identifying information when possible
+```
+
+### Disabling Telemetry
+
+```json
+{
+  // Disable all telemetry
+  "telemetry.telemetryLevel": "off",
+  
+  // Disable crash reporting
+  "telemetry.crashReporting.enabled": false,
+  
+  // Disable usage analytics
+  "telemetry.analytics.enabled": false,
+  
+  // Disable session recording
+  "telemetry.sessionRecording.enabled": false
+}
+```
+
+```bash
+# CLI alternative
+claude --disable-telemetry "Your prompt"
+```
+
+---
+
+## Data Retention
+
+### Retention Periods
+
+| Data Type | Retention | Manageable? | Location |
+|-----------|-----------|-------------|----------|
+| **Agent sessions** | 30 days (configurable) | Yes, via settings | cursor.com |
+| **Transcripts** | 30 days (configurable) | Yes, manual delete | cursor.com |
+| **Cloud VM data** | Deleted on VM termination | N/A | Cloud VM |
+| **Debug logs** | Until manually deleted | Yes, local | Local disk |
+| **Tab completion history** | Per session | Yes, cleared on restart | Local |
+| **Model provider data** | Per provider policy | No | Provider |
+
+### Managing Retention
+
+```json
+{
+  // Agent session retention (days)
+  "cursor.agent.sessionRetentionDays": 30,
+  
+  // Transcript retention (days)
+  "cursor.agent.transcriptRetentionDays": 30,
+  
+  // Auto-delete cloud agent data after run
+  "cursor.agent.autoDeleteAfterRun": true,
+  
+  // Disable session recording
+  "cursor.agent.sessionRecording": false
+}
+```
+
+### Deleting Data
+
+```bash
+# Clear local agent logs
+rm ~/.cursor/Logs/agent.log
+
+# Delete agent session from cloud
+# Visit: https://cursor.com/dashboard/sessions
+
+# Clear all cached data
+# Settings → Developer → Clear Cache
+```
+
+---
+
+## Compliance Considerations
+
+### SOC 2
+
+Cursor's cloud infrastructure follows SOC 2 Type II practices:
+
+| Control | Implementation |
+|---------|---------------|
+| **Encryption at rest** | AES-256 for stored data |
+| **Encryption in transit** | TLS 1.3 for all API calls |
+| **Access controls** | Role-based access for Cursor employees |
+| **Audit logging** | All infrastructure changes logged |
+| **Data segregation** | Team data isolated by workspace |
+
+### GDPR
+
+For EU-based users and data:
+
+| Requirement | Cursor Implementation |
+|-------------|---------------------|
+| **Right to access** | Export your data via cursor.com dashboard |
+| **Right to erasure** | Request deletion of all data via settings or support |
+| **Data minimization** | Only essential telemetry collected |
+| **Data localization** | Available via Enterprise tier (EU regions) |
+| **Processing records** | Available via DPA (Data Processing Agreement) |
+
+### HIPAA
+
+**Cursor is not HIPAA-compliant out of the box.** For healthcare organizations:
+
+1. Contact Cursor sales for HIPAA-capable Enterprise deployment
+2. Use self-hosted model endpoints (Ollama, vLLM) for PHI data
+3. Disable cloud agent processing entirely
+4. Implement local-only processing for all AI operations
+5. Sign BAA (Business Associate Agreement) with Cursor
+
+---
+
+## Air-Gapped Usage
+
+### Can Cursor Work Without Internet?
+
+| Feature | Works Offline? | Requirements |
+|---------|---------------|--------------|
+| **Tab Completions** | ✅ Yes (with local model) | Ollama/vLLM installed locally |
+| **Ask Mode (local files)** | ❌ No | Requires model API |
+| **Agent Mode** | ❌ No | Requires model API |
+| **File operations (Read, Write)** | ✅ Yes | No network needed |
+| **Shell commands** | ✅ Yes | No network needed |
+| **Cloud Agent** | ❌ No | Requires internet |
+| **Cursor.com features** | ❌ No | Requires internet |
+
+### Fully Offline Configuration
+
+```json
+{
+  // Local-only model for everything
+  "cursor.agent.chatProvider": "custom",
+  "cursor.agent.chatModel": "llama3:8b",
+  "cursor.agent.chatBaseUrl": "http://localhost:11434/v1",
+  
+  "cursor.agent.agentProvider": "custom",
+  "cursor.agent.agentModel": "llama3:8b",
+  "cursor.agent.agentBaseUrl": "http://localhost:11434/v1",
+  
+  "cursor.agent.tabProvider": "custom",
+  "cursor.agent.tabModel": "llama3:8b",
+  "cursor.agent.tabBaseUrl": "http://localhost:11434/v1",
+  
+  // Disable all cloud features
+  "cursor.cloud.enabled": false,
+  "cursor.agent.attribution.enabled": false,
+  
+  // Disable all telemetry
+  "telemetry.telemetryLevel": "off",
+  "cursor.telemetry.enabled": false
+}
+```
+
+### Offline Limitations
+
+- No cloud agent runs
+- No team workspace sync
+- No cursor.com dashboard access
+- No automatic model updates
+- Manual model management only
+
+---
+
+## Enterprise Settings
+
+### MDM Policies (macOS/Windows)
+
+Cursor supports MDM policy enforcement for enterprise deployments:
+
+```json
+// MDM policy override file (managed by IT)
+{
+  "enterprise": {
+    "managedSettings": {
+      "cursor.agent.mode": "agent",
+      "cursor.agent.chatModel": "claude-sonnet-4-20250514",
+      "cursor.agent.contextWindow": 128000,
+      "telemetry.telemetryLevel": "minimal",
+      "cursor.cloud.enabled": true,
+      "cursor.agent.attribution.enabled": true
+    },
+    "unmodifiableSettings": [
+      "telemetry.telemetryLevel",
+      "cursor.cloud.enabled",
+      "cursor.agent.chatModel"
+    ]
+  }
+}
+```
+
+### Admin Controls
+
+| Control | Admin Action | User Impact |
+|---------|-------------|-------------|
+| **Model restrictions** | Set allowed models list | Users cannot select other models |
+| **Telemetry enforcement** | Set telemetry level | Users cannot disable |
+| **Cloud agent policy** | Enable/disable cloud agent | All users affected |
+| **Data retention** | Set retention period | All sessions deleted after period |
+| **API key management** | Distribute team keys | No personal key needed |
+
+### Enterprise Deployment Checklist
+
+- [ ] MDM policies configured
+- [ ] Team workspace created on cursor.com
+- [ ] Team API keys generated and distributed
+- [ ] Data retention policy documented
+- [ ] Local-only mode available for sensitive teams
+- [ ] HIPAA BAA signed (if applicable)
+- [ ] SOC 2 report obtained
+- [ ] GDPR compliance verified
+- [ ] Admin training completed
+- [ ] User training completed
+
+---
+
+## Model Data Policies
+
+### What Model Providers Do With Your Data
+
+| Provider | Training Data | API Data | Retention |
+|----------|-------------|----------|-----------|
+| **Anthropic** | Does not retain for training | Processed in memory | Deleted after processing |
+| **OpenAI** | Paid tier: No training | Processed in memory | Short-term cache only |
+| **OpenAI** | Free tier: May retain | Processed in memory | Per terms of service |
+| **Custom endpoints** | Per your policy | Per your policy | Your control |
+
+### Configuring Provider-Specific Privacy
+
+```json
+{
+  // Anthropic: Enterprise-grade privacy
+  "cursor.agent.providerConfig.anthropic": {
+    "enterprise": true,
+    "dataRetentionDays": 0
+  },
+  
+  // OpenAI: Paid tier recommended for privacy
+  "cursor.agent.providerConfig.openai": {
+    "tier": "paid",
+    "noTrainingData": true
+  }
+}
+```
+
+---
+
+## Settings to Control Privacy
+
+### Comprehensive Privacy Settings
+
+| Setting | Purpose | Recommended Value |
+|---------|---------|------------------|
+| `telemetry.telemetryLevel` | Overall telemetry level | `"minimal"` or `"off"` |
+| `cursor.telemetry.enabled` | Enable/disable all telemetry | `false` for full privacy |
+| `cursor.agent.sessionRecording` | Record agent sessions | `false` if not needed |
+| `cursor.cloud.enabled` | Enable cloud features | `false` for air-gapped |
+| `cursor.agent.contextWindow` | Context size (larger = more data sent) | Minimum needed |
+| `cursor.agent.autoDeleteAfterRun` | Delete cloud data after run | `true` |
+
+```json
+{
+  // Maximum privacy configuration
+  "telemetry.telemetryLevel": "off",
+  "cursor.telemetry.enabled": false,
+  "cursor.agent.sessionRecording": false,
+  "cursor.cloud.enabled": true,
+  "cursor.agent.autoDeleteAfterRun": true,
+  "cursor.agent.transcriptRetentionDays": 7
+}
+```
+
+### Sensitive File Exclusions
+
+```json
+{
+  // Prevent agent from reading sensitive files
+  "files.exclude": {
+    "**/.env": true,
+    "**/.env.local": true,
+    "**/secrets/*": true,
+    "**/*.pem": true,
+    "**/private/": true
+  }
+}
+```
+
+---
+
+## Best Practices
+
+### For Developers
+
+1. **Never commit secrets** — Use `.env` files, version control excludes
+2. **Use custom instructions** to define data handling preferences
+3. **Review agent output** for accidental data exposure
+4. **Clear session data** after working with sensitive code
+5. **Use local models** for maximum privacy on sensitive projects
+
+### For Organizations
+
+1. **Deploy via MDM** with enforced privacy settings
+2. **Use team workspace** for centralized key management
+3. **Configure data retention** per compliance requirements
+4. **Audit agent logs** for data exposure risks
+5. **Train teams** on privacy implications of AI coding assistants
+6. **Document data flow** for compliance audits
+7. **Consider local-only mode** for sensitive projects
+
+### For Sensitive Projects
+
+```json
+{
+  // Production-grade privacy configuration
+  "telemetry.telemetryLevel": "off",
+  "cursor.telemetry.enabled": false,
+  "cursor.agent.chatProvider": "custom",
+  "cursor.agent.chatBaseUrl": "http://inference-server.internal/v1",
+  "cursor.agent.agentProvider": "custom",
+  "cursor.agent.agentBaseUrl": "http://inference-server.internal/v1",
+  "cursor.cloud.enabled": false,
+  "cursor.agent.autoDeleteAfterRun": true,
+  "files.exclude": {
+    "**/.env*": true,
+    "**/secrets/*": true,
+    "**/*.key": true,
+    "**/*.pem": true
+  }
+}
+```
+
+---
+
+## Related Documents
+
+- [Settings and Configuration](mdc:19-agent-settings.mdc) — Agent settings including privacy controls
+- [Cloud Agent](mdc:20-cursor-cloud.mdc) — Cloud infrastructure data handling
+- [Model Providers](mdc:16-model-providers.mdc) — Provider-specific configurations
+- [Data Privacy Rules](mdc:../compliance/privacy.mdc) — Project-level privacy rules
+- [Security Rules](mdc:../compliance/security-rules.mdc) — Security guidelines
+- [Custom Instructions](mdc:19-agent-settings.mdc#custom-ai-instructions) — Data handling instructions

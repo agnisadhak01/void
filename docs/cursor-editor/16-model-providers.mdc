@@ -1,0 +1,377 @@
+---
+title: Cursor Editor — Model Provider Configuration
+description: Complete reference for configuring LLM providers (OpenAI, Anthropic, custom endpoints), API key management, model selection per mode, and provider routing in Cursor.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, model-provider, openai, anthropic, ollama, api-key, model-selection, custom-endpoint]
+---
+
+# Cursor Editor — Model Provider Configuration
+
+## Overview
+
+Cursor's model provider system determines which AI models power each interaction mode (Chat, Agent, Tab). Users can configure built-in providers (OpenAI, Anthropic), custom endpoints (OpenAI-compatible servers, local models), and select different models per mode. This system is fundamental to Cursor's functionality — every AI interaction routes through this provider configuration.
+
+Provider configuration is accessible through **Cursor Settings > Model Provider** in the editor UI.
+
+---
+
+## Built-in Providers
+
+### OpenAI
+
+| Model | Capability | Recommended For |
+|-------|-----------|-----------------|
+| GPT-4 / GPT-4 Turbo | General-purpose reasoning, code generation | Chat, Agent mode |
+| GPT-4o | Multimodal (text, images) | Complex code explanations with screenshots |
+| GPT-3.5 Turbo | Faster, lighter tasks | Quick edits, Tab autocompletions |
+
+**Configuration**: Enter your OpenAI API key. Model selection is per-mode (Chat, Agent, Tab).
+
+### Anthropic (Claude)
+
+| Model | Capability | Recommended For |
+|-------|-----------|-----------------|
+| Claude Opus | Deep reasoning, complex code architecture | Agent mode, heavy refactoring |
+| Claude Sonnet | Balanced performance and speed | Chat, Tab, most workflows |
+| Claude Haiku | Fast, lightweight tasks | Tab autocompletions, quick suggestions |
+
+**Configuration**: Enter your Anthropic API key. Models are selected per mode in Cursor Settings.
+
+### Cursor's Built-in Models
+
+Cursor also provides its own hosted models through the default configuration:
+
+| Model ID | Description | SDK Equivalent |
+|----------|-------------|---------------|
+| `composer-2.5` | Current default for most integrations | `model: { id: "composer-2.5" }` |
+| `auto` | Server-picks the best model | `model: "auto"` (Python) / `{ id: "auto" }` (TypeScript) |
+
+---
+
+## Custom Endpoints
+
+Custom endpoints allow you to use any OpenAI-compatible API server. This is useful for:
+
+- **Local models** (Ollama, vLLM, llama.cpp)
+- **Self-hosted inference servers**
+- **Proxy servers** (LiteLLM, OpenRouter, Together AI)
+- **Private enterprise models**
+
+### Configuring Custom Endpoints
+
+1. Open Cursor Settings
+2. Navigate to Model Provider section
+3. Select "Custom" or "OpenAI Compatible" provider type
+4. Enter the following:
+
+```
+Base URL: http://localhost:11434/v1          # Ollama
+Base URL: http://localhost:8080/v1           # vLLM
+Base URL: https://api.openrouter.ai/v1       # OpenRouter
+Base URL: https://your-enterprise-api.com/v1 # Enterprise proxy
+```
+
+5. Enter API key (or leave blank if your server doesn't require one)
+
+### Local Model Configuration (Ollama)
+
+```json
+{
+  "cursor.agent.model": {
+    "provider": "custom",
+    "baseUrl": "http://localhost:11434/v1",
+    "apiKey": "",
+    "modelId": "codellama:7b",
+    "mode": {
+      "chat": "codellama:7b",
+      "agent": "codellama:13b",
+      "tab": "codellama:7b"
+    }
+  }
+}
+```
+
+### Ollama Quick Start
+
+```bash
+# Install Ollama
+brew install ollama        # macOS
+# or on Windows, download from ollama.com
+
+# Pull a model
+ollama pull codellama
+
+# Run the Ollama server (default: localhost:11434)
+ollama serve
+```
+
+Then configure Cursor with base URL `http://localhost:11434/v1`.
+
+### vLLM Quick Start
+
+```bash
+# Install vLLM
+pip install vllm
+
+# Start a server serving a model
+vllm serve meta-llama/Llama-2-7b-chat-hf --host 0.0.0.0 --port 8080
+```
+
+Then configure Cursor with base URL `http://localhost:8080/v1`.
+
+---
+
+## Model Selection Per Mode
+
+Cursor allows different models for different interaction modes:
+
+| Mode | Purpose | Typical Model Choice |
+|------|---------|---------------------|
+| **Chat** | Conversational Q&A, explanations | Sonnet / GPT-4 (balanced quality) |
+| **Agent** | Code modification, file edits, tool execution | Opus / GPT-4 Turbo (max reasoning) |
+| **Tab** | Inline code completions | Haiku / GPT-3.5 / smaller local model (speed) |
+
+### Configuration Flow
+
+```mermaid
+flowchart TD
+    A[Cursor Settings] --> B[Model Provider Tab]
+    B --> C[Select Provider]
+    C --> D[Enter API Key]
+    D --> E[Configure Per-Mode Models]
+    E --> F[Chat Model: Select]
+    E --> G[Agent Model: Select]
+    E --> H[Tab Model: Select]
+    F --> I[Save]
+    G --> I
+    H --> I
+    I --> J[Provider Active]
+```
+
+### Why Different Models Per Mode
+
+- **Chat** requires good conversational ability — moderate model size
+- **Agent** performs code modifications with tool use — needs strong reasoning
+- **Tab** must respond in milliseconds — needs speed over capability
+
+Using the same model for all modes wastes resources on Tab (too slow) or limits Agent capability (too weak).
+
+---
+
+## API Key Management
+
+### Where API Keys Are Stored
+
+| Storage Method | Location | Persistence |
+|---------------|----------|-------------|
+| Cursor Settings UI | Encrypted in Cursor app data | Persists across sessions |
+| Environment Variable | `CURSOR_API_KEY` | Set in shell profile or system settings |
+| .env file | Project-specific | Checked in via version control (not recommended) |
+| Secrets manager | CI/CD systems | Production-grade key management |
+
+### Best Practices
+
+```bash
+# Recommended: Set via environment variable
+export CURSOR_API_KEY="sk-ant-..."
+
+# Verify it is set
+echo $CURSOR_API_KEY    # Should show the key
+```
+
+### API Key Requirements
+
+- **OpenAI**: Format `sk-proj-...` or `sk-...`
+- **Anthropic**: Format `sk-ant-...`
+- **Custom endpoints**: Any format accepted by the target server
+- **Team keys**: Different from personal keys; managed in Cursor Dashboard
+
+### Troubleshooting Authentication
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| 401 Unauthorized | Invalid or expired API key | Regenerate key in provider dashboard |
+| Key pasted with whitespace | Trailing newline or spaces | Trim key before saving |
+| Key from wrong environment | Production key in dev or vice versa | Verify key environment |
+| Key lacks repo access | Cloud run needs repo permissions | Use user key with repo access |
+| Team key not supported | Admin API keys unavailable | Use user key or service-account key |
+
+---
+
+## Provider Routing
+
+Cursor routes requests to providers based on the interaction mode:
+
+```mermaid
+flowchart TD
+    A[User Interaction] --> B{What type?}
+    B -->|Chat message| C[Chat Model Provider]
+    B -->|Code edit request| D[Agent Model Provider]
+    B -->|Inline completion| E[Tab Model Provider]
+    B -->|Slash command| F[Agent Model Provider]
+    
+    C --> G[Provider A: Anthropic]
+    D --> H[Provider B: OpenAI]
+    E --> I[Provider C: Custom / Local]
+    
+    G --> J[Response]
+    H --> J
+    I --> J
+```
+
+### Routing Rules
+
+1. **Mode determines provider**: Each mode (Chat, Agent, Tab) has its own configured provider
+2. **Custom endpoints override built-in**: When a custom endpoint is configured for a mode, it replaces the built-in provider for that mode only
+3. **Fallback behavior**: If the configured provider is unavailable, Cursor attempts the next available provider (if configured)
+4. **Cloud vs local**: Tab completions may run locally or in the cloud depending on model size and configuration
+
+---
+
+## Provider Configuration in Settings
+
+### Settings Location
+
+Provider configuration lives in Cursor's user settings:
+
+```json
+{
+  // Windows
+  // %APPDATA%/Cursor/User/settings.json
+  
+  // macOS
+  // ~/Library/Application Support/Cursor/User/settings.json
+  
+  // Linux
+  // ~/.config/Cursor/User/settings.json
+}
+```
+
+### Example Configuration
+
+```json
+{
+  // Chat mode uses Anthropic
+  "cursor.agent.chatModel": "claude-sonnet-4-20250514",
+  "cursor.agent.chatProvider": "anthropic",
+  
+  // Agent mode uses OpenAI
+  "cursor.agent.agentModel": "gpt-4-turbo",
+  "cursor.agent.agentProvider": "openai",
+  
+  // Tab mode uses local Ollama
+  "cursor.agent.tabModel": "codellama:7b",
+  "cursor.agent.tabProvider": "custom",
+  "cursor.agent.tabBaseUrl": "http://localhost:11434/v1"
+}
+```
+
+---
+
+## Provider Switching
+
+### Impact of Switching Providers
+
+| Factor | Effect |
+|--------|--------|
+| **Quality** | Different models have different reasoning capabilities |
+| **Speed** | Larger models = slower responses |
+| **Cost** | GPT-4 / Opus are more expensive than GPT-3.5 / Haiku |
+| **Context window** | Different providers have different limits |
+| **Feature support** | Some providers support tools, others do not |
+
+### When to Switch
+
+- **Provider outage**: Migrate temporarily to an alternate provider
+- **Cost optimization**: Switch from Opus to Sonnet for routine tasks
+- **Privacy requirements**: Use local models for sensitive codebases
+- **Capability needs**: Switch to a stronger model for complex architectures
+
+### Switching Procedure
+
+1. Open Cursor Settings
+2. Navigate to Model Provider
+3. Change provider for the affected mode
+4. Enter new API key if required
+5. Save and restart the agent session
+
+---
+
+## Model Listing (SDK Reference)
+
+When programmatically querying available models:
+
+```typescript
+// TypeScript
+import { Cursor } from "@cursor/sdk";
+const models = await Cursor.models.list({ apiKey: process.env.CURSOR_API_KEY! });
+```
+
+```python
+# Python
+from cursor_sdk import Cursor
+models = Cursor.models.list()  # uses CURSOR_API_KEY from environment
+```
+
+The `list()` call returns:
+- Valid model IDs for the account
+- Per-model parameter definitions (reasoning effort, max mode)
+- Preset variants available to the calling account
+
+---
+
+## Security Considerations
+
+### API Key Safety
+
+- **Never commit API keys** to version control
+- **Use environment variables** for CI/CD integrations
+- **Regenerate keys** if exposed
+- **Use team service-account keys** for shared infrastructure (not admin keys)
+
+### Custom Endpoint Security
+
+- **Self-hosted models**: Ensure the inference server is accessible only from trusted networks
+- **Proxy servers**: Verify the proxy does not log or store your code
+- **Enterprise models**: Confirm data handling policies meet your organization's requirements
+
+### Local Model Privacy
+
+Local models (Ollama, vLLM) keep all code on your machine — no data is sent to external APIs. This is the recommended configuration for:
+
+- Proprietary codebases
+- Compliance requirements (HIPAA, SOC2, GDPR)
+- Air-gapped environments
+
+---
+
+## Troubleshooting
+
+### Provider Not Responding
+
+| Cause | Solution |
+|-------|----------|
+| API key expired | Regenerate and update in Cursor Settings |
+| Rate limit exceeded | Switch to a different model or wait for quota reset |
+| Network connectivity | Check proxy/firewall settings for API endpoint access |
+| Custom endpoint down | Verify the server is running and reachable |
+| Model ID changed | Check provider's current model list |
+
+### Model Selection Not Taking Effect
+
+| Cause | Solution |
+|-------|----------|
+| Settings not saved | Verify JSON syntax is valid; save and reload |
+| Stale agent session | Restart the agent or reopen the Composer |
+| Cloud vs local mismatch | Ensure the model is available on the selected runtime |
+| Permission denied | Verify the API key has access to the selected model |
+
+---
+
+## Related Documents
+
+- [Architecture Overview](mdc:01-overview.mdc) — System layers and model selection
+- [Settings and Configuration](mdc:08-settings-configuration.mdc) — Settings file locations and categories
+- [SDK Reference](mdc:07-sdk-reference.mdc) — Model selection via SDK
+- [Composer and Shortcuts](mdc:13-composer-and-shortcuts.mdc) — How Composer uses configured models per mode

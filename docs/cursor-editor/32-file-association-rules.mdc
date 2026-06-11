@@ -1,0 +1,415 @@
+---
+title: Cursor Editor — File-Type Behavior Mapping
+description: Reference for how Cursor adapts agent behavior based on file type, language-specific handling, and file association rules.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [cursor, file-associations, file-type, language-behavior, agent-adaptation]
+---
+
+# Cursor Editor — File-Type Behavior Mapping
+
+## Overview
+
+Cursor adapts the agent's behavior based on the file type being processed. Different file types receive different treatment for editing, searching, documentation, and tool selection. Understanding these mappings helps you guide the agent more effectively and predict its behavior.
+
+---
+
+## How File Type Affects Agent Behavior
+
+The agent uses file type information to:
+
+1. **Choose the right tools**: Use `EditNotebook` for `.ipynb`, `StrReplace` for code files, `Write` for docs
+2. **Apply language-specific conventions**: TypeScript vs Python vs SQL handling
+3. **Skip irrelevant files**: Ignore binary, minified, or generated files
+4. **Format output appropriately**: Markdown vs code vs documentation
+
+### File Type Detection
+
+Cursor detects file types through:
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| **File extension** | Primary method | `.ts` → TypeScript, `.py` → Python |
+| **File content** | Fallback for extensionless files | Detects JSON by `{ "key": "value" }` |
+| **MIME type** | For uploaded/linked files | `text/html` → `.html` |
+| **Language ID** | VS Code language identifier | `typescriptreact` → `.tsx` |
+
+---
+
+## Language-Specific Agent Behavior
+
+### TypeScript / JavaScript
+
+| Aspect | Behavior |
+|--------|----------|
+| **Tool preference** | `StrReplace` for edits, `Write` for new files |
+| **Format detection** | Reads `tsconfig.json`, `.eslintrc` |
+| **Convention awareness** | Follows project's TypeScript style |
+| **Import resolution** | Understands module resolution paths |
+| **Generated output** | Includes type annotations, JSDoc |
+
+```
+Example: Agent editing .ts file
+  User: "Add error handling to this function"
+  Agent: Reads → StrReplace (add try/catch) → Reads tsconfig → Maintains strict typing
+```
+
+### Python
+
+| Aspect | Behavior |
+|--------|----------|
+| **Tool preference** | `StrReplace` for edits, `Write` for new files |
+| **Format detection** | Reads `pyproject.toml`, `setup.cfg` |
+| **Convention awareness** | Follows PEP 8, Black formatting |
+| **Virtual env awareness** | Detects `venv`, `conda` environments |
+| **Generated output** | Includes type hints, docstrings |
+
+### Markdown / Documentation
+
+| Aspect | Behavior |
+|--------|----------|
+| **Tool preference** | `Write` for whole files, `StrReplace` for sections |
+| **Format handling** | Preserves markdown syntax |
+| **Frontmatter awareness** | Reads YAML frontmatter |
+| **Mermaid support** | Renders and generates diagrams |
+| **Link handling** | Maintains internal and external links |
+
+### JSON / Configuration
+
+| Aspect | Behavior |
+|--------|----------|
+| **Tool preference** | `Write` for complete replacement |
+| **Validation** | Checks JSON syntax before writing |
+| **Formatting** | Preserves or applies consistent indentation |
+| **Schema awareness** | Validates against known schemas |
+
+### SQL
+
+| Aspect | Behavior |
+|--------|----------|
+| **Tool preference** | `Write` for complex queries, `StrReplace` for clauses |
+| **Syntax awareness** | Understands SELECT, JOIN, WHERE |
+| **Parameterized queries** | Prefers parameterized over concatenated |
+| **Best practices** | Follows SQL style guides |
+
+### YAML
+
+| Aspect | Behavior |
+|--------|----------|
+| **Tool preference** | `Write` for new files, `StrReplace` for edits |
+| **Formatting** | Preserves indentation and structure |
+| **Validation** | Checks YAML syntax |
+
+---
+
+## File-Type-Specific Agent Behavior
+
+### Code Files vs Text Files
+
+| Aspect | Code Files (*.ts, *.py, *.java) | Text Files (*.txt, *.md) |
+|--------|--------------------------------|--------------------------|
+| **Agent approach** | Syntax-aware edits | Plain text edits |
+| **Format preservation** | High (indents, braces) | Medium (spacing only) |
+| **Import analysis** | Tracks imports/exports | N/A |
+| **Error detection** | May check for syntax errors | N/A |
+| **Test generation** | May suggest unit tests | N/A |
+
+### Binary and Generated Files
+
+The agent automatically skips these file types:
+
+| Category | Patterns | Reason |
+|----------|----------|--------|
+| **Binary files** | `*.bin`, `*.exe`, `*.dll`, `*.o`, `*.class` | Cannot be meaningfully edited as text |
+| **Minified files** | `*.min.js`, `*.min.css` | Not human-readable |
+| **Build artifacts** | `dist/`, `build/`, `node_modules/` | Auto-excluded by convention |
+| **Generated code** | `*.gen.ts`, `*.pb.go` | Generated, not meant for manual edit |
+| **Compiled files** | `*.pyc`, `*.class`, `*.pyo` | Source is the editable version |
+| **Binary data** | `*.png`, `*.jpg`, `*.pdf` (text) | Corrupted when opened as text |
+
+### Skip Patterns Configuration
+
+```json
+{
+  // Files agent will not read or search
+  "files.exclude": {
+    "**/.git": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/*.min.*": true,
+    "**/*.gen.*": true,
+    "**/vendor": true,
+    "**/third_party": true
+  },
+  
+  // Files agent will not search by default
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/*.log": true,
+    "**/.DS_Store": true
+  }
+}
+```
+
+---
+
+## Custom File Associations
+
+### Mapping Extensions to Language IDs
+
+You can configure how Cursor interprets specific file types:
+
+```json
+{
+  // Custom file associations
+  "files.associations": {
+    "*.config": "jsonc",
+    "*.tsconfig": "jsonc",
+    "*.custom": "typescript",
+    "*.vue": "vue",
+    "*.svelte": "svelte",
+    "*.graphql": "graphql",
+    "*.proto": "proto"
+  },
+  
+  // Agent-specific file type mapping
+  "cursor.agent.fileTypes": {
+    "*.spec.ts": "test",
+    "*.test.ts": "test",
+    "*.config.js": "config",
+    "*.env": "plaintext",
+    "*.yml": "yaml",
+    "*.yaml": "yaml"
+  }
+}
+```
+
+### Agent-Aware File Types
+
+Custom file types can influence agent behavior:
+
+```json
+{
+  "cursor.agent.fileTypeBehavior": {
+    // Test files get different treatment
+    "test": {
+      "toolPreference": "Write",
+      "autoGenerate": true,
+      "skipOnEdit": false
+    },
+    
+    // Config files are validated
+    "config": {
+      "toolPreference": "Write",
+      "validateOnWrite": true,
+      "autoFormat": true
+    },
+    
+    // Template files get special handling
+    "template": {
+      "toolPreference": "Write",
+      "preservePlaceholders": true
+    }
+  }
+}
+```
+
+---
+
+## File-Type-Based Rule Loading
+
+### How File Types Trigger Rules
+
+Rules with `globs` patterns are loaded when matching files are in context:
+
+```markdown
+<!-- .cursor/rules/typescript-rules.mdc -->
+---
+description: "TypeScript-specific coding standards"
+globs: ["*.ts", "*.tsx", "*.mts"]
+tags: [typescript, ts, tsx]
+---
+
+# TypeScript Rules
+<!-- Agent sees these rules when working with .ts files -->
+```
+
+```markdown
+<!-- .cursor/rules/python-rules.mdc -->
+---
+description: "Python-specific coding standards"
+globs: ["*.py", "*.pyi"]
+tags: [python, py]
+---
+
+# Python Rules
+<!-- Agent sees these rules when working with .py files -->
+```
+
+### Rule Matching by File Type
+
+| File Pattern | Rules Loaded |
+|-------------|-------------|
+| `*.ts`, `*.tsx` | TypeScript rules, general rules |
+| `*.py` | Python rules, general rules |
+| `*.md` | Markdown rules, documentation rules |
+| `*.json` | JSON validation rules |
+| `*.yaml`, `*.yml` | YAML rules |
+| `*.ipynb` | Notebook rules, Python rules |
+| `*.sql` | SQL rules |
+| `*.html`, `*.css` | Web rules |
+
+---
+
+## When Agent Skips Files
+
+### Automatic Skipping
+
+| Condition | Behavior | Reason |
+|-----------|----------|--------|
+| **File in `files.exclude`** | Never read by agent | Configuration |
+| **Binary file detected** | Skip read, offer to download | Not text-safe |
+| **File exceeds max size** | Skip, report to user | Performance |
+| **Minified file** | Skip, suggest source map | Not readable |
+| **Generated file** | Skip, suggest editing generator | Not meant for manual edit |
+| **File not in workspace** | Skip, ask for path | Scope restriction |
+| **Permission denied** | Skip, report error | Security |
+
+### Size Limits
+
+| Setting | Default | Max | Purpose |
+|---------|---------|-----|---------|
+| `files.maxMemoryCache` | 50 MB | 100 MB | Files cached in memory |
+| `editor.maxLineCount` | 10,000 | 50,000 | Lines allowed in editor |
+| `search.maxFiles` | 10,000 | 100,000 | Files searched |
+
+### Large File Handling
+
+```
+When file exceeds limits:
+  Agent: "The file is 25,000 lines long. I'll use Grep to search
+         for specific patterns rather than reading the entire file.
+         What are you looking for?"
+```
+
+---
+
+## File-Type Behavior Examples
+
+### Example 1: TypeScript File Edit
+
+```
+User: "Add validation to this function"
+Agent behavior:
+  1. Read src/api/user.ts
+  2. Analyze TypeScript types
+  3. StrReplace — add Zod validation
+  4. Maintain type annotations
+  5. Generate corresponding test file
+```
+
+### Example 2: Markdown File Edit
+
+```
+User: "Add a section about deployment"
+Agent behavior:
+  1. Read docs/deployment.md
+  2. Identify correct heading level
+  3. StrReplace — insert section with proper markdown
+  4. Preserve existing frontmatter
+  5. Update table of contents if present
+```
+
+### Example 3: Jupyter Notebook Edit
+
+```
+User: "Add a chart to the analysis"
+Agent behavior:
+  1. EditNotebook for the notebook cell
+  2. Insert Python code cell with matplotlib
+  3. Preserve cell execution order
+  4. Add markdown explanation cell
+```
+
+### Example 4: SQL File Edit
+
+```
+User: "Optimize this query"
+Agent behavior:
+  1. Read queries/user-report.sql
+  2. Analyze query structure
+  3. StrReplace — add indexes, optimize JOINs
+  4. Preserve comments and structure
+  5. Explain changes made
+```
+
+---
+
+## Language-Specific Agent Patterns
+
+### TypeScript Patterns
+
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| **Type inference** | Maintains strict typing | `const users: User[] = ...` |
+| **Interface generation** | Creates interfaces from usage | `interface RequestOptions { ... }` |
+| **Import resolution** | Follows module resolution | `import { UserService } from './services'` |
+| **Error handling** | Uses typed errors | `throw new AuthenticationError(message)` |
+
+### Python Patterns
+
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| **Type hints** | Adds annotations | `def process(data: list[str]) -> dict:` |
+| **Docstrings** | Generates function docs | `"""Process the data and return results."""` |
+| **Import sorting** | Follows isort conventions | Alphabetical grouped imports |
+| **Virtual env** | Activates venv for tests | `source venv/bin/activate && pytest` |
+
+### SQL Patterns
+
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| **Parameterized queries** | Prevents SQL injection | `WHERE id = ?` |
+| **Index suggestions** | Recommends database indexes | `CREATE INDEX idx_users_email ON users(email)` |
+| **Query optimization** | Suggests better query patterns | `EXISTS` vs `IN` |
+| **Comment preservation** | Maintains query documentation | `-- Generated by Cursor AI` |
+
+---
+
+## Best Practices
+
+### For File Organization
+
+1. **Use consistent extensions**: `.ts` for TypeScript, `.py` for Python
+2. **Separate generated files**: Use `.gen.ts`, `.pb.go` patterns
+3. **Avoid ambiguous extensions**: Use `.config.json` not `.json` for configs
+4. **Group by type**: Put tests next to source files
+5. **Document custom extensions**: Add to `files.associations`
+
+### For Agent Effectiveness
+
+1. **Use proper file extensions**: Ensures correct language detection
+2. **Add file type comments**: `// @ts-check` for JavaScript
+3. **Include project config**: `tsconfig.json`, `pyproject.toml` for context
+4. **Avoid mixed-type files**: Don't put SQL in `.js` files
+5. **Name test files clearly**: `*.spec.ts`, `*.test.ts`
+
+### For Custom File Types
+
+1. **Map custom extensions**: Add to `files.associations`
+2. **Define behavior**: Use `cursor.agent.fileTypeBehavior`
+3. **Test with agent**: Verify agent handles custom types correctly
+4. **Document mappings**: Keep file type mapping in project docs
+
+---
+
+## Related Documents
+
+- [Rules System](mdc:03-rules-system.mdc) — Rule file globs and auto-attachment
+- [Skills System](mdc:04-skills-system.mdc) — Skill file associations
+- [Command Reference](mdc:11-command-reference.mdc) — Tool selection by file type
+- [Context Management](mdc:10-context-management.mdc) — File context in agent
+- [File Operations](mdc:11-command-reference.mdc#file-operations) — Edit tools for different file types

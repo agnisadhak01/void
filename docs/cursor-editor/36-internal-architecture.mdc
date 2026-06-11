@@ -1,0 +1,827 @@
+---
+title: Cursor Internal Architecture — Workbench, Webviews, Glass UI, and DTS API
+description: Deep dive into Cursor's internal architecture: workbench HTML, Composer webview IPC bridge, Glass UI mode, VS Code DTS API extensions, CSP policies, custom protocols, and service worker webview architecture.
+version: 1.0.0
+lastUpdated: 2026-06-11
+tags: [internal-architecture, workbench, webview, composer, glass-ui, dts-api, csp, protocols]
+---
+
+# Cursor Internal Architecture — Workbench, Webviews, Glass UI, and DTS API
+
+## Overview
+
+Cursor v3.7.21 extends VS Code's workbench with a custom AI-first interface. This document covers the internal architecture: how the workbench HTML initializes, how the Composer webview communicates with the Electron main process, Cursor's Glass UI mode, the 21,000+ line DTS API extensions, Content Security Policy definitions, custom URI protocols, and the webview service worker architecture.
+
+---
+
+## Process Architecture
+
+Cursor runs on VS Code's Electron process model with AI features integrated at multiple levels:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Electron Main Process                                            │
+│  out/main.js                                                     │
+│  ├── product.json loaded into globalThis._VSCODE_PRODUCT_JSON   │
+│  ├── NLS (i18n) via VSCODE_NLS_CONFIG                           │
+│  └── Bootstrap Fork dispatcher                                  │
+│                                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Bootstrap Fork (out/bootstrap-fork.js)                           │
+│  Spawns child processes via VSCODE_ESM_ENTRYPOINT env var:       │
+│  ├── Extension Host (out/vs/workbench/services/extensions/)     │
+│  ├── Search Process (out/vs/code/node/search)                   │
+│  ├── Credential Provider (out/vs/code/node/credentialProvider)  │
+│  └── Pseudo Terminal (out/vs/workbench/contrib/terminal/)       │
+│                                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Workbench Renderer (electron-sandbox)                            │
+│  out/vs/code/electron-sandbox/workbench/workbench.html           │
+│  ├── workbench.desktop.main.css                                 │
+│  ├── workbench.desktop.main.js                                  │
+│  └── 18+ custom Trusted Types for AI features                   │
+│                                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Glass UI (optional mode)                                         │
+│  out/vs/glass/                                                   │
+│  Enabled via --glass CLI flag                                    │
+│  Different socket error handling for background composer         │
+│                                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Webviews (iframe-based)                                          │
+│  out/vs/workbench/contrib/webview/browser/pre/                   │
+│  ├── index.html (standard preloader)                             │
+│  ├── index-no-csp.html (debug preloader)                         │
+│  ├── fake.html (mock webview)                                    │
+│  └── service-worker.js (caching + origin validation)            │
+│                                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Composer Webview (AI Chat + Browser)                             │
+│  out/vs/workbench/contrib/composer/browser/                      │
+│  └── preload-webview-browser.js (IPC bridge + polyfills)         │
+│                                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ DTS API Types                                                    │
+│  out/vscode-dts/vscode.d.ts (21,000+ lines)                      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Workbench Entry Point
+
+### HTML Structure
+
+The main workbench is loaded from `out/vs/code/electron-sandbox/workbench/workbench.html`:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="../../../workbench/workbench.desktop.main.css">
+</head>
+<body>
+  <script src="./workbench.js" type="module"></script>
+</body>
+</html>
+```
+
+### Content Security Policy (CSP)
+
+The workbench uses a **strict CSP** with 18+ custom trusted types:
+
+```html
+<meta http-equiv="Content-Security-Policy"
+  content="
+    default-src 'none';
+    img-src 'self' data: blob: vscode-remote-resource: vscode-managed-remote-resource: https:;
+    media-src 'self' blob: https:;
+    frame-src 'self' vscode-webview: http://localhost:* http://127.0.0.1:*;
+    object-src 'self';
+    script-src 'self' 'unsafe-eval' blob:;
+    style-src 'self' 'unsafe-inline';
+    connect-src 'self' http: https: ws: sentry-ipc: cursor-rpc-devtools:;
+    font-src 'self' data: https: vscode-remote-resource: vscode-managed-remote-resource: https://*.vscode-unpkg.net;
+    require-trusted-types-for 'script';
+    trusted-types amdLoader cellRendererEditorText defaultWorkerFactory
+      diffEditorWidget diffReview domLineBreaksComputer dompurify
+      dompurify#anysphere-ui editorGhostText editorViewLayer
+      notebookRenderer stickyScrollViewLayer tokenizeToString
+      safeInnerHtml editorCppGhostText standaloneColorizer solidjs
+      aibubble aibubble2 aibubbleSearch anysphereUiPolicy
+      ProseMirrorClipboard shikiWorkerFactory;
+  ">
+```
+
+**Key CSP Elements**:
+
+| Directive | Values | Notes |
+|-----------|--------|-------|
+| `default-src` | `'none'` | Whitelist-only; nothing allowed by default |
+| `script-src` | `'self'` `'unsafe-eval'` `blob:` | Allows eval for VS Code's JS engine |
+| `style-src` | `'self'` `'unsafe-inline'` | Needed for dynamic theming |
+| `connect-src` | `cursor-rpc-devtools:` | Custom Cursor RPC debugging channel |
+| `connect-src` | `sentry-ipc:` | Sentry error reporting IPC |
+| `frame-src` | `vscode-webview:` | Sandboxed webview frames |
+| `frame-src` | `http://localhost:*` | Local dev servers |
+| `trusted-types` | 18+ policies | Custom policies for AI features |
+
+### Trusted Types Breakdown
+
+| Policy | Purpose |
+|--------|---------|
+| `amdLoader` | AMD module loader |
+| `cellRendererEditorText` | Cell renderer text sanitization |
+| `defaultWorkerFactory` | Web Worker factory |
+| `diffEditorWidget` | Diff editor rendering |
+| `diffReview` | Diff review UI |
+| `domLineBreaksComputer` | Line break calculation |
+| `dompurify` | HTML sanitization |
+| `dompurify#anysphere-ui` | Cursor-specific DOM sanitization |
+| `editorGhostText` | Ghost text suggestions |
+| `editorViewLayer` | Editor rendering layer |
+| `notebookRenderer` | Notebook output rendering |
+| `stickyScrollViewLayer` | Sticky scroll rendering |
+| `tokenizeToString` | Tokenizer output |
+| `safeInnerHtml` | Safe innerHTML insertion |
+| `editorCppGhostText` | C++ ghost text |
+| `standaloneColorizer` | Syntax highlighting |
+| `solidjs` | Solid.js UI framework |
+| `aibubble` | AI chat bubble sanitization |
+| `aibubble2` | AI chat bubble v2 |
+| `aibubbleSearch` | AI search results sanitization |
+| `anysphereUiPolicy` | Cursor UI policy |
+| `ProseMirrorClipboard` | ProseMirror clipboard handling |
+| `shikiWorkerFactory` | Shiki syntax highlighting worker |
+
+---
+
+## Composer Webview Architecture
+
+The **Composer** is Cursor's AI chat/browser feature. It runs as a webview with a custom preload script providing IPC communication with the Electron main process.
+
+### Webview Preload Script
+
+`out/vs/workbench/contrib/composer/browser/preload-webview-browser.js` is the critical file that bridges the Composer webview to the Electron host.
+
+**Four Main Components**:
+
+#### 1. Local Network Access Polyfill
+
+```javascript
+// Polyfills navigator.permissions.query for 'local-network-access'
+// Always returns { state: 'granted' } for these permissions
+// Skipped for known auth providers: Okta, Duo, Microsoft, Auth0, PingIdentity, Rippling
+function polyfillLocalNetworkAccess() {
+  const originalQuery = navigator.permissions.query;
+  navigator.permissions.query = function(desc) {
+    if (desc.name === 'local-network-access' || desc.name === 'local-network') {
+      return Promise.resolve({ state: 'granted' });
+    }
+    return originalQuery.call(this, desc);
+  };
+}
+```
+
+#### 2. WebAuthn/Passkey Polyfill
+
+```javascript
+// Overrides navigator.credentials.create and navigator.credentials.get
+// Handles timeout: 10s before notifying host, 45s before aborting
+function polyfillWebAuthn() {
+  const originalCreate = navigator.credentials.create;
+  const originalGet = navigator.credentials.get;
+  
+  navigator.credentials.create = async function(opts) {
+    // 10s timeout warning
+    setTimeout(() => window.cursorBrowser.send('passkey-request-stalled'), 10000);
+    try {
+      return await originalCreate.call(this, opts);
+    } catch (e) {
+      if (e.name === 'TimeoutError') {
+        window.cursorBrowser.send('passkey-request-stalled');
+      }
+      throw e;
+    }
+  };
+  
+  // 45s hard timeout
+  const timeout = setTimeout(() => {
+    window.cursorBrowser.send('passkey-request-stalled');
+  }, 45000);
+  
+  navigator.credentials.get = async function(opts) {
+    clearTimeout(timeout);
+    return originalGet.call(this, opts);
+  };
+  
+  // Platform auth availability always returns false
+  PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = () =>
+    Promise.resolve(false);
+}
+```
+
+#### 3. Native Dialog Override
+
+```javascript
+// Overrides alert(), confirm(), prompt() in webview
+function overrideNativeDialogs() {
+  window.alert = function(msg) {
+    console.log('[Webview] alert:', msg);
+    return undefined;
+  };
+  
+  window.confirm = function(msg) {
+    return true; // Always returns true to avoid blocking
+  };
+  
+  window.prompt = function(msg, defaultValue) {
+    return defaultValue ?? null; // Returns defaultValue
+  };
+}
+```
+
+#### 4. cursorBrowser IPC Bridge
+
+```javascript
+// Exposed as window.cursorBrowser via contextBridge
+const cursorBrowser = {
+  send(type, payload) {
+    ipcRenderer.sendToHost(type, payload);
+  }
+};
+```
+
+**IPC Messages from Webview to Host** (19 message types):
+
+| Message Type | Direction | Purpose |
+|-------------|-----------|---------|
+| `focus-url-bar` | webview → host | Focus the URL bar in browser mode |
+| `element-selected` | webview → host | Web element selection by user |
+| `element-updated` | webview → host | Element properties changed |
+| `element-picked` | webview → host | User picked an element |
+| `element-hovered` | webview → host | Hovering over an element |
+| `area-screenshot-selected` | webview → host | Screenshot area selection |
+| `style-changes-confirmed` | webview → host | CSS style changes confirmed |
+| `css-inspector-style-change` | webview → host | CSS inspector modification |
+| `css-inspector-undo` | webview → host | CSS inspector undo |
+| `css-inspector-redo` | webview → host | CSS inspector redo |
+| `open-url-side-group` | webview → host | Open URL in side editor group |
+| `open-url-new-tab` | webview → host | Open URL in new editor tab |
+| `focus-composer-input` | webview → host | Focus the AI chat input |
+| `focus-composer` | webview → host | Focus the Composer panel |
+| `show-dialog` | webview → host | Show native dialog |
+| `show-dialog-dummy` | webview → host | Show dummy dialog (no-op) |
+| `passkey-request-stalled` | webview → host | Passkey auth took too long |
+| `browser-error-action` | webview → host | Browser error occurred |
+| `keyboard-shortcut` | webview → host | Keyboard shortcut event |
+
+**Keyboard Shortcuts Handled in Webview**:
+
+| Shortcut (Mac) | Shortcut (Win/Linux) | Action |
+|---------------|---------------------|--------|
+| `Cmd+R` | `F5` | Reload page |
+| `Cmd+L` | `Ctrl+L` | Focus URL bar |
+| `Cmd+T` | `Ctrl+T` | New browser tab |
+| `Cmd+I` | `Ctrl+I` | Focus Composer |
+| `Cmd+F` | `Ctrl+F` | Find in page |
+| `Cmd+B` | `Ctrl+B` | Toggle sidebar |
+| `Cmd+W` | `Ctrl+W` | Close tab |
+| `Cmd+=` | `Ctrl+=` | Zoom in |
+| `Cmd+-` | `Ctrl+-` | Zoom out |
+| `Cmd+0` | `Ctrl+0` | Reset zoom |
+| `Cmd+Z` | `Ctrl+Z` | Undo |
+| `Cmd+Shift+Z` | `Ctrl+Shift+Z` | Redo |
+| `Cmd+A` | `Ctrl+A` | Select all |
+| `Cmd+C` | `Ctrl+C` | Copy |
+| `Cmd+V` | `Ctrl+V` | Paste |
+| `Cmd+X` | `Ctrl+X` | Cut |
+| `Cmd+[` | `Ctrl+[` | Go back |
+| `Cmd+]` | `Ctrl+]` | Go forward |
+| `Cmd+Alt+I` | `Ctrl+Shift+I` | Open DevTools |
+| `Cmd+Alt+C` | `Ctrl+Shift+C` | Open DevTools |
+| `Cmd+Alt+J` | `Ctrl+Shift+J` | Open DevTools |
+| `Cmd+D` | — | Bookmark |
+| `Alt+←` | `Alt+←` | Go back |
+| `Alt+→` | `Alt+→` | Go forward |
+| `Alt+Click` | `Alt+Click` | Open URL in side group |
+
+### Composer Webview Features
+
+The Composer webview acts as both an AI chat interface and a browser. It supports:
+
+1. **AI Chat**: Send prompts to the Cursor AI agent, receive responses
+2. **Browser Mode**: Full browser within the webview
+3. **Element Inspection**: Inspect DOM elements, view CSS, take screenshots
+4. **URL Bar**: Navigate to URLs, open in side group or new tab
+5. **Passkey Login**: WebAuthn-based authentication for SSO
+6. **Local Network Access**: Connect to localhost services
+
+---
+
+## Webview Preloader Architecture
+
+The standard webview preloader at `out/vs/workbench/contrib/webview/browser/pre/index.html` provides the foundation for all webviews (Composer, terminal, extensions, etc.).
+
+### Origin Validation
+
+```html
+<!-- Webview validates origin using SHA-256 hash -->
+<!-- Hash = base32(sha256(parentOrigin + ':' + webviewOrigin)) -->
+<!-- Iframe hostname must match {hash} or {hash}.{domain} -->
+```
+
+This prevents unauthorized cross-origin injection of webview content.
+
+### Service Worker
+
+```javascript
+// out/vs/workbench/contrib/webview/browser/pre/service-worker.js
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', () => {
+  clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.open('webview').then((cache) => {
+      return cache.match(event.request).then((response) => {
+        return response || fetch(event.request).then((networkResponse) => {
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        });
+      });
+    })
+  );
+});
+```
+
+### Dual-Frame Technique
+
+The webview uses an active/pending frame swap mechanism:
+
+1. **active-frame**: Currently visible webview content
+2. **pending-frame**: New content loading in background
+3. When pending-frame loads, frames are swapped atomically
+4. Prevents flickering during navigation
+
+### vsCodeApi Bridge
+
+```javascript
+// Injected into every webview via acquireVsCodeApi()
+function acquireVsCodeApi() {
+  let ready = false;
+  let state = undefined;
+  const _postMessage = (msg) => {
+    if (!ready) throw new Error('Webview not ready');
+    window.parent.postMessage({
+      type: 'did-post-message',
+      value: msg
+    }, '*');
+  };
+  return {
+    postMessage(msg) {
+      _postMessage(msg);
+    },
+    setState(s) {
+      state = s;
+      _postMessage({ type: 'did-set-state', value: s });
+    },
+    getState() {
+      return state;
+    },
+    _setReady(r) {
+      ready = r;
+    }
+  };
+}
+```
+
+### Theme Injection
+
+CSS variables are automatically injected into every webview:
+
+```css
+:root {
+  --vscode-editor-foreground: #d4d4d4;
+  --vscode-editor-background: #1e1e1e;
+  --vscode-input-background: #3c3c3c;
+  --vscode-badge-background: #323233;
+  /* ... 300+ CSS variables ... */
+}
+body.vscode-dark { /* dark theme variables */ }
+body.vscode-light { /* light theme variables */ }
+body.vscode-high-contrast { /* high contrast variables */ }
+```
+
+---
+
+## Glass UI Mode
+
+Cursor includes a secondary UI mode called **Glass UI**, introduced as an alternative to the standard workbench.
+
+### Activation
+
+| CLI Flag | Description |
+|----------|-------------|
+| `--glass` | Enable Glass UI mode |
+| `--classic` | Disable Glass UI, use classic workbench (default) |
+
+### Differences from Classic Workbench
+
+| Aspect | Classic Workbench | Glass UI |
+|--------|------------------|----------|
+| **Socket Error Handling** | Disconnection is fatal | Non-fatal for background composer |
+| **Reconnection** | Immediate | Grace period of 360 attempts |
+| **Background Composer** | Same reconnection logic | Special `isBackgroundComposerConnection()` check |
+| **Remote Authority** | Standard | Mapped via `gn()` function |
+| **Code Location** | `out/vs/workbench/` | `out/vs/glass/` |
+
+### Glass Code Location
+
+```
+out/vs/glass/
+├── glass-main.js        # Glass entry point
+├── glass.css            # Glass-specific styles
+└── [various components] # Glass UI components
+```
+
+Glass UI is checked in the main process:
+
+```javascript
+// When isGlass is true, socket disconnection errors are not fatal
+if (isGlass && error.type === 'CursorSocketTransient') {
+  // Non-fatal: allow reconnection
+  return;
+}
+// Disposal only happens if NOT glass or permanent failure
+if (isGlass !== true) {
+  socket.dispose();
+}
+```
+
+---
+
+## Background Composer Connection
+
+Cursor uses a special **background composer** connection for AI operations that runs independently of the main workbench.
+
+### Reconnection Logic
+
+```javascript
+function _isBackgroundComposerConnection(remoteAuthority) {
+  // Background composer connections use a special mapping
+  return remoteAuthority.startsWith('gn-');
+}
+
+// Grace period for background composer: 360 attempts
+// Normal connections: standard reconnection timeout
+const gracePeriod = _isBackgroundComposerConnection(authority)
+  ? 360
+  : 60;
+```
+
+### Architecture
+
+```
+Main Workbench
+    │
+    ├── Background Composer Connection (gn-*)
+    │   ├── Longer grace period (360 attempts)
+    │   ├── Non-fatal socket errors
+    │   └── Special reconnection loop
+    │
+    └── Standard Connections
+        ├── Normal grace period (60 attempts)
+        ├── Fatal socket errors
+        └── Standard reconnection
+```
+
+---
+
+## VS Code DTS API (21,000+ Lines)
+
+Cursor extends the VS Code extension API with custom types at `out/vscode-dts/vscode.d.ts`.
+
+### Header Comment
+
+```typescript
+/**
+ * DO NOT MODIFY THIS FILE. FOR NOW, WE ARE PUTTING ALL CURSOR-SPECIFIC
+ * IN THE CURSOR PROPOSED API.
+ */
+```
+
+### Core Extensions
+
+#### 1. Version Constant
+
+```typescript
+export const cursorVersion: string; // "3.7.21"
+```
+
+#### 2. Language Model API (`vscode.lm`)
+
+```typescript
+namespace vscode.lm {
+  // Select chat model instances
+  function selectChatModels(filter?: LanguageModelChatSelector): LanguageModelChat[];
+  
+  // Register custom LLM tools
+  function registerTool<T extends LanguageModelToolInvocationOptions>(
+    name: string,
+    tool: LanguageModelTool<T>
+  ): Disposable;
+  
+  // Invoke a registered tool
+  function invokeTool(name: string, options?: LanguageModelToolInvocationOptions): Promise<LanguageModelToolResult>;
+  
+  // Registry of all available tools
+  const tools: readonly LanguageModelTool[];
+  
+  // Register custom LLM chat providers
+  function registerLanguageModelChatProvider(
+    identifier: string,
+    provider: LanguageModelChatProvider
+  ): Disposable;
+  
+  // Access control information
+  const languageModelAccessInformation: LanguageModelAccessInformation;
+}
+```
+
+#### 3. Chat API
+
+```typescript
+export class ChatParticipant {
+  id: string;
+  model: LanguageModelChat;
+  toolReferences: ChatLanguageModelToolReference[];
+  toolInvocationToken?: ChatParticipantToolToken;
+  
+  onDidReceiveChatRequest: Event<ChatRequest>;
+  provideStreamResponse(request: ChatRequest, context: ChatContext): AsyncIterable<ChatResponseStream>;
+}
+
+export namespace vscode {
+  function createChatParticipant(
+    id: string,
+    handler: ChatParticipant
+  ): ChatParticipant;
+}
+```
+
+#### 4. Language Model Types
+
+```typescript
+enum LanguageModelChatMessageRole {
+  User = 1,
+  Assistant = 2,
+  System = 3
+}
+
+interface LanguageModelChat {
+  name: string;
+  vendor: string;
+  family: string;
+  version: string;
+  id: string;
+  
+  sendRequest(
+    messages: LanguageModelChatMessage[],
+    options?: LanguageModelChatRequestOptions,
+    token?: CancellationToken
+  ): Promise<LanguageModelChatResponse>;
+}
+
+interface LanguageModelChatResponse {
+  text: AsyncIterable<string>;
+  toolCalls: AsyncIterable<LanguageModelToolCallPart>;
+}
+
+enum LanguageModelErrorType {
+  NoPermissions = 1,
+  Blocked = 2,
+  NotFound = 3
+}
+
+class LanguageModelError extends Error {
+  static NoPermissions(reason?: string): LanguageModelError;
+  static Blocked(reason?: string): LanguageModelError;
+  static NotFound(name?: string): LanguageModelError;
+}
+```
+
+#### 5. Tool System
+
+```typescript
+interface LanguageModelTool<TOptions extends LanguageModelToolInvocationOptions = LanguageModelToolInvocationOptions> {
+  name: string;
+  modelDescription: string;
+  inputSchema?: LanguageModelToolInputSchema;
+  tags?: string[];
+  
+  invoke(options: TOptions, context: LanguageModelToolInvocationContext, token?: CancellationToken): Promise<LanguageModelToolResult>;
+  
+  prepareInvocation?(options: TOptions, context: LanguageModelToolInvocationContext, token?: CancellationToken): Promise<PreparedToolInvocation>;
+}
+
+interface LanguageModelToolResult {
+  content: (LanguageModelTextPart | LanguageModelPromptTsxPart | LanguageModelToolResultPart)[];
+}
+```
+
+### API Proposals by Extension
+
+| Extension | Enabled API Proposals | Count |
+|-----------|---------------------|-------|
+| `GitHub.copilot-chat` | 50+ including `interactive`, `chatParticipantAdditions`, `chatEditing`, `chatProvider`, `languageModelSystem`, `languageModelCapabilities`, `languageModelDataPart`, `inlineEdit`, `lmTools`, `textSearchProvider2`, `chatReferenceBinaryData`, `languageModelSystem` | 50+ |
+| `GitHub.copilot` | `inlineCompletionsAdditions` | 1 |
+| `anysphere.remote-ssh` | `cursorTracing`, `cursorNoDeps`, `resolvers`, `tunnels`, `terminalDataWriteEvent`, `contribRemoteHelp`, `contribViewsRemote`, `telemetry` | 8 |
+| `anysphere.cpptools` | `cursorTracing`, `terminalDataWriteEvent`, `chatParticipantAdditions` | 3 |
+| `anysphere.remote-containers` | `cursorTracing`, `resolvers`, `tunnels`, `terminalDataWriteEvent`, `contribRemoteHelp`, `contribViewsRemote`, `telemetry` | 7 |
+| `ms-python.python` | `codeActionAI`, `contribEditorContentMenu`, `quickPickSortByLabel`, `portsAttributes`, `testObserver`, `quickPickItemTooltip`, `terminalDataWriteEvent`, `terminalExecuteCommandEvent`, `notebookReplDocument`, `notebookVariableProvider`, `terminalShellEnv`, `terminalShellType` | 12 |
+| `ms-toolsai.jupyter` | 17 proposals including `notebookCellExecution`, `interactiveWindow`, `notebookExecution` | 17 |
+| `GitHub.vscode-pull-request-github` | 25+ proposals including `activeComment`, `commentReveal`, `contribShareMenu`, `diffCommand`, `shareProvider` | 25+ |
+
+### Custom Cursor API Proposals
+
+| API Proposal | Purpose |
+|-------------|---------|
+| `control` | Cursor control API for extension communication |
+| `cursor` | Core Cursor API |
+| `cursorTracing` | Cursor-specific telemetry/tracing |
+| `cursorNoDeps` | Cursor without dependencies |
+| `cursorPseudoterminal` | Pseudo-terminal support |
+| `textSearchProvider2` | Text search provider v2 |
+| `resolvers` | Remote resolver API |
+| `externalUriOpener` | External URI opener API |
+| `contribSourceControlInputBoxMenu` | SCM input box menu contribution |
+| `lmTools` | Language model tools |
+
+---
+
+## Custom URI Protocols
+
+Cursor defines several custom URI schemes:
+
+| Scheme | Purpose | Source |
+|--------|---------|--------|
+| `cursor://` | Deep link protocol | `urlProtocol: "cursor"` in product.json |
+| `vscode-remote-resource:` | Remote resource loading | Built into VS Code |
+| `vscode-managed-remote-resource:` | Managed remote resources | Cursor extension |
+| `vscode-webview:` | WebView content isolation | Built into VS Code |
+| `cursor-rpc-devtools:` | Cursor RPC debugging | Workbench CSP |
+| `sentry-ipc:` | Sentry error reporting IPC | Extension IPC bridge |
+| `vscodeUserData:` | User data settings/files | Extension host |
+
+---
+
+## Extension Recommendation Engine
+
+Cursor has a comprehensive recommendation system that suggests extensions based on multiple signals.
+
+### On File Open Recommendations (35+ extensions)
+
+| Trigger | Recommended Extensions |
+|---------|----------------------|
+| Open `.py` | `ms-python.python` |
+| Open `.ipynb` | `ms-python.python`, `ms-toolsai.jupyter` |
+| Open `.js`/`.ts` | `dbaeumer.vscode-eslint` |
+| Open `.vue` | `vue.volar` |
+| Open `Dockerfile` | `ms-azuretools.vscode-docker` |
+| Open `devcontainer.json` | `anysphere.remote-containers` |
+| Open `Cargo.toml` | `rust-lang.rust-analyzer` |
+| Open `pom.xml` | `vscjava.vscode-maven` |
+| Open `.tf` | `HashiCorp.terraform` |
+| Open `.sql` | `ms-mssql.mssql`, `mtxr.sqltools` |
+| Open `.yaml`/`.yml` | `redhat.vscode-yaml` |
+| Open `package.json` | `christian-kohler.npm-intellisense` |
+| Open `.gitignore` | `donjayamanne.githistory`, `eamodio.gitlens` |
+| Open `.github/workflows/` | `GitHub.vscode-github-actions` |
+| Open `playwright.config.*` | `ms-playwright.playwright` |
+
+### Config-Based Recommendations (12+ configs)
+
+| Config File | Recommendations |
+|------------|----------------|
+| `pyproject.toml` | Black, Autopep8, Pylint, Ruff, Mypy, Flake8 |
+| `pom.xml` | Java Extension Pack, Spring Boot |
+| `build.gradle` | Java Extension Pack |
+| `.devcontainer/devcontainer.json` | Dev Containers |
+| `.git/config` with github.com URL | GitHub Pull Request, GitLens |
+| `Dockerfile` | Docker, Dev Containers, Kubernetes |
+
+### Executable-Based Recommendations (35+ tools)
+
+| Executable | Recommendations |
+|------------|----------------|
+| `docker.exe` | Docker, Dev Containers, Kubernetes |
+| `kubectl` | Docker, Kubernetes, Dev Containers |
+| `python` | Python, Jupyter |
+| `node` | ESLint, Prettier |
+| `aws` | Azure Tools, Copilot for Azure |
+| `terraform` | Terraform, Bicep |
+| `gcloud` | Cloud Code |
+| `ng` (Angular CLI) | Angular Snippets |
+
+---
+
+## NLS (Internationalization)
+
+Cursor supports internationalization via the `VSCODE_NLS_CONFIG` environment variable:
+
+```json
+{
+  "locale": "en",
+  "availableLanguages": {
+    "*": ""
+  },
+  "_languagePackSupport": true,
+  "_languagePackId": "some-id",
+  "_languagePackName": "English"
+}
+```
+
+Language packs are loaded via the `VSCODE_NLS_CONFIG` and the `nlsBaseUrl` field (currently empty in product.json).
+
+---
+
+## Architecture Diagram
+
+```mermaid
+flowchart TD
+    subgraph electron [Electron Main Process]
+        A[out/main.js] --> B[Bootstrap Fork]
+        B --> C[Extension Host]
+        B --> D[Search Process]
+        B --> E[Child Forks]
+    end
+    
+    subgraph workbench [Workbench Renderer]
+        F[workbench.html] --> G[workbench.desktop.main.js]
+        G --> H[18+ Trusted Types]
+        G --> I[Glass UI Mode]
+        G --> J[Background Composer]
+    end
+    
+    subgraph composer [Composer Webview]
+        K[preload-webview-browser.js]
+        K --> L[WebAuthn Polyfill]
+        K --> M[Local Network Polyfill]
+        K --> N[Native Dialog Override]
+        K --> O[cursorBrowser IPC Bridge]
+        O --> P[19 IPC Message Types]
+        O --> Q[25+ Keyboard Shortcuts]
+    end
+    
+    subgraph webview [Webview Preloader]
+        R[index.html]
+        R --> S[Service Worker]
+        R --> T[Origin Validation SHA-256]
+        R --> U[vscodeApi Bridge]
+        R --> V[300+ CSS Variables]
+        R --> W[Active/Pending Frame Swap]
+    end
+    
+    subgraph dts [DTS API - 21K+ lines]
+        X[vscode.d.ts]
+        X --> Y[cursorVersion constant]
+        X --> Z[vscode.lm.* Language Model API]
+        X --> AA[vscode.createChatParticipant]
+        X --> AB[LanguageModelTool system]
+        X --> AC[LanguageModelError]
+    end
+    
+    subgraph glass [Glass UI]
+        GG[out/vs/glass/]
+        GG --> HH[--glass CLI flag]
+        GG --> II[Non-fatal socket errors]
+        GG --> JJ[360 attempt grace period]
+    end
+    
+    A --> workbench
+    A --> composer
+    A --> webview
+    A --> dts
+    A --> glass
+```
+
+---
+
+## Related Documents
+
+- [Product Configuration](35-product-configuration.mdc) — product.json, AI feature flags, extension replacement, CSP, EULA
+- [Extension Architecture](34-vscode-extension-architecture.mdc) — All 18 custom + 100+ bundled extensions
+- [Agent Hierarchy](02-agent-hierarchy.mdc) — Subagent types and invocation
+- [Settings & Configuration](08-settings-configuration.mdc) — User/workspace settings
+- [Composer & Shortcuts](13-composer-and-shortcuts.mdc) — Cmd+K, Cmd+L, slash commands
+- [Context Management](10-context-management.mdc) — @-references and progressive disclosure
+- [MCP Integration](05-mcp-integration.mdc) — Model Context Protocol
+- [Agent Debugging](22-agent-debugging.mdc) — Debugging AI agents and extensions
+- [Product Configuration](35-product-configuration.mdc) — product.json, AI feature flags, Statsig, helper binaries
